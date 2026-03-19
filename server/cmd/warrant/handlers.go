@@ -1,0 +1,201 @@
+package main
+
+import (
+	"crypto/rsa"
+	"encoding/json"
+	"math/big"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/warrant-dev/warrant/internal/audit"
+	"github.com/warrant-dev/warrant/internal/revocation"
+	"github.com/warrant-dev/warrant/internal/token"
+	"github.com/warrant-dev/warrant/pkg/warrant"
+)
+
+type handlers struct {
+	issuer   *token.Issuer
+	pubKey   *rsa.PublicKey
+	revStore revocation.Revoker // interface — Postgres Store or MemoryStore
+	auditLog audit.Logger       // interface — Postgres Log or MemoryLog
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeError(w http.ResponseWriter, status int, msg string) {
+	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// POST /v1/credentials
+func (h *handlers) issueCredential(w http.ResponseWriter, r *http.Request) {
+	var p warrant.IssueParams
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	tok, claims, err := h.issuer.Issue(p)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	// Register chain for cascade revocation (no-op in Postgres mode).
+	h.revStore.TrackCredential(claims.ID, claims.Chain)
+
+	_ = h.auditLog.Append(r.Context(), warrant.AuditEvent{
+		EventType: warrant.EventIssued,
+		JTI:       claims.ID,
+		TaskID:    claims.TaskID,
+		UserID:    claims.UserID,
+		AgentID:   p.AgentID,
+		Scope:     claims.Scope,
+	})
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"token":  tok,
+		"claims": claims,
+	})
+}
+
+// POST /v1/credentials/delegate
+func (h *handlers) delegateCredential(w http.ResponseWriter, r *http.Request) {
+	var p warrant.DelegateParams
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+
+	tok, claims, err := h.issuer.Delegate(p, h.pubKey)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	// Register chain for cascade revocation (no-op in Postgres mode).
+	h.revStore.TrackCredential(claims.ID, claims.Chain)
+
+	_ = h.auditLog.Append(r.Context(), warrant.AuditEvent{
+		EventType: warrant.EventDelegated,
+		JTI:       claims.ID,
+		TaskID:    claims.TaskID,
+		UserID:    claims.UserID,
+		AgentID:   p.ChildAgent,
+		Scope:     claims.Scope,
+	})
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"token":  tok,
+		"claims": claims,
+	})
+}
+
+// DELETE /v1/credentials/{jti}
+func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
+	jti := chi.URLParam(r, "jti")
+	if jti == "" {
+		writeError(w, http.StatusBadRequest, "jti path parameter required")
+		return
+	}
+
+	var body struct {
+		RevokedBy string `json:"revoked_by"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	if body.RevokedBy == "" {
+		body.RevokedBy = "unknown"
+	}
+
+	if err := h.revStore.Revoke(r.Context(), jti, body.RevokedBy); err != nil {
+		writeError(w, http.StatusInternalServerError, "revocation failed: "+err.Error())
+		return
+	}
+
+	_ = h.auditLog.Append(r.Context(), warrant.AuditEvent{
+		EventType: warrant.EventRevoked,
+		JTI:       jti,
+		Meta:      map[string]string{"revoked_by": body.RevokedBy},
+	})
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /v1/revoked/{jti}
+func (h *handlers) checkRevocation(w http.ResponseWriter, r *http.Request) {
+	jti := chi.URLParam(r, "jti")
+	revoked, err := h.revStore.IsRevoked(r.Context(), jti)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"revoked": revoked})
+}
+
+// GET /v1/tasks/{tid}/audit
+func (h *handlers) getAuditLog(w http.ResponseWriter, r *http.Request) {
+	tid := chi.URLParam(r, "tid")
+	events, err := h.auditLog.Query(r.Context(), tid)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if events == nil {
+		events = []warrant.AuditEvent{}
+	}
+	writeJSON(w, http.StatusOK, events)
+}
+
+// GET /.well-known/jwks.json
+func (h *handlers) jwks(w http.ResponseWriter, r *http.Request) {
+	nBytes := h.pubKey.N.Bytes()
+	eBytes := big.NewInt(int64(h.pubKey.E)).Bytes()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"keys": []map[string]any{
+			{
+				"kty": "RSA",
+				"use": "sig",
+				"alg": "RS256",
+				"n":   encodeBase64URL(nBytes),
+				"e":   encodeBase64URL(eBytes),
+			},
+		},
+	})
+}
+
+// GET /health
+func (h *handlers) health(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// encodeBase64URL encodes bytes as unpadded base64url (RFC 7518 §2).
+func encodeBase64URL(b []byte) string {
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+	var out []byte
+	for i := 0; i < len(b); i += 3 {
+		remaining := len(b) - i
+		var b0, b1, b2 byte
+		b0 = b[i]
+		if remaining > 1 {
+			b1 = b[i+1]
+		}
+		if remaining > 2 {
+			b2 = b[i+2]
+		}
+		out = append(out,
+			alphabet[b0>>2],
+			alphabet[(b0&0x03)<<4|b1>>4],
+		)
+		if remaining > 1 {
+			out = append(out, alphabet[(b1&0x0f)<<2|b2>>6])
+		}
+		if remaining > 2 {
+			out = append(out, alphabet[b2&0x3f])
+		}
+	}
+	return string(out)
+}

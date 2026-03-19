@@ -1,0 +1,44 @@
+{
+  "name": "@warrant/mcp",
+  "version": "0.1.0",
+  "description": "Warrant credential enforcement middleware for MCP servers",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "warrant",
+    "mcp",
+    "model-context-protocol",
+    "jwt",
+    "agent",
+    "credentials",
+    "middleware",
+    "ai-safety"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "jose": "^5.9.6"
+  },
+  "peerDependencies": {
+    "@warrant/sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warrant — Cryptographic trust for AI agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0A0C10;
+    --surface: #111318;
+    --border:  #1E2330;
+    --blue:    #4F8EF7;
+    --green:   #22C55E;
+    --red:     #EF4444;
+    --amber:   #F59E0B;
+    --text:    #F1F5F9;
+    --muted:   #94A3B8;
+    --radius:  8px;
+    --mono:    'IBM Plex Mono', monospace;
+    --sans:    'Syne', sans-serif;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+  .wordmark { font-family: var(--sans); font-weight: 800; font-size: 20px; letter-spacing: 0.12em; }
+  .wordmark span { color: var(--blue); }
+  .header-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.05em; }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr 320px;
+    min-height: calc(100vh - 57px - 44px);
+  }
+  .col { padding: 24px 20px; border-right: 1px solid var(--border); }
+  .col:last-child { border-right: none; }
+  .col-label {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+    transition: opacity 0.3s, border-color 0.3s;
+    animation: fadeIn 0.2s ease;
+    position: relative;
+  }
+  .card.revoked { opacity: 0.4; border-color: var(--red); }
+
+  /* FIX 3 — REVOKED badge */
+  .revoked-badge {
+    position: absolute; top: 10px; right: 10px;
+    font-family: var(--mono); font-size: 9px; font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--red); background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: 4px; padding: 2px 7px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .card-title {
+    font-family: var(--mono); font-size: 11px; color: var(--blue);
+    letter-spacing: 0.08em; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-title .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--blue); flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  /* ── JSON viewer ── */
+  .json-view {
+    font-family: var(--mono); font-size: 11px; line-height: 1.7;
+    white-space: pre; overflow-x: auto; max-height: 240px; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+  }
+  .json-key    { color: var(--muted); }
+  .json-wrt    { color: var(--blue); }
+  .json-string { color: var(--text); }
+  .json-number { color: var(--amber); }
+  .json-bool   { color: var(--green); }
+
+  /* ── Instruction ── */
+  .instruction-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 6px; }
+  textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text); font-family: var(--mono);
+    font-size: 12px; line-height: 1.6; padding: 10px 12px;
+    resize: vertical; min-height: 80px; outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--blue); }
+  .hash-preview { font-family: var(--mono); font-size: 11px; color: var(--green); margin-top: 6px; cursor: default; user-select: all; }
+  .hash-preview span { color: var(--muted); font-size: 10px; }
+  .intent-label { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    padding: 8px 16px; border-radius: 6px; border: 1px solid;
+    cursor: pointer; transition: background 0.15s, opacity 0.15s;
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primary  { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #6fa3f9; }
+  .btn-success  { background: transparent; border-color: var(--green); color: var(--green); }
+  .btn-success:hover:not(:disabled) { background: rgba(34,197,94,0.08); }
+  .btn-danger   { background: transparent; border-color: var(--red); color: var(--red); }
+  .btn-danger:hover:not(:disabled)  { background: rgba(239,68,68,0.08); }
+  .btn-ghost    { background: transparent; border-color: var(--border); color: var(--muted); }
+  .btn-ghost:hover:not(:disabled)   { border-color: var(--muted); color: var(--text); }
+  .btn-amber    { background: transparent; border-color: var(--amber); color: var(--amber); }
+  .btn-amber:hover:not(:disabled)   { background: rgba(245,158,11,0.08); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  /* ── Scene labels ── */
+  .scene-label {
+    font-family: var(--mono); font-size: 10px; color: var(--muted); line-height: 1.5;
+    margin-top: 8px; padding: 8px 10px;
+    border-left: 2px solid var(--border);
+    background: rgba(255,255,255,0.015); border-radius: 0 4px 4px 0;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  /* FIX 3 — revoked label turns red */
+  .scene-label.danger { color: var(--red); border-left-color: var(--red); }
+
+  /* ── Centre: agent diagram ── */
+  .diagram-area {
+    display: flex; flex-direction: column; align-items: center;
+    padding-top: 28px; gap: 0;
+  }
+  .agent-node {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 20px; text-align: center;
+    min-width: 200px; transition: border-color 0.3s, opacity 0.3s;
+    animation: fadeIn 0.2s ease;
+  }
+  .agent-node.active    { border-color: var(--blue); }
+  .agent-node.revoked   { opacity: 0.4; border-color: var(--red); }
+  .agent-node.delegated { border-color: var(--amber); }
+  .node-id   { font-family: var(--mono); font-size: 11px; color: var(--blue); letter-spacing: 0.06em; }
+  .node-role { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* FIX 1 — scope pills on agent nodes */
+  .node-scope-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 8px; }
+  .scope-pill {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.04em;
+    color: var(--amber); background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 20px; padding: 2px 8px;
+  }
+  .scope-pill.blue {
+    color: var(--blue); background: rgba(79,142,247,0.1);
+    border-color: rgba(79,142,247,0.25);
+  }
+
+  .connector {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 4px 0; animation: fadeIn 0.2s ease;
+  }
+  .connector-line {
+    width: 2px; height: 24px;
+    background: linear-gradient(to bottom, var(--blue), var(--amber)); opacity: 0.5;
+  }
+  .connector-label {
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    letter-spacing: 0.06em; padding: 3px 8px;
+    border: 1px solid var(--border); border-radius: 20px;
+    background: var(--bg); margin: 3px 0;
+  }
+
+  /* Tool results on diagram node */
+  .node-tool-result {
+    font-family: var(--mono); font-size: 10px; padding: 4px 8px;
+    border-radius: 4px; margin-top: 5px; animation: fadeIn 0.2s ease;
+  }
+  .node-tool-result.ok   { color: var(--green); background: rgba(34,197,94,0.08);   border: 1px solid rgba(34,197,94,0.2); }
+  .node-tool-result.fail { color: var(--red);   background: rgba(239,68,68,0.08);   border: 1px solid rgba(239,68,68,0.2); }
+
+  /* ── FIX 4 — Provenance panel (dramatic) ── */
+  .prov-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px;
+    animation: fadeIn 0.2s ease; width: 100%; max-width: 440px; margin-top: 20px;
+  }
+  .prov-header {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px;
+  }
+  .prov-hash-block { margin-bottom: 10px; }
+  .prov-hash-label { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .prov-hash-val {
+    font-family: var(--mono); font-size: 11px; color: var(--text);
+    word-break: break-all; line-height: 1.6; letter-spacing: 0.04em;
+  }
+  .prov-hash-val .hc { transition: color 0.04s; }
+
+  /* Large verdict */
+  .prov-verdict {
+    margin-top: 16px; padding: 16px;
+    border-radius: var(--radius); text-align: center;
+    animation: fadeIn 0.2s ease;
+  }
+  .prov-verdict.match   { background: rgba(34,197,94,0.07);  border: 1px solid rgba(34,197,94,0.25); }
+  .prov-verdict.nomatch { background: rgba(239,68,68,0.07);  border: 1px solid rgba(239,68,68,0.25); }
+  .prov-icon {
+    font-size: 40px; line-height: 1; margin-bottom: 8px;
+  }
+  .prov-verdict.match   .prov-icon { color: var(--green); }
+  .prov-verdict.nomatch .prov-icon { color: var(--red); }
+  .prov-verdict-text {
+    font-family: var(--sans); font-size: 15px; font-weight: 600;
+  }
+  .prov-verdict.match   .prov-verdict-text { color: var(--green); }
+  .prov-verdict.nomatch .prov-verdict-text { color: var(--red); }
+  .prov-verdict-sub {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    margin-top: 5px; line-height: 1.5;
+  }
+
+  /* ── FIX 2 — Audit log with pills ── */
+  .audit-timeline { display: flex; flex-direction: column; }
+  .audit-entry {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: start;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.2s ease;
+  }
+  .audit-entry:last-child { border-bottom: none; }
+
+  .audit-pill {
+    font-family: var(--mono); font-size: 9px; font-weight: 500;
+    letter-spacing: 0.06em; white-space: nowrap;
+    padding: 2px 8px; border-radius: 20px;
+    margin-top: 1px;
+  }
+  .audit-pill.issued    { color: var(--blue);  background: rgba(79,142,247,0.12);  border: 1px solid rgba(79,142,247,0.3); }
+  .audit-pill.delegated { color: var(--blue);  background: rgba(79,142,247,0.12);  border: 1px solid rgba(79,142,247,0.3); }
+  .audit-pill.tool-ok   { color: var(--green); background: rgba(34,197,94,0.12);   border: 1px solid rgba(34,197,94,0.3); }
+  .audit-pill.tool-fail { color: var(--red);   background: rgba(239,68,68,0.12);   border: 1px solid rgba(239,68,68,0.3); }
+  .audit-pill.verified  { color: var(--green); background: rgba(34,197,94,0.12);   border: 1px solid rgba(34,197,94,0.3); }
+  .audit-pill.revoked   { color: var(--amber); background: rgba(245,158,11,0.12);  border: 1px solid rgba(245,158,11,0.3); }
+
+  .audit-body { flex: 1; min-width: 0; }
+  .audit-agent { font-family: var(--mono); font-size: 11px; color: var(--text); margin-bottom: 2px; }
+  .audit-detail { font-family: var(--mono); font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .audit-detail.ok   { color: var(--green); }
+  .audit-detail.fail { color: var(--red); }
+  .audit-detail.warn { color: var(--amber); }
+
+  .audit-time {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    white-space: nowrap; padding-top: 2px;
+  }
+
+  /* ── Misc ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .hidden  { display: none !important; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  footer {
+    border-top: 1px solid var(--border); padding: 12px 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.06em;
+  }
+  footer a { color: var(--blue); text-decoration: none; }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .col { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ════════ HEADER ════════ -->
+<header>
+  <div class="wordmark">WAR<span>R</span>ANT</div>
+  <div class="header-sub">Cryptographic trust for AI agents</div>
+  <button class="btn btn-ghost" onclick="resetAll()">↺ Reset</button>
+</header>
+
+<!-- ════════ LAYOUT ════════ -->
+<div class="layout">
+
+  <!-- ── LEFT: credentials ── -->
+  <div class="col" id="col-left">
+    <div class="col-label">Credentials</div>
+
+    <div class="instruction-label">Instruction / task description</div>
+    <textarea id="instruction-input" rows="3" oninput="onInstructionChange()">Research our top 3 competitors and email a summary to the board</textarea>
+    <div class="hash-preview" id="hash-preview" title="">
+      <span>SHA-256 → </span><span id="hash-short">computing…</span>
+    </div>
+    <div class="intent-label">SHA-256 intent fingerprint — baked into every credential</div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-issue" onclick="sceneIssue()">Issue root credential</button>
+    </div>
+    <div class="scene-label hidden" id="label-issue">Scoped to this task only. Expires in 1 hour.</div>
+
+    <!-- Root credential card -->
+    <div class="card hidden" id="card-root" style="margin-top:16px">
+      <div class="card-title">
+        <div class="dot" id="root-dot"></div>
+        <span>orchestrator-v1</span>
+      </div>
+      <div class="json-view" id="root-json"></div>
+    </div>
+
+    <!-- Delegate button -->
+    <div class="btn-row hidden" id="btn-row-delegate">
+      <button class="btn btn-amber" id="btn-delegate" onclick="sceneDelegate()">Delegate to email-agent-v1</button>
+    </div>
+    <div class="scene-label hidden" id="label-delegate">Scope narrowed. Sub-agent cannot exceed orchestrator authority.</div>
+
+    <!-- Child credential card -->
+    <div class="card hidden" id="card-child" style="margin-top:8px">
+      <div class="card-title">
+        <div class="dot" style="background:var(--amber)"></div>
+        <span>email-agent-v1</span>
+      </div>
+      <div class="json-view" id="child-json"></div>
+    </div>
+
+    <!-- Tool calls -->
+    <div id="tool-call-area" class="hidden">
+      <hr class="divider">
+      <div class="instruction-label" style="margin-bottom:8px">Tool calls (email-agent-v1)</div>
+      <div class="btn-row">
+        <button class="btn btn-success" onclick="sceneSendEmail()">Send email (gmail:send)</button>
+        <button class="btn btn-danger"  onclick="sceneDeleteRecord()">Delete record (database:delete)</button>
+      </div>
+      <div class="scene-label">The tool enforces scope — not the agent.</div>
+    </div>
+
+    <!-- Verify provenance -->
+    <div id="provenance-area" class="hidden">
+      <hr class="divider">
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="sceneVerify()">Verify Provenance</button>
+      </div>
+      <div class="scene-label">Six months later, a regulator asks. You show them this.</div>
+    </div>
+
+    <!-- Revoke -->
+    <div id="revoke-area" class="hidden">
+      <hr class="divider">
+      <div class="btn-row">
+        <button class="btn btn-danger" id="btn-revoke" onclick="sceneRevoke()">Revoke entire task tree</button>
+      </div>
+      <div class="scene-label" id="label-revoke">One call. The entire task tree is dead.</div>
+    </div>
+
+  </div><!-- /col-left -->
+
+  <!-- ── CENTRE: trust graph ── -->
+  <div class="col" id="col-centre">
+    <div class="col-label">Agent trust graph</div>
+    <div class="diagram-area" id="diagram-area">
+
+      <!-- FIX 1 — user node always visible with scope pills area -->
+      <div class="agent-node active" id="node-user">
+        <div class="node-id">usr_demo</div>
+        <div class="node-role">Human principal</div>
+        <div class="node-scope-pills" id="user-pills">
+          <span class="scope-pill blue">issues instruction</span>
+        </div>
+      </div>
+
+      <!-- Connector orchestrator -->
+      <div class="connector hidden" id="connector-orch">
+        <div class="connector-line"></div>
+        <div class="connector-label">root credential</div>
+        <div class="connector-line"></div>
+      </div>
+
+      <div class="agent-node hidden" id="node-orch">
+        <div class="node-id">orchestrator-v1</div>
+        <div class="node-role">Root agent · depth 0</div>
+        <div class="node-scope-pills" id="orch-pills"></div>
+      </div>
+
+      <!-- Connector email agent -->
+      <div class="connector hidden" id="connector-email">
+        <div class="connector-line"></div>
+        <div class="connector-label">delegates subset</div>
+        <div class="connector-line"></div>
+      </div>
+
+      <div class="agent-node hidden" id="node-email">
+        <div class="node-id">email-agent-v1</div>
+        <div class="node-role">Sub-agent · depth 1</div>
+        <div class="node-scope-pills" id="email-pills"></div>
+        <div id="node-tool-results"></div>
+      </div>
+
+      <!-- FIX 4 — provenance panel lives in centre col -->
+      <div class="prov-panel hidden" id="prov-panel">
+        <div class="prov-header">Provenance verification</div>
+        <div class="prov-hash-block">
+          <div class="prov-hash-label">Stored in wrt_intent (credential):</div>
+          <div class="prov-hash-val" id="prov-stored"></div>
+        </div>
+        <div class="prov-hash-block">
+          <div class="prov-hash-label">Recomputed from instruction:</div>
+          <div class="prov-hash-val" id="prov-recomputed"></div>
+        </div>
+        <div class="hidden" id="prov-verdict-wrap">
+          <div class="prov-verdict" id="prov-verdict">
+            <div class="prov-icon" id="prov-icon"></div>
+            <div class="prov-verdict-text" id="prov-verdict-text"></div>
+            <div class="prov-verdict-sub" id="prov-verdict-sub"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /col-centre -->
+
+  <!-- ── RIGHT: audit log ── -->
+  <div class="col" id="col-right">
+    <div class="col-label">Audit log</div>
+    <div class="audit-timeline" id="audit-timeline">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px 0">
+        Waiting for first event…
+      </div>
+    </div>
+  </div>
+
+</div><!-- /layout -->
+
+<!-- ════════ FOOTER ════════ -->
+<footer>
+  Warrant — open standard for agent trust — <a href="#">warrant.dev</a>
+</footer>
+
+<!-- ════════ JAVASCRIPT ════════ -->
+<script>
+'use strict';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let rootCredential  = null;
+let childCredential = null;
+let allCredentials  = [];
+let revokedTokens   = new Set();
+let auditLog        = [];
+let currentHash     = '';
+let issuedAt        = null;  // Date when root credential was issued
+
+// ── Core functions ───────────────────────────────────────────────────────────
+
+async function sha256(text) {
+  const buf    = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function issueRootCredential(agentId, userId, scope, intentHash) {
+  const now = Math.floor(Date.now() / 1000);
+  const jti = crypto.randomUUID();
+  return {
+    iss: 'warrant.dev', sub: `agent:${agentId}`,
+    iat: now, exp: now + 3600, jti,
+    wrt_tid:    crypto.randomUUID(),
+    wrt_depth:  0,
+    wrt_scope:  scope,
+    wrt_intent: intentHash,
+    wrt_chain:  [jti],
+    wrt_uid:    userId,
+  };
+}
+
+function delegateCredential(parentCred, childAgentId, childScope) {
+  if (!isScopeSubset(parentCred.wrt_scope, childScope))
+    throw new Error('Scope violation: child scope exceeds parent authority');
+  const newJti = crypto.randomUUID();
+  return {
+    iss: 'warrant.dev', sub: `agent:${childAgentId}`,
+    iat: Math.floor(Date.now() / 1000), exp: parentCred.exp, jti: newJti,
+    wrt_tid:    parentCred.wrt_tid,
+    wrt_depth:  parentCred.wrt_depth + 1,
+    wrt_scope:  childScope,
+    wrt_intent: parentCred.wrt_intent,
+    wrt_chain:  [...parentCred.wrt_chain, newJti],
+    wrt_uid:    parentCred.wrt_uid,
+  };
+}
+
+function isScopeSubset(parentScope, childScope) {
+  return childScope.every(ce => {
+    const [cr, ca] = ce.split(':');
+    return parentScope.some(pe => {
+      const [pr, pa] = pe.split(':');
+      return (pr === '*' || pr === cr) && (pa === '*' || pa === ca);
+    });
+  });
+}
+
+function simulateToolCall(credential, toolEntry) {
+  if (revokedTokens.has(credential.jti))
+    return { allowed: false, reason: 'revoked', detail: 'BLOCKED — credential revoked' };
+  if (Math.floor(Date.now() / 1000) > credential.exp)
+    return { allowed: false, reason: 'expired', detail: 'BLOCKED — credential expired' };
+  if (!isScopeSubset(credential.wrt_scope, [toolEntry]))
+    return { allowed: false, reason: 'scope', detail: `BLOCKED — not in scope [${credential.wrt_scope.join(', ')}]` };
+  return { allowed: true, reason: 'ok', detail: 'authorised' };
+}
+
+function revokeTask(rootCred, creds) {
+  creds.forEach(c => { if (c.wrt_chain.includes(rootCred.jti)) revokedTokens.add(c.jti); });
+}
+
+async function verifyProvenance(instruction, rootCred) {
+  const recomputedHash = await sha256(instruction);
+  return { match: recomputedHash === rootCred.wrt_intent, recomputedHash, storedHash: rootCred.wrt_intent };
+}
+
+// ── FIX 2 — Audit log rendering with pills ───────────────────────────────────
+
+function appendAudit(eventType, credential, meta = {}) {
+  auditLog.push({ eventType, credential, meta, time: new Date() });
+  renderAuditLog();
+}
+
+function renderAuditLog() {
+  const el = document.getElementById('audit-timeline');
+  if (!auditLog.length) {
+    el.innerHTML = `<div style="font-family:var(--mono);font-size:11px;color:var(--muted);padding:8px 0">Waiting for first event…</div>`;
+    return;
+  }
+
+  el.innerHTML = auditLog.map(({ eventType, credential, meta, time }) => {
+    const ts       = time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const jtiShort = credential?.jti?.slice(0, 8) + '…' ?? '';
+    const sub      = credential?.sub ?? '';
+
+    // Pill label + body text per event type
+    let pillLabel, agentLine, detailLine, detailClass = '';
+
+    switch (eventType) {
+      case 'issued':
+        pillLabel  = 'credential_issued';
+        agentLine  = sub;
+        detailLine = `jti:${jtiShort} · depth:0 · scope:[${credential.wrt_scope.join(', ')}]`;
+        break;
+      case 'delegated':
+        pillLabel  = 'delegated';
+        agentLine  = sub;
+        detailLine = `jti:${jtiShort} · depth:${credential.wrt_depth} · scope:[${credential.wrt_scope.join(', ')}]`;
+        break;
+      case 'tool-ok':
+        pillLabel   = 'tool_call';
+        agentLine   = sub;
+        detailLine  = `${meta.tool} ✓ ${meta.detail}`;
+        detailClass = 'ok';
+        break;
+      case 'tool-fail':
+        pillLabel   = meta.reason === 'revoked' ? 'revoked_block' : 'scope_violation';
+        agentLine   = sub;
+        detailLine  = `${meta.tool} ✗ ${meta.detail}`;
+        detailClass = 'fail';
+        break;
+      case 'verified':
+        pillLabel  = 'provenance_ok';
+        agentLine  = sub;
+        detailLine = `intent hash match · ${jtiShort}`;
+        detailClass = 'ok';
+        break;
+      case 'verify-fail':
+        pillLabel   = 'provenance_fail';
+        agentLine   = sub;
+        detailLine  = `hash mismatch · ${jtiShort}`;
+        detailClass = 'fail';
+        break;
+      case 'revoked':
+        pillLabel   = 'revoked';
+        agentLine   = sub;
+        detailLine  = `cascaded to ${meta.cascaded} credential(s) · root:${jtiShort}`;
+        detailClass = 'warn';
+        break;
+      default:
+        pillLabel = eventType;
+        agentLine = sub;
+        detailLine = '';
+    }
+
+    // Map event type to pill CSS class
+    const pillClass = {
+      'credential_issued': 'issued',
+      'delegated':         'delegated',
+      'tool_call':         'tool-ok',
+      'scope_violation':   'tool-fail',
+      'revoked_block':     'tool-fail',
+      'provenance_ok':     'verified',
+      'provenance_fail':   'tool-fail',
+      'revoked':           'revoked',
+    }[pillLabel] ?? 'issued';
+
+    return `
+      <div class="audit-entry">
+        <span class="audit-pill ${pillClass}">${pillLabel}</span>
+        <div class="audit-body">
+          <div class="audit-agent">${agentLine}</div>
+          <div class="audit-detail ${detailClass}">${detailLine}</div>
+        </div>
+        <div class="audit-time">${ts}</div>
+      </div>`;
+  }).join('');
+
+  // Keep scrolled to bottom
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── JSON renderer ─────────────────────────────────────────────────────────────
+
+function renderJSON(obj) {
+  return JSON.stringify(obj, null, 2).split('\n').map(line =>
+    line.replace(/^(\s*)("([^"]+)")\s*:\s*(.+)$/, (_, indent, fullKey, key, val) => {
+      const keyHtml = key.startsWith('wrt_')
+        ? `<span class="json-wrt">${fullKey}</span>`
+        : `<span class="json-key">${fullKey}</span>`;
+      const raw   = val.replace(/,$/, '');
+      const comma = val.endsWith(',') ? ',' : '';
+      let valHtml;
+      if (raw === 'true' || raw === 'false') valHtml = `<span class="json-bool">${raw}</span>`;
+      else if (/^-?\d/.test(raw))           valHtml = `<span class="json-number">${raw}</span>`;
+      else                                  valHtml = `<span class="json-string">${raw}</span>`;
+      return `${indent}${keyHtml}: ${valHtml}${comma}`;
+    })
+  ).join('\n');
+}
+
+// ── FIX 1 — Scope pills helper ────────────────────────────────────────────────
+
+function renderScopePills(scope, containerId) {
+  document.getElementById(containerId).innerHTML =
+    scope.map(s => `<span class="scope-pill">${s}</span>`).join('');
+}
+
+// ── Scene 1 ───────────────────────────────────────────────────────────────────
+
+async function onInstructionChange() {
+  const hash = await sha256(document.getElementById('instruction-input').value);
+  currentHash = hash;
+  document.getElementById('hash-short').textContent = hash.slice(0, 16) + '…';
+  document.getElementById('hash-preview').title = hash;
+}
+
+// ── Scene 2: Issue ────────────────────────────────────────────────────────────
+
+async function sceneIssue() {
+  const instruction = document.getElementById('instruction-input').value.trim();
+  if (!instruction) return;
+
+  const intentHash = await sha256(instruction);
+  currentHash = intentHash;
+  issuedAt    = new Date();
+
+  rootCredential = issueRootCredential('orchestrator-v1', 'usr_demo', ['research:read', 'gmail:send'], intentHash);
+  allCredentials = [rootCredential];
+
+  // Left col
+  document.getElementById('card-root').classList.remove('hidden');
+  document.getElementById('root-json').innerHTML = renderJSON(rootCredential);
+  document.getElementById('label-issue').classList.remove('hidden');
+  document.getElementById('btn-row-delegate').classList.remove('hidden');
+  document.getElementById('provenance-area').classList.remove('hidden');
+  document.getElementById('btn-issue').disabled = true;
+
+  // FIX 1 — diagram: show orchestrator node with scope pills
+  document.getElementById('connector-orch').classList.remove('hidden');
+  const orchNode = document.getElementById('node-orch');
+  orchNode.classList.remove('hidden');
+  orchNode.classList.add('active');
+  renderScopePills(rootCredential.wrt_scope, 'orch-pills');
+
+  appendAudit('issued', rootCredential);
+}
+
+// ── Scene 3: Delegate ─────────────────────────────────────────────────────────
+
+function sceneDelegate() {
+  if (!rootCredential) return;
+  try {
+    childCredential = delegateCredential(rootCredential, 'email-agent-v1', ['gmail:send']);
+    allCredentials.push(childCredential);
+  } catch (e) { alert(e.message); return; }
+
+  // Left col
+  document.getElementById('card-child').classList.remove('hidden');
+  document.getElementById('child-json').innerHTML = renderJSON(childCredential);
+  document.getElementById('label-delegate').classList.remove('hidden');
+  document.getElementById('tool-call-area').classList.remove('hidden');
+  document.getElementById('revoke-area').classList.remove('hidden');
+  document.getElementById('btn-delegate').disabled = true;
+
+  // FIX 1 — diagram: show email agent node with scope pills
+  document.getElementById('connector-email').classList.remove('hidden');
+  const emailNode = document.getElementById('node-email');
+  emailNode.classList.remove('hidden');
+  emailNode.classList.add('delegated');
+  renderScopePills(childCredential.wrt_scope, 'email-pills');
+
+  appendAudit('delegated', childCredential);
+}
+
+// ── Scene 4: Tool calls ───────────────────────────────────────────────────────
+
+function sceneSendEmail() {
+  if (!childCredential) return;
+  const result = simulateToolCall(childCredential, 'gmail:send');
+  addNodeToolResult('gmail:send', result.allowed);
+  appendAudit(result.allowed ? 'tool-ok' : 'tool-fail', childCredential, { tool: 'gmail:send', detail: result.detail, reason: result.reason });
+}
+
+function sceneDeleteRecord() {
+  if (!childCredential) return;
+  const result = simulateToolCall(childCredential, 'database:delete');
+  addNodeToolResult('database:delete', result.allowed);
+  appendAudit(result.allowed ? 'tool-ok' : 'tool-fail', childCredential, { tool: 'database:delete', detail: result.detail, reason: result.reason });
+}
+
+function addNodeToolResult(toolName, allowed) {
+  const div = document.createElement('div');
+  div.className = `node-tool-result ${allowed ? 'ok' : 'fail'}`;
+  div.textContent = allowed ? `${toolName} ✓` : `${toolName} ✗ BLOCKED`;
+  document.getElementById('node-tool-results').appendChild(div);
+}
+
+// ── Scene 5: Verify Provenance ────────────────────────────────────────────────
+
+async function sceneVerify() {
+  if (!rootCredential) return;
+  const instruction = document.getElementById('instruction-input').value;
+  const result      = await verifyProvenance(instruction, rootCredential);
+
+  // Show panel
+  const panel = document.getElementById('prov-panel');
+  panel.classList.remove('hidden');
+
+  // Render stored hash as individually-wrapped chars (will be coloured during scan)
+  document.getElementById('prov-stored').innerHTML =
+    result.storedHash.split('').map((ch, i) => `<span class="hc" id="sc${i}">${ch}</span>`).join('');
+
+  // Render recomputed hash the same way
+  document.getElementById('prov-recomputed').innerHTML =
+    result.recomputedHash.split('').map((ch, i) => `<span class="hc" id="rc${i}">${ch}</span>`).join('');
+
+  // Hide verdict while scanning
+  document.getElementById('prov-verdict-wrap').classList.add('hidden');
+
+  // Animate scan left-to-right: colour each char pair simultaneously
+  for (let i = 0; i < result.storedHash.length; i++) {
+    await new Promise(r => setTimeout(r, 16));
+    const match  = result.storedHash[i] === result.recomputedHash[i];
+    const colour = match ? 'var(--green)' : 'var(--red)';
+    const sc     = document.getElementById(`sc${i}`);
+    const rc     = document.getElementById(`rc${i}`);
+    if (sc) sc.style.color = colour;
+    if (rc) rc.style.color = colour;
+  }
+
+  // Reveal verdict
+  const wrap    = document.getElementById('prov-verdict-wrap');
+  const verdict = document.getElementById('prov-verdict');
+  const icon    = document.getElementById('prov-icon');
+  const text    = document.getElementById('prov-verdict-text');
+  const sub     = document.getElementById('prov-verdict-sub');
+
+  wrap.classList.remove('hidden');
+  verdict.className = `prov-verdict ${result.match ? 'match' : 'nomatch'}`;
+
+  if (result.match) {
+    icon.textContent = '✓';
+    text.textContent = 'Proven — action traces to this instruction';
+    sub.textContent  = `credential issued at ${issuedAt ? issuedAt.toISOString().replace('T',' ').slice(0,19) + ' UTC' : 'unknown'}`;
+    appendAudit('verified', rootCredential);
+  } else {
+    icon.textContent = '✗';
+    text.textContent = 'MISMATCH — instruction was altered';
+    sub.textContent  = 'stored intent hash does not match recomputed hash';
+    appendAudit('verify-fail', rootCredential);
+  }
+}
+
+// ── Scene 6: Revoke ───────────────────────────────────────────────────────────
+
+function sceneRevoke() {
+  if (!rootCredential) return;
+
+  revokeTask(rootCredential, allCredentials);
+
+  // FIX 3 — dim cards + add REVOKED badge
+  ['card-root', 'card-child'].forEach(id => {
+    const card = document.getElementById(id);
+    if (!card.classList.contains('hidden')) {
+      card.classList.add('revoked');
+      if (!card.querySelector('.revoked-badge')) {
+        const badge = document.createElement('div');
+        badge.className = 'revoked-badge';
+        badge.textContent = 'REVOKED';
+        card.appendChild(badge);
+      }
+    }
+  });
+
+  // FIX 3 — dot colour to red
+  document.getElementById('root-dot').style.background = 'var(--red)';
+
+  // Dim diagram nodes
+  document.getElementById('node-orch').classList.replace('active', 'revoked');
+  const emailNode = document.getElementById('node-email');
+  if (!emailNode.classList.contains('hidden')) {
+    emailNode.classList.remove('delegated');
+    emailNode.classList.add('revoked');
+  }
+
+  // FIX 3 — revoke label turns red
+  document.getElementById('label-revoke').classList.add('danger');
+
+  // FIX 3 — button goes grey
+  document.getElementById('btn-revoke').disabled = true;
+
+  appendAudit('revoked', rootCredential, { cascaded: allCredentials.length });
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+
+function resetAll() {
+  rootCredential  = null;
+  childCredential = null;
+  allCredentials  = [];
+  revokedTokens   = new Set();
+  auditLog        = [];
+  currentHash     = '';
+  issuedAt        = null;
+
+  // Left col
+  document.getElementById('instruction-input').value =
+    'Research our top 3 competitors and email a summary to the board';
+  document.getElementById('hash-short').textContent = 'computing…';
+  document.getElementById('hash-preview').title = '';
+
+  const hideable = ['card-root','card-child','label-issue','label-delegate',
+                    'btn-row-delegate','tool-call-area','provenance-area','revoke-area'];
+  hideable.forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.add('hidden');
+    el.classList.remove('revoked', 'danger');
+  });
+
+  document.getElementById('root-json').innerHTML  = '';
+  document.getElementById('child-json').innerHTML = '';
+
+  // Remove any REVOKED badges
+  document.querySelectorAll('.revoked-badge').forEach(b => b.remove());
+
+  // Diagram
+  ['connector-orch','node-orch','connector-email','node-email'].forEach(id =>
+    document.getElementById(id).classList.add('hidden'));
+  document.getElementById('node-orch').className   = 'agent-node hidden';
+  document.getElementById('node-email').className  = 'agent-node hidden';
+  document.getElementById('orch-pills').innerHTML  = '';
+  document.getElementById('email-pills').innerHTML = '';
+  document.getElementById('node-tool-results').innerHTML = '';
+  document.getElementById('root-dot').style.background = 'var(--blue)';
+
+  // Provenance
+  document.getElementById('prov-panel').classList.add('hidden');
+  document.getElementById('prov-stored').innerHTML     = '';
+  document.getElementById('prov-recomputed').innerHTML = '';
+  document.getElementById('prov-verdict-wrap').classList.add('hidden');
+
+  // Revoke button + label
+  document.getElementById('btn-revoke').disabled = false;
+  document.getElementById('label-revoke').classList.remove('danger');
+
+  // Buttons
+  document.getElementById('btn-issue').disabled    = false;
+  document.getElementById('btn-delegate').disabled = false;
+
+  renderAuditLog();
+  onInstructionChange();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+onInstructionChange();
+</script>
+</body>
+</html>
