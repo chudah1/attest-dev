@@ -34,7 +34,7 @@ func configFromEnv() config {
 	return config{
 		Port:        get("PORT", "8080"),
 		DatabaseURL: get("DATABASE_URL", ""),
-		IssuerURI:   get("ISSUER_URI", "https://attest.dev"),
+		IssuerURI:   get("ISSUER_URI", "https://api.attestdev.com"),
 	}
 }
 
