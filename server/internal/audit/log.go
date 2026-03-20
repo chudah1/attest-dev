@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/warrant-dev/warrant/pkg/warrant"
+	"github.com/attest-dev/attest/pkg/attest"
 )
 
 // Log is an append-only audit log with cryptographic hash chaining.
@@ -25,14 +25,14 @@ func NewLog(db *pgxpool.Pool) *Log {
 }
 
 // Append writes an AuditEvent to the log.
-// It fetches the most recent entry_hash for the same wrt_tid and chains from it.
+// It fetches the most recent entry_hash for the same att_tid and chains from it.
 // If this is the first event for the task, prev_hash is all-zeros.
-func (l *Log) Append(ctx context.Context, event warrant.AuditEvent) error {
+func (l *Log) Append(ctx context.Context, event attest.AuditEvent) error {
 	// Fetch the latest entry_hash for this task (for chaining).
 	var prevHash string
 	err := l.db.QueryRow(ctx, `
 		SELECT entry_hash FROM audit_log
-		WHERE wrt_tid = $1
+		WHERE att_tid = $1
 		ORDER BY id DESC
 		LIMIT 1
 	`, event.TaskID).Scan(&prevHash)
@@ -60,7 +60,7 @@ func (l *Log) Append(ctx context.Context, event warrant.AuditEvent) error {
 
 	_, err = l.db.Exec(ctx, `
 		INSERT INTO audit_log
-			(prev_hash, entry_hash, event_type, jti, wrt_tid, wrt_uid, agent_id, scope, meta, created_at)
+			(prev_hash, entry_hash, event_type, jti, att_tid, att_uid, agent_id, scope, meta, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, prevHash, entryHash, string(event.EventType), event.JTI, event.TaskID,
 		event.UserID, event.AgentID, scopeJSON, metaJSON, now)
@@ -72,11 +72,11 @@ func (l *Log) Append(ctx context.Context, event warrant.AuditEvent) error {
 }
 
 // Query returns all audit events for a given task ID in insertion order.
-func (l *Log) Query(ctx context.Context, taskID string) ([]warrant.AuditEvent, error) {
+func (l *Log) Query(ctx context.Context, taskID string) ([]attest.AuditEvent, error) {
 	rows, err := l.db.Query(ctx, `
-		SELECT id, prev_hash, entry_hash, event_type, jti, wrt_tid, wrt_uid, agent_id, scope, meta, created_at
+		SELECT id, prev_hash, entry_hash, event_type, jti, att_tid, att_uid, agent_id, scope, meta, created_at
 		FROM audit_log
-		WHERE wrt_tid = $1
+		WHERE att_tid = $1
 		ORDER BY id ASC
 	`, taskID)
 	if err != nil {
@@ -84,9 +84,9 @@ func (l *Log) Query(ctx context.Context, taskID string) ([]warrant.AuditEvent, e
 	}
 	defer rows.Close()
 
-	var events []warrant.AuditEvent
+	var events []attest.AuditEvent
 	for rows.Next() {
-		var e warrant.AuditEvent
+		var e attest.AuditEvent
 		var scopeJSON, metaJSON []byte
 		var evType string
 
@@ -99,7 +99,7 @@ func (l *Log) Query(ctx context.Context, taskID string) ([]warrant.AuditEvent, e
 			return nil, fmt.Errorf("scan audit row: %w", err)
 		}
 
-		e.EventType = warrant.EventType(evType)
+		e.EventType = attest.EventType(evType)
 
 		if err := json.Unmarshal(scopeJSON, &e.Scope); err != nil {
 			return nil, fmt.Errorf("unmarshal scope: %w", err)

@@ -1,7 +1,7 @@
 {
-  "name": "@warrant/mcp",
+  "name": "@attest-dev/mcp",
   "version": "0.1.0",
-  "description": "Warrant credential enforcement middleware for MCP servers",
+  "description": "Attest credential enforcement middleware for MCP servers",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "warrant",
+    "attest",
     "mcp",
     "model-context-protocol",
     "jwt",
@@ -32,7 +32,7 @@
     "jose": "^5.9.6"
   },
   "peerDependencies": {
-    "@warrant/sdk": "^0.1.0"
+    "@attest-dev/sdk": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

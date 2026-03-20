@@ -10,22 +10,23 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/warrant-dev/warrant/pkg/warrant"
+	"github.com/attest-dev/attest/pkg/attest"
 )
 
-// Issuer signs and verifies Warrant credentials using RS256.
+// Issuer signs and verifies Attest credentials using RS256.
+// It is stateless with respect to keys — the signing key is passed at call
+// time so the same Issuer instance works for all organisations.
 type Issuer struct {
-	privateKey *rsa.PrivateKey
-	issuerURI  string
+	issuerURI string
 }
 
-// NewIssuer constructs an Issuer with the given RSA key pair and issuer URI.
-func NewIssuer(privateKey *rsa.PrivateKey, issuerURI string) *Issuer {
-	return &Issuer{privateKey: privateKey, issuerURI: issuerURI}
+// NewIssuer constructs an Issuer for the given issuer URI.
+func NewIssuer(issuerURI string) *Issuer {
+	return &Issuer{issuerURI: issuerURI}
 }
 
-// Issue creates a root credential (depth 0) from the supplied parameters.
-func (is *Issuer) Issue(p warrant.IssueParams) (string, *warrant.Claims, error) {
+// Issue creates a root credential (depth 0) signed with key.
+func (is *Issuer) Issue(key *rsa.PrivateKey, kid string, p attest.IssueParams) (string, *attest.Claims, error) {
 	if p.AgentID == "" {
 		return "", nil, errors.New("agent_id is required")
 	}
@@ -36,7 +37,7 @@ func (is *Issuer) Issue(p warrant.IssueParams) (string, *warrant.Claims, error) 
 		return "", nil, errors.New("scope must not be empty")
 	}
 	for _, s := range p.Scope {
-		if _, ok := warrant.ParseScope(s); !ok {
+		if _, ok := attest.ParseScope(s); !ok {
 			return "", nil, fmt.Errorf("invalid scope entry: %q", s)
 		}
 	}
@@ -45,8 +46,8 @@ func (is *Issuer) Issue(p warrant.IssueParams) (string, *warrant.Claims, error) 
 	}
 
 	ttl := p.TTLSeconds
-	if ttl <= 0 || ttl > warrant.MaxTTLSeconds {
-		ttl = warrant.MaxTTLSeconds
+	if ttl <= 0 || ttl > attest.MaxTTLSeconds {
+		ttl = attest.MaxTTLSeconds
 	}
 
 	now := time.Now().UTC()
@@ -56,7 +57,7 @@ func (is *Issuer) Issue(p warrant.IssueParams) (string, *warrant.Claims, error) 
 	h := sha256.Sum256([]byte(p.Instruction))
 	intentHash := hex.EncodeToString(h[:])
 
-	claims := &warrant.Claims{
+	claims := &attest.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    is.issuerURI,
 			Subject:   "agent:" + p.AgentID,
@@ -66,14 +67,15 @@ func (is *Issuer) Issue(p warrant.IssueParams) (string, *warrant.Claims, error) 
 		},
 		TaskID:     tid,
 		Depth:      0,
-		Scope:      warrant.NormaliseScope(p.Scope),
+		Scope:      attest.NormaliseScope(p.Scope),
 		IntentHash: intentHash,
 		Chain:      []string{jti},
 		UserID:     p.UserID,
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	signed, err := tok.SignedString(is.privateKey)
+	tok.Header["kid"] = kid
+	signed, err := tok.SignedString(key)
 	if err != nil {
 		return "", nil, fmt.Errorf("signing: %w", err)
 	}
@@ -81,7 +83,8 @@ func (is *Issuer) Issue(p warrant.IssueParams) (string, *warrant.Claims, error) 
 }
 
 // Delegate issues a child credential by narrowing scope from the parent.
-func (is *Issuer) Delegate(p warrant.DelegateParams, pubKey *rsa.PublicKey) (string, *warrant.Claims, error) {
+// The parent token is verified against the org's public key (derived from key).
+func (is *Issuer) Delegate(key *rsa.PrivateKey, kid string, p attest.DelegateParams) (string, *attest.Claims, error) {
 	if p.ParentToken == "" {
 		return "", nil, errors.New("parent_token is required")
 	}
@@ -92,8 +95,10 @@ func (is *Issuer) Delegate(p warrant.DelegateParams, pubKey *rsa.PublicKey) (str
 		return "", nil, errors.New("child_scope must not be empty")
 	}
 
+	pubKey := &key.PublicKey
+
 	// Verify parent token signature and expiry.
-	parentClaims := &warrant.Claims{}
+	parentClaims := &attest.Claims{}
 	_, err := jwt.ParseWithClaims(p.ParentToken, parentClaims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -104,12 +109,12 @@ func (is *Issuer) Delegate(p warrant.DelegateParams, pubKey *rsa.PublicKey) (str
 		return "", nil, fmt.Errorf("invalid parent token: %w", err)
 	}
 
-	childScope := warrant.NormaliseScope(p.ChildScope)
-	if !warrant.IsSubset(parentClaims.Scope, childScope) {
+	childScope := attest.NormaliseScope(p.ChildScope)
+	if !attest.IsSubset(parentClaims.Scope, childScope) {
 		return "", nil, errors.New("child scope is not a subset of parent scope")
 	}
-	if parentClaims.Depth >= warrant.MaxDelegationDepth {
-		return "", nil, fmt.Errorf("delegation depth limit (%d) reached", warrant.MaxDelegationDepth)
+	if parentClaims.Depth >= attest.MaxDelegationDepth {
+		return "", nil, fmt.Errorf("delegation depth limit (%d) reached", attest.MaxDelegationDepth)
 	}
 
 	now := time.Now().UTC()
@@ -125,7 +130,7 @@ func (is *Issuer) Delegate(p warrant.DelegateParams, pubKey *rsa.PublicKey) (str
 		}
 	}
 
-	claims := &warrant.Claims{
+	claims := &attest.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    is.issuerURI,
 			Subject:   "agent:" + p.ChildAgent,
@@ -143,7 +148,8 @@ func (is *Issuer) Delegate(p warrant.DelegateParams, pubKey *rsa.PublicKey) (str
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	signed, err := tok.SignedString(is.privateKey)
+	tok.Header["kid"] = kid
+	signed, err := tok.SignedString(key)
 	if err != nil {
 		return "", nil, fmt.Errorf("signing: %w", err)
 	}
@@ -151,8 +157,8 @@ func (is *Issuer) Delegate(p warrant.DelegateParams, pubKey *rsa.PublicKey) (str
 }
 
 // Verify checks signature, expiry, chain length, and chain tail consistency.
-func (is *Issuer) Verify(tokenString string, pubKey *rsa.PublicKey) (*warrant.VerifyResult, error) {
-	claims := &warrant.Claims{}
+func (is *Issuer) Verify(tokenString string, pubKey *rsa.PublicKey) (*attest.VerifyResult, error) {
+	claims := &attest.Claims{}
 	_, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -160,12 +166,11 @@ func (is *Issuer) Verify(tokenString string, pubKey *rsa.PublicKey) (*warrant.Ve
 		return pubKey, nil
 	})
 	if err != nil {
-		return &warrant.VerifyResult{Valid: false}, fmt.Errorf("token verification failed: %w", err)
+		return &attest.VerifyResult{Valid: false}, fmt.Errorf("token verification failed: %w", err)
 	}
 
 	var warnings []string
 
-	// Chain length must equal depth + 1 (root has depth 0, chain=[jti]).
 	expectedLen := claims.Depth + 1
 	if len(claims.Chain) != expectedLen {
 		warnings = append(warnings, fmt.Sprintf(
@@ -174,14 +179,13 @@ func (is *Issuer) Verify(tokenString string, pubKey *rsa.PublicKey) (*warrant.Ve
 		))
 	}
 
-	// Chain tail must match jti.
 	if len(claims.Chain) > 0 && claims.Chain[len(claims.Chain)-1] != claims.ID {
 		warnings = append(warnings, "chain tail does not match jti")
 	}
 
-	return &warrant.VerifyResult{
+	return &attest.VerifyResult{
 		Valid:    len(warnings) == 0,
-		Claims:  claims,
+		Claims:   claims,
 		Warnings: warnings,
 	}, nil
 }

@@ -2,10 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,16 +12,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/warrant-dev/warrant/internal/audit"
-	"github.com/warrant-dev/warrant/internal/revocation"
-	"github.com/warrant-dev/warrant/internal/token"
+	"github.com/attest-dev/attest/internal/audit"
+	"github.com/attest-dev/attest/internal/org"
+	"github.com/attest-dev/attest/internal/revocation"
+	"github.com/attest-dev/attest/internal/token"
 )
 
 type config struct {
-	Port           string
-	DatabaseURL    string
-	IssuerURI      string
-	PrivateKeyPath string
+	Port        string
+	DatabaseURL string
+	IssuerURI   string
 }
 
 func configFromEnv() config {
@@ -36,27 +32,10 @@ func configFromEnv() config {
 		return fallback
 	}
 	return config{
-		Port:           get("PORT", "8080"),
-		DatabaseURL:    get("DATABASE_URL", ""),
-		IssuerURI:      get("ISSUER_URI", "https://warrant.dev"),
-		PrivateKeyPath: get("PRIVATE_KEY_PATH", ""),
+		Port:        get("PORT", "8080"),
+		DatabaseURL: get("DATABASE_URL", ""),
+		IssuerURI:   get("ISSUER_URI", "https://attest.dev"),
 	}
-}
-
-func loadOrGenerateKey(path string) (*rsa.PrivateKey, error) {
-	if path == "" {
-		slog.Warn("PRIVATE_KEY_PATH not set — generating ephemeral RSA-2048 key (dev mode)")
-		return rsa.GenerateKey(rand.Reader, 2048)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return nil, os.ErrInvalid
-	}
-	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
 func main() {
@@ -65,14 +44,9 @@ func main() {
 
 	cfg := configFromEnv()
 
-	privateKey, err := loadOrGenerateKey(cfg.PrivateKeyPath)
-	if err != nil {
-		slog.Error("failed to load private key", "err", err)
-		os.Exit(1)
-	}
-
 	// Wire storage backends: Postgres when DATABASE_URL is set, in-memory otherwise.
 	var (
+		orgStore org.Store
 		revStore revocation.Revoker
 		auditLog audit.Logger
 	)
@@ -89,19 +63,26 @@ func main() {
 		defer pool.Close()
 
 		slog.Info("storage: postgres", "url", cfg.DatabaseURL)
+		orgStore = org.NewPostgresStore(pool)
 		revStore = revocation.NewStore(pool)
 		auditLog = audit.NewLog(pool)
 	} else {
 		slog.Warn("DATABASE_URL not set — using in-memory storage (dev mode, data lost on restart)")
+		memOrg, err := org.NewMemoryStore()
+		if err != nil {
+			slog.Error("failed to init in-memory org store", "err", err)
+			os.Exit(1)
+		}
+		orgStore = memOrg
 		revStore = revocation.NewMemoryStore()
 		auditLog = audit.NewMemoryLog()
 	}
 
-	iss := token.NewIssuer(privateKey, cfg.IssuerURI)
+	iss := token.NewIssuer(cfg.IssuerURI)
 
 	h := &handlers{
 		issuer:   iss,
-		pubKey:   &privateKey.PublicKey,
+		orgStore: orgStore,
 		revStore: revStore,
 		auditLog: auditLog,
 	}
@@ -113,9 +94,14 @@ func main() {
 	r.Use(jsonLogger)
 
 	r.Get("/health", h.health)
-	r.Get("/.well-known/jwks.json", h.jwks)
 
+	// Public: org signup and per-org JWKS (no API key required).
+	r.Post("/v1/orgs", h.signup)
+	r.Get("/orgs/{orgID}/jwks.json", h.jwks)
+
+	// Authenticated: all credential and audit endpoints.
 	r.Route("/v1", func(r chi.Router) {
+		r.Use(h.authMiddleware)
 		r.Post("/credentials", h.issueCredential)
 		r.Post("/credentials/delegate", h.delegateCredential)
 		r.Delete("/credentials/{jti}", h.revokeCredential)

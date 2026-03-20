@@ -1,18 +1,18 @@
 /**
- * @warrant/mcp — Warrant credential enforcement middleware for MCP servers.
+ * @attest-dev/sdk/mcp — Attest credential enforcement middleware for MCP servers.
  *
- * Wraps any MCP server instance and enforces Warrant credential checking on
+ * Wraps any MCP server instance and enforces Attest credential checking on
  * every tool call before the underlying handler executes.
  *
  * ## Two-line integration
  *
  * ```ts
  * import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
- * import { withWarrant } from "@warrant/sdk/mcp";
+ * import { withAttest } from "@attest-dev/sdk/mcp";
  *
  * const server = new McpServer({ name: "my-tools", version: "1.0.0" });
- * const protectedServer = withWarrant(server, {
- *   issuerUri: "https://api.warrant.dev",
+ * const protectedServer = withAttest(server, {
+ *   issuerUri: "https://api.attest.dev",
  * });
  *
  * // Register tools exactly as before — every call is now credential-gated.
@@ -21,18 +21,18 @@
  *
  * ## How it works
  *
- * `withWarrant` monkey-patches `server.tool()` so each registered handler is
+ * `withAttest` monkey-patches `server.tool()` so each registered handler is
  * wrapped with a credential check closure.  On every tool call the closure:
  *
- * 1. Extracts the Warrant JWT from `extra.authInfo.token` (set by the MCP
- *    auth middleware) or `extra.meta?.warrant_token`.
+ * 1. Extracts the Attest JWT from `extra.authInfo.token` (set by the MCP
+ *    auth middleware) or `extra.meta?.attest_token`.
  * 2. Verifies the JWT offline against the issuer's JWKS (cached per TTL).
- * 3. Maps the tool name to a Warrant scope string via `scopeForTool()`.
- * 4. Confirms the credential's `wrt_scope` covers the required scope.
- * 5. Calls the Warrant revocation endpoint to confirm the JTI is still live.
+ * 3. Maps the tool name to a Attest scope string via `scopeForTool()`.
+ * 4. Confirms the credential's `att_scope` covers the required scope.
+ * 5. Calls the Attest revocation endpoint to confirm the JTI is still live.
  * 6. If all checks pass, executes the original handler.
- * 7. If any check fails, returns a structured `warrant_violation` error.
- * 8. Fire-and-forgets an audit event to the Warrant server regardless of
+ * 7. If any check fails, returns a structured `attest_violation` error.
+ * 8. Fire-and-forgets an audit event to the Attest server regardless of
  *    outcome.
  */
 
@@ -45,7 +45,7 @@ import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 
 /** Minimal shape of the auth info injected by the MCP auth middleware. */
 interface McpAuthInfo {
-  /** Raw bearer token string (the Warrant JWT). */
+  /** Raw bearer token string (the Attest JWT). */
   token: string;
   clientId?: string;
   scopes?: string[];
@@ -57,7 +57,7 @@ interface McpAuthInfo {
 interface McpRequestExtra {
   /** Populated by MCP auth middleware from the Authorization header. */
   authInfo?: McpAuthInfo | undefined;
-  /** Arbitrary metadata; agents may pass warrant_token here explicitly. */
+  /** Arbitrary metadata; agents may pass attest_token here explicitly. */
   meta?: Record<string, unknown> | undefined;
   signal?: AbortSignal;
   sessionId?: string;
@@ -79,7 +79,7 @@ interface McpCallToolResult {
 
 /**
  * Minimal interface for any object that behaves like an MCP server.
- * `withWarrant` accepts anything with a `tool()` method.
+ * `withAttest` accepts anything with a `tool()` method.
  */
 export interface McpServerLike {
   tool: (...args: unknown[]) => unknown;
@@ -88,18 +88,18 @@ export interface McpServerLike {
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
-/** The decoded Warrant JWT claims threaded through the MCP request. */
-export interface WarrantContext {
+/** The decoded Attest JWT claims threaded through the MCP request. */
+export interface AttestContext {
   /** Unique identifier for this credential. */
   jti: string;
   /** Task tree ID shared across the entire delegation chain. */
-  wrt_tid: string;
+  att_tid: string;
   /** Delegation depth (0 = root credential). */
-  wrt_depth: number;
+  att_depth: number;
   /** Granted permission scopes in "resource:action" form. */
-  wrt_scope: string[];
+  att_scope: string[];
   /** Human user who initiated the task. */
-  wrt_uid: string;
+  att_uid: string;
   /** Raw JWT string. */
   token: string;
 }
@@ -108,7 +108,7 @@ export interface WarrantContext {
 export interface ScopeViolationEvent {
   /** MCP tool name that was blocked. */
   toolName: string;
-  /** Warrant scope required by this tool. */
+  /** Attest scope required by this tool. */
   requiredScope: string;
   /** Scopes actually present in the credential (empty if no credential). */
   grantedScope: string[];
@@ -118,7 +118,8 @@ export interface ScopeViolationEvent {
     | 'credential_expired'
     | 'credential_revoked'
     | 'scope_violation'
-    | 'invalid_credential';
+    | 'invalid_credential'
+    | 'audit_failure';
   /** Credential JTI if available. */
   jti?: string;
   /** Task ID if available. */
@@ -128,12 +129,12 @@ export interface ScopeViolationEvent {
 }
 
 /**
- * Options for `withWarrant`.
+ * Options for `withAttest`.
  */
-export interface WarrantMcpOptions {
+export interface AttestMcpOptions {
   /**
-   * URI of the Warrant server used to fetch JWKS and check revocation.
-   * @example "https://api.warrant.dev"
+   * URI of the Attest server used to fetch JWKS and check revocation.
+   * @example "https://api.attest.dev"
    */
   issuerUri: string;
 
@@ -145,8 +146,8 @@ export interface WarrantMcpOptions {
   jwksCacheTTL?: number;
 
   /**
-   * When `true` (the default), tool calls without a valid Warrant credential
-   * are blocked and a `warrant_violation` error is returned.
+   * When `true` (the default), tool calls without a valid Attest credential
+   * are blocked and a `attest_violation` error is returned.
    *
    * When `false`, violations are logged via `onViolation` but the tool call
    * proceeds.  Useful for gradual rollouts or debugging.
@@ -162,7 +163,7 @@ export interface WarrantMcpOptions {
 
   /**
    * Per-tool scope overrides.  Keys are exact MCP tool names; values are
-   * Warrant scope strings.  Overrides the automatic `scopeForTool()` mapping.
+   * Attest scope strings.  Overrides the automatic `scopeForTool()` mapping.
    *
    * @example
    * toolScopeMap: {
@@ -179,21 +180,68 @@ export interface WarrantMcpOptions {
    * @default 10
    */
   revocationCacheTTL?: number;
+
+  /**
+   * Called when an audit POST to the Attest server fails.
+   * Receives the underlying error and the event payload that was not delivered.
+   *
+   * Use this to implement a retry queue, write to a fallback log, or page
+   * on-call for compliance-critical deployments.
+   *
+   * If omitted, failures are surfaced via `onViolation` (with
+   * `reason: "audit_failure"`) and, if that is also unset, via
+   * `console.warn` — audit failures are never silently dropped.
+   *
+   * @example
+   * ```ts
+   * onAuditError: (err, event) => {
+   *   retryQueue.push({ event, attempts: 0 });
+   *   logger.error("audit delivery failed", { err, jti: event.jti });
+   * }
+   * ```
+   */
+  onAuditError?: (error: Error, event: AuditPayload) => void;
 }
 
 /** Structured error payload returned in the tool response body on violation. */
-export interface WarrantViolationError {
-  error: 'warrant_violation';
+export interface AttestViolationError {
+  error: 'attest_violation';
   reason: ScopeViolationEvent['reason'];
   detail: string;
   jti?: string;
   taskId?: string;
 }
 
+/**
+ * Optional Attest-specific options passed as the final argument to
+ * `protectedServer.tool()`.  The MCP SDK never sees this object — it is
+ * extracted and consumed by the `withAttest` wrapper before forwarding
+ * the remaining arguments.
+ *
+ * @example
+ * ```ts
+ * protectedServer.tool("gh_create_issue", schema, handler, {
+ *   requiredScope: "github:write",
+ * });
+ * ```
+ */
+export interface AttestToolOptions {
+  /**
+   * Explicit Attest scope string required to call this tool.
+   * Overrides the automatic `scopeForTool()` mapping.
+   * Use this for non-standard tool names or when the auto-mapping would
+   * produce a misleading scope.
+   *
+   * @example "github:write"
+   * @example "stripe:charge"
+   */
+  requiredScope?: string;
+}
+
 // ── scopeForTool ──────────────────────────────────────────────────────────────
 
 /**
- * Maps an MCP tool name to a Warrant scope string using a convention-based
+ * Maps an MCP tool name to a Attest scope string using a convention-based
  * approach.  The tool name is split on the first underscore: the part before
  * becomes the action; the rest (joined with `:`) becomes the resource.
  *
@@ -299,7 +347,7 @@ interface RevocationEntry {
 
 /**
  * Short-lived in-process cache for revocation status.
- * Reduces network calls to the Warrant server on hot paths.
+ * Reduces network calls to the Attest server on hot paths.
  */
 class RevocationCache {
   private readonly cache = new Map<string, RevocationEntry>();
@@ -348,16 +396,16 @@ class RevocationCache {
 // ── Scope enforcement ─────────────────────────────────────────────────────────
 
 /**
- * Warrant JWT claims shape (subset required for enforcement).
- * Mirrors `WarrantClaims` from `@warrant/sdk` without re-importing it here.
+ * Attest JWT claims shape (subset required for enforcement).
+ * Mirrors `AttestClaims` from `@attest-dev/sdk` without re-importing it here.
  */
 interface WrtClaims {
   jti?: string;
   exp?: number;
-  wrt_tid?: string;
-  wrt_scope?: string[];
-  wrt_depth?: number;
-  wrt_uid?: string;
+  att_tid?: string;
+  att_scope?: string[];
+  att_depth?: number;
+  att_uid?: string;
 }
 
 function isScopeGranted(grantedScope: string[], requiredScope: string): boolean {
@@ -380,7 +428,7 @@ function isScopeGranted(grantedScope: string[], requiredScope: string): boolean 
  *
  * Lookup order:
  * 1. `extra.authInfo.token`       — set by the MCP auth middleware (preferred)
- * 2. `extra.meta.warrant_token`   — explicit pass-through from the agent
+ * 2. `extra.meta.attest_token`   — explicit pass-through from the agent
  * 3. `extra.meta.authorization`   — raw "Bearer <token>" header value
  *
  * Returns `null` when no credential can be found.
@@ -392,9 +440,9 @@ function extractToken(extra: McpRequestExtra): string | null {
   const meta = extra.meta;
   if (!meta) return null;
 
-  // 2. Explicit warrant_token field.
-  if (typeof meta['warrant_token'] === 'string' && meta['warrant_token']) {
-    return meta['warrant_token'];
+  // 2. Explicit attest_token field.
+  if (typeof meta['attest_token'] === 'string' && meta['attest_token']) {
+    return meta['attest_token'];
   }
 
   // 3. Raw Authorization header forwarded via meta.
@@ -409,68 +457,127 @@ function extractToken(extra: McpRequestExtra): string | null {
 
 // ── Audit logging ─────────────────────────────────────────────────────────────
 
-interface AuditPayload {
+/**
+ * The audit event payload sent to `POST /v1/audit` on the Attest server.
+ * Passed to `onAuditError` when delivery fails so the caller can retry or
+ * write to a fallback log.
+ */
+export interface AuditPayload {
   event_type: 'verified' | 'revoked';
   jti: string;
-  wrt_tid?: string | undefined;
-  wrt_uid?: string | undefined;
+  att_tid?: string | undefined;
+  att_uid?: string | undefined;
   agent_id: string;
   scope: string[];
   meta?: Record<string, string> | undefined;
 }
 
 /**
- * Fire-and-forget audit event to the Warrant server.
- * Failures are silently swallowed — audit must never block tool execution.
+ * Fire-and-forget audit event to the Attest server.
+ *
+ * Delivery is async and never blocks the tool call.  On failure, errors are
+ * surfaced in priority order:
+ *   1. `onAuditError(error, payload)`   — caller handles retry / fallback log
+ *   2. `onViolation({ reason: "audit_failure", ... })` — surfaces to monitoring
+ *   3. `console.warn`                   — last resort, never silently dropped
  */
-function fireAudit(issuerUri: string, payload: AuditPayload): void {
-  // Intentionally not awaited.
+function fireAudit(
+  issuerUri: string,
+  payload: AuditPayload,
+  onAuditError: ((error: Error, event: AuditPayload) => void) | undefined,
+  onViolation: ((event: ScopeViolationEvent) => void) | undefined,
+): void {
   void fetch(`${issuerUri}/v1/audit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  }).catch(() => {
-    // Swallow — audit is best-effort.
-  });
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        // Non-2xx is also a delivery failure — treat it the same as a network error.
+        let body = '';
+        try { body = await res.text(); } catch { /* ignore */ }
+        throw new Error(`Attest audit endpoint returned ${res.status}: ${body}`);
+      }
+    })
+    .catch((err: unknown) => {
+      const error = err instanceof Error ? err : new Error(String(err));
+
+      if (onAuditError) {
+        onAuditError(error, payload);
+        return;
+      }
+
+      if (onViolation) {
+        onViolation({
+          toolName: payload.agent_id,
+          requiredScope: '',
+          grantedScope: payload.scope,
+          reason: 'audit_failure',
+          ...(payload.jti ? { jti: payload.jti } : {}),
+          ...(payload.att_tid ? { taskId: payload.att_tid } : {}),
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Last resort: never silently drop an audit failure.
+      console.warn(
+        '[attest] Audit delivery failed — configure onAuditError for structured handling.',
+        { jti: payload.jti, agent_id: payload.agent_id, error: error.message },
+      );
+    });
 }
 
 // ── Core enforcer ─────────────────────────────────────────────────────────────
 
-class WarrantEnforcer {
+class AttestEnforcer {
   private readonly issuerUri: string;
   private readonly requireCredential: boolean;
   private readonly onViolation: ((event: ScopeViolationEvent) => void) | undefined;
+  private readonly onAuditError: ((error: Error, event: AuditPayload) => void) | undefined;
   private readonly toolScopeMap: Record<string, string> | undefined;
 
   private readonly jwks: JwksCache;
   private readonly revocations: RevocationCache;
 
-  constructor(opts: WarrantMcpOptions) {
+  constructor(opts: AttestMcpOptions) {
     this.issuerUri = opts.issuerUri.replace(/\/$/, '');
     this.requireCredential = opts.requireCredential ?? true;
     this.onViolation = opts.onViolation;
+    this.onAuditError = opts.onAuditError;
     this.toolScopeMap = opts.toolScopeMap;
     this.jwks = new JwksCache(this.issuerUri, opts.jwksCacheTTL ?? 3600);
     this.revocations = new RevocationCache(this.issuerUri, opts.revocationCacheTTL ?? 10);
   }
 
   /**
+   * Resolve the scope string for a tool, preferring an explicit override
+   * over the automatic `scopeForTool()` mapping.
+   */
+  resolveScope(toolName: string, explicit?: string): string {
+    return explicit ?? scopeForTool(toolName, this.toolScopeMap);
+  }
+
+  /**
    * Checks the credential in `extra` for `toolName`.
    *
-   * @returns `null` when the check passes; a `WarrantViolationError` otherwise.
+   * @param resolvedScope Pre-resolved scope string (from `resolveScope`).
+   * @returns `null` when the check passes; a `AttestViolationError` otherwise.
    */
   async check(
     toolName: string,
     extra: McpRequestExtra,
-  ): Promise<WarrantViolationError | null> {
-    const requiredScope = scopeForTool(toolName, this.toolScopeMap);
+    resolvedScope: string,
+  ): Promise<AttestViolationError | null> {
+    const requiredScope = resolvedScope;
     const rawToken = extractToken(extra);
 
     // ── 1. No credential ────────────────────────────────────────────────────
     if (!rawToken) {
       return this.violate(toolName, {
         reason: 'no_credential',
-        detail: `Tool "${toolName}" requires a Warrant credential (scope: ${requiredScope}). Provide an Authorization: Bearer <token> header.`,
+        detail: `Tool "${toolName}" requires a Attest credential (scope: ${requiredScope}). Provide an Authorization: Bearer <token> header.`,
         requiredScope,
         grantedScope: [],
       });
@@ -490,8 +597,8 @@ class WarrantEnforcer {
     }
 
     const jti = raw.jti;
-    const taskId = raw.wrt_tid;
-    const grantedScope = raw.wrt_scope ?? [];
+    const taskId = raw.att_tid;
+    const grantedScope = raw.att_scope ?? [];
 
     // ── 3. Verify signature + expiry via JWKS ───────────────────────────────
     try {
@@ -526,12 +633,12 @@ class WarrantEnforcer {
       fireAudit(this.issuerUri, {
         event_type: 'verified',
         jti: jti ?? 'unknown',
-        ...(taskId !== undefined ? { wrt_tid: taskId } : {}),
-        ...(raw.wrt_uid !== undefined ? { wrt_uid: raw.wrt_uid } : {}),
+        ...(taskId !== undefined ? { att_tid: taskId } : {}),
+        ...(raw.att_uid !== undefined ? { att_uid: raw.att_uid } : {}),
         agent_id: `mcp:${toolName}`,
         scope: grantedScope,
         meta: { outcome: 'scope_violation', required_scope: requiredScope },
-      });
+      }, this.onAuditError, this.onViolation);
       return result;
     }
 
@@ -550,12 +657,12 @@ class WarrantEnforcer {
         fireAudit(this.issuerUri, {
           event_type: 'revoked',
           jti,
-          ...(taskId !== undefined ? { wrt_tid: taskId } : {}),
-          ...(raw.wrt_uid !== undefined ? { wrt_uid: raw.wrt_uid } : {}),
+          ...(taskId !== undefined ? { att_tid: taskId } : {}),
+          ...(raw.att_uid !== undefined ? { att_uid: raw.att_uid } : {}),
           agent_id: `mcp:${toolName}`,
           scope: grantedScope,
           meta: { outcome: 'blocked_revoked' },
-        });
+        }, this.onAuditError, this.onViolation);
         return result;
       }
     }
@@ -564,12 +671,12 @@ class WarrantEnforcer {
     fireAudit(this.issuerUri, {
       event_type: 'verified',
       jti: jti ?? 'unknown',
-      ...(taskId !== undefined ? { wrt_tid: taskId } : {}),
-      ...(raw.wrt_uid !== undefined ? { wrt_uid: raw.wrt_uid } : {}),
+      ...(taskId !== undefined ? { att_tid: taskId } : {}),
+      ...(raw.att_uid !== undefined ? { att_uid: raw.att_uid } : {}),
       agent_id: `mcp:${toolName}`,
       scope: grantedScope,
       meta: { outcome: 'allowed', required_scope: requiredScope },
-    });
+    }, this.onAuditError, this.onViolation);
     return null;
   }
 
@@ -583,7 +690,7 @@ class WarrantEnforcer {
       jti?: string;
       taskId?: string;
     },
-  ): WarrantViolationError | null {
+  ): AttestViolationError | null {
     const event: ScopeViolationEvent = {
       toolName,
       requiredScope: opts.requiredScope,
@@ -602,7 +709,7 @@ class WarrantEnforcer {
     }
 
     return {
-      error: 'warrant_violation',
+      error: 'attest_violation',
       reason: opts.reason,
       detail: opts.detail,
       ...(opts.jti !== undefined ? { jti: opts.jti } : {}),
@@ -611,48 +718,59 @@ class WarrantEnforcer {
   }
 }
 
-// ── withWarrant ───────────────────────────────────────────────────────────────
+// ── Scope registry ────────────────────────────────────────────────────────────
+
+// Maps each patched server instance → its tool-name-to-scope registry.
+// WeakMap so patched servers can be GC'd without leaking.
+const scopeRegistries = new WeakMap<McpServerLike, Map<string, string>>();
+
+// ── withAttest ───────────────────────────────────────────────────────────────
 
 /**
- * Wraps an MCP server instance and enforces Warrant credential checking on
+ * Wraps an MCP server instance and enforces Attest credential checking on
  * every tool call.
  *
  * Returns the **same** server object with its `tool()` method patched in place,
  * typed as the original server type so all other methods remain accessible.
  *
  * @param server  Any object with a `tool()` method (e.g. `new McpServer(...)`).
- * @param options Warrant enforcement options.
+ * @param options Attest enforcement options.
  * @returns       The patched server (same reference, same type).
  *
  * @example
  * ```ts
  * import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
- * import { withWarrant } from "@warrant/sdk/mcp";
+ * import { withAttest } from "@attest-dev/sdk/mcp";
  *
  * const server = new McpServer({ name: "my-tools", version: "1.0.0" });
- * const protectedServer = withWarrant(server, {
- *   issuerUri: "https://api.warrant.dev",
+ * const protectedServer = withAttest(server, {
+ *   issuerUri: "https://api.attest.dev",
  * });
  *
  * protectedServer.tool("send_email", schema, async (args, extra) => {
  *   // Only reached when the caller holds a valid credential
- *   // with "email:send" in its wrt_scope.
+ *   // with "email:send" in its att_scope.
  *   return { content: [{ type: "text", text: "sent!" }] };
  * });
  * ```
  */
-export function withWarrant<T extends McpServerLike>(server: T, options: WarrantMcpOptions): T {
-  const enforcer = new WarrantEnforcer(options);
+export function withAttest<T extends McpServerLike>(server: T, options: AttestMcpOptions): T {
+  const enforcer = new AttestEnforcer(options);
+  const registry = new Map<string, string>();
+  scopeRegistries.set(server, registry);
+
   const originalTool = server.tool.bind(server) as (...args: unknown[]) => unknown;
 
   // Replace server.tool with our intercepting wrapper.
   // The MCP SDK's McpServer.tool() has two overloads:
   //   tool(name, schema, handler)
   //   tool(name, description, schema, handler)
-  // We detect which form is used by checking whether the last argument is a
-  // function, then wrap that handler.
-  server.tool = function warrantTool(...args: unknown[]): unknown {
-    const patched = patchToolArgs(enforcer, args);
+  // We additionally support an optional trailing AttestToolOptions object:
+  //   tool(name, schema, handler, { requiredScope: "..." })
+  //   tool(name, description, schema, handler, { requiredScope: "..." })
+  // That object is consumed here and stripped before forwarding to the SDK.
+  server.tool = function attestTool(...args: unknown[]): unknown {
+    const patched = patchToolArgs(enforcer, registry, args);
     return originalTool(...patched);
   };
 
@@ -660,20 +778,52 @@ export function withWarrant<T extends McpServerLike>(server: T, options: Warrant
 }
 
 /**
- * Finds the handler function in the tool() argument list (always the last
- * argument), wraps it with credential enforcement, and returns the patched
- * argument array.
+ * Detects the handler function and optional trailing `AttestToolOptions` in
+ * the `tool()` argument list, wraps the handler with credential enforcement,
+ * strips the options object (the MCP SDK doesn't know about it), and returns
+ * the patched argument array ready to forward to the original `tool()`.
  */
-function patchToolArgs(enforcer: WarrantEnforcer, args: unknown[]): unknown[] {
+function patchToolArgs(
+  enforcer: AttestEnforcer,
+  registry: Map<string, string>,
+  args: unknown[],
+): unknown[] {
   if (args.length === 0) return args;
 
-  const lastArg = args[args.length - 1];
-  if (typeof lastArg !== 'function') return args;
+  // Detect optional trailing AttestToolOptions.
+  // It's a plain object (not a function, not an array, not null) that may
+  // carry { requiredScope?: string }.  The handler is always a function and
+  // always comes before the options if options are present.
+  let coreArgs = args;
+  let explicitScope: string | undefined;
 
-  // The tool name is always the first argument.
-  const toolName = typeof args[0] === 'string' ? args[0] : '<unknown>';
+  const last = args[args.length - 1];
+  if (
+    last !== null &&
+    typeof last === 'object' &&
+    !Array.isArray(last) &&
+    typeof (last as Record<string, unknown>)['requiredScope'] !== 'function'
+  ) {
+    // Candidate options object — check the one before it is a function.
+    const penultimate = args[args.length - 2];
+    if (typeof penultimate === 'function') {
+      const opts = last as AttestToolOptions;
+      explicitScope = opts.requiredScope;
+      coreArgs = args.slice(0, -1); // strip options before forwarding
+    }
+  }
 
-  const original = lastArg as (
+  const handlerArg = coreArgs[coreArgs.length - 1];
+  if (typeof handlerArg !== 'function') return coreArgs;
+
+  // Tool name is always the first argument.
+  const toolName = typeof coreArgs[0] === 'string' ? coreArgs[0] : '<unknown>';
+
+  // Resolve and record the scope for this tool.
+  const resolvedScope = enforcer.resolveScope(toolName, explicitScope);
+  registry.set(toolName, resolvedScope);
+
+  const original = handlerArg as (
     params: unknown,
     extra: McpRequestExtra,
   ) => Promise<McpCallToolResult>;
@@ -682,7 +832,7 @@ function patchToolArgs(enforcer: WarrantEnforcer, args: unknown[]): unknown[] {
     params: unknown,
     extra: McpRequestExtra,
   ): Promise<McpCallToolResult> => {
-    const violation = await enforcer.check(toolName, extra);
+    const violation = await enforcer.check(toolName, extra, resolvedScope);
 
     if (violation !== null) {
       return {
@@ -694,33 +844,32 @@ function patchToolArgs(enforcer: WarrantEnforcer, args: unknown[]): unknown[] {
     return original(params, extra);
   };
 
-  // Preserve the function's name for debugging.
-  Object.defineProperty(wrapped, 'name', { value: `warrant:${toolName}` });
+  Object.defineProperty(wrapped, 'name', { value: `attest:${toolName}` });
 
-  return [...args.slice(0, -1), wrapped];
+  return [...coreArgs.slice(0, -1), wrapped];
 }
 
-// ── Convenience re-export of WarrantContext builder ───────────────────────────
+// ── Convenience re-export of AttestContext builder ───────────────────────────
 
 /**
- * Decodes the Warrant JWT in `extra` and returns a typed `WarrantContext`
+ * Decodes the Attest JWT in `extra` and returns a typed `AttestContext`
  * without performing any cryptographic verification.
  *
  * Useful inside tool handlers when you want to read the credential's claims
- * (e.g. `wrt_uid`, `wrt_tid`) after `withWarrant` has already enforced them.
+ * (e.g. `att_uid`, `att_tid`) after `withAttest` has already enforced them.
  *
- * @returns `null` when no Warrant credential is present.
+ * @returns `null` when no Attest credential is present.
  *
  * @example
  * ```ts
  * protectedServer.tool("send_email", schema, async (args, extra) => {
- *   const ctx = getWarrantContext(extra);
- *   console.log("acting on behalf of", ctx?.wrt_uid);
+ *   const ctx = getAttestContext(extra);
+ *   console.log("acting on behalf of", ctx?.att_uid);
  *   ...
  * });
  * ```
  */
-export function getWarrantContext(extra: McpRequestExtra): WarrantContext | null {
+export function getAttestContext(extra: McpRequestExtra): AttestContext | null {
   const token = extractToken(extra);
   if (!token) return null;
 
@@ -728,13 +877,50 @@ export function getWarrantContext(extra: McpRequestExtra): WarrantContext | null
     const claims = decodeJwt(token) as unknown as WrtClaims;
     return {
       jti: claims.jti ?? '',
-      wrt_tid: claims.wrt_tid ?? '',
-      wrt_depth: claims.wrt_depth ?? 0,
-      wrt_scope: claims.wrt_scope ?? [],
-      wrt_uid: claims.wrt_uid ?? '',
+      att_tid: claims.att_tid ?? '',
+      att_depth: claims.att_depth ?? 0,
+      att_scope: claims.att_scope ?? [],
+      att_uid: claims.att_uid ?? '',
       token,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Returns the scope registry for a server that has been wrapped with
+ * `withAttest` — a map of every registered tool name to its resolved
+ * Attest scope string.
+ *
+ * Use this to build a scope discovery endpoint so credential issuers can
+ * query what scopes a server requires without out-of-band coordination.
+ *
+ * @example
+ * ```ts
+ * // Express / Hono / any HTTP framework:
+ * app.get("/.well-known/attest-scopes", (_req, res) => {
+ *   res.json({ tools: getAttestScopes(protectedServer) });
+ * });
+ *
+ * // Response:
+ * // {
+ * //   "tools": {
+ * //     "send_email":      "email:send",
+ * //     "read_file":       "file:read",
+ * //     "gh_create_issue": "github:write"
+ * //   }
+ * // }
+ * ```
+ *
+ * Tools that have not yet been registered (i.e. `server.tool()` hasn't been
+ * called for them yet) will not appear in the result.  Call this after all
+ * tools are registered, not during server startup.
+ *
+ * @returns A plain `Record<string, string>` safe to serialize directly as JSON.
+ */
+export function getAttestScopes(server: McpServerLike): Record<string, string> {
+  const registry = scopeRegistries.get(server);
+  if (!registry) return {};
+  return Object.fromEntries(registry);
 }

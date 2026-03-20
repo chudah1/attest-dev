@@ -1,4 +1,4 @@
-module github.com/warrant-dev/warrant
+module github.com/attest-dev/attest
 
 go 1.22
 

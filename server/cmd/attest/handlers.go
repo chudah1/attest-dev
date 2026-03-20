@@ -1,23 +1,51 @@
 package main
 
 import (
-	"crypto/rsa"
+	"context"
 	"encoding/json"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/warrant-dev/warrant/internal/audit"
-	"github.com/warrant-dev/warrant/internal/revocation"
-	"github.com/warrant-dev/warrant/internal/token"
-	"github.com/warrant-dev/warrant/pkg/warrant"
+	"github.com/attest-dev/attest/internal/audit"
+	"github.com/attest-dev/attest/internal/org"
+	"github.com/attest-dev/attest/internal/revocation"
+	"github.com/attest-dev/attest/internal/token"
+	"github.com/attest-dev/attest/pkg/attest"
 )
+
+type orgCtxKey struct{}
 
 type handlers struct {
 	issuer   *token.Issuer
-	pubKey   *rsa.PublicKey
-	revStore revocation.Revoker // interface — Postgres Store or MemoryStore
-	auditLog audit.Logger       // interface — Postgres Log or MemoryLog
+	orgStore org.Store
+	revStore revocation.Revoker
+	auditLog audit.Logger
+}
+
+// authMiddleware resolves the Bearer API key to an org and injects it into context.
+func (h *handlers) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			writeError(w, http.StatusUnauthorized, "missing or malformed Authorization header")
+			return
+		}
+		rawKey := strings.TrimPrefix(authHeader, "Bearer ")
+		o, err := h.orgStore.ResolveAPIKey(r.Context(), rawKey)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid api key")
+			return
+		}
+		ctx := context.WithValue(r.Context(), orgCtxKey{}, o)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func orgFromCtx(ctx context.Context) *org.Org {
+	o, _ := ctx.Value(orgCtxKey{}).(*org.Org)
+	return o
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -30,25 +58,52 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+// POST /v1/orgs — create a new organisation (unauthenticated signup).
+func (h *handlers) signup(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	o, rawKey, apiKey, err := h.orgStore.CreateOrg(r.Context(), body.Name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "create org: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"org":     o,
+		"api_key": rawKey,
+		"key_id":  apiKey.ID,
+	})
+}
+
 // POST /v1/credentials
 func (h *handlers) issueCredential(w http.ResponseWriter, r *http.Request) {
-	var p warrant.IssueParams
+	o := orgFromCtx(r.Context())
+	var p attest.IssueParams
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
-	tok, claims, err := h.issuer.Issue(p)
+	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "get signing key: "+err.Error())
+		return
+	}
+
+	tok, claims, err := h.issuer.Issue(orgKey.PrivateKey, orgKey.KeyID, p)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	// Register chain for cascade revocation (no-op in Postgres mode).
 	h.revStore.TrackCredential(claims.ID, claims.Chain)
 
-	_ = h.auditLog.Append(r.Context(), warrant.AuditEvent{
-		EventType: warrant.EventIssued,
+	_ = h.auditLog.Append(r.Context(), attest.AuditEvent{
+		EventType: attest.EventIssued,
 		JTI:       claims.ID,
 		TaskID:    claims.TaskID,
 		UserID:    claims.UserID,
@@ -64,23 +119,29 @@ func (h *handlers) issueCredential(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/credentials/delegate
 func (h *handlers) delegateCredential(w http.ResponseWriter, r *http.Request) {
-	var p warrant.DelegateParams
+	o := orgFromCtx(r.Context())
+	var p attest.DelegateParams
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
 		return
 	}
 
-	tok, claims, err := h.issuer.Delegate(p, h.pubKey)
+	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "get signing key: "+err.Error())
+		return
+	}
+
+	tok, claims, err := h.issuer.Delegate(orgKey.PrivateKey, orgKey.KeyID, p)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
-	// Register chain for cascade revocation (no-op in Postgres mode).
 	h.revStore.TrackCredential(claims.ID, claims.Chain)
 
-	_ = h.auditLog.Append(r.Context(), warrant.AuditEvent{
-		EventType: warrant.EventDelegated,
+	_ = h.auditLog.Append(r.Context(), attest.AuditEvent{
+		EventType: attest.EventDelegated,
 		JTI:       claims.ID,
 		TaskID:    claims.TaskID,
 		UserID:    claims.UserID,
@@ -115,8 +176,8 @@ func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = h.auditLog.Append(r.Context(), warrant.AuditEvent{
-		EventType: warrant.EventRevoked,
+	_ = h.auditLog.Append(r.Context(), attest.AuditEvent{
+		EventType: attest.EventRevoked,
 		JTI:       jti,
 		Meta:      map[string]string{"revoked_by": body.RevokedBy},
 	})
@@ -144,15 +205,23 @@ func (h *handlers) getAuditLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if events == nil {
-		events = []warrant.AuditEvent{}
+		events = []attest.AuditEvent{}
 	}
 	writeJSON(w, http.StatusOK, events)
 }
 
-// GET /.well-known/jwks.json
+// GET /orgs/{orgID}/jwks.json — public, returns the org's active RSA public key as JWKS.
 func (h *handlers) jwks(w http.ResponseWriter, r *http.Request) {
-	nBytes := h.pubKey.N.Bytes()
-	eBytes := big.NewInt(int64(h.pubKey.E)).Bytes()
+	orgID := chi.URLParam(r, "orgID")
+	orgKey, err := h.orgStore.GetSigningKey(r.Context(), orgID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "org not found")
+		return
+	}
+
+	pub := &orgKey.PrivateKey.PublicKey
+	nBytes := pub.N.Bytes()
+	eBytes := big.NewInt(int64(pub.E)).Bytes()
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"keys": []map[string]any{
@@ -160,6 +229,7 @@ func (h *handlers) jwks(w http.ResponseWriter, r *http.Request) {
 				"kty": "RSA",
 				"use": "sig",
 				"alg": "RS256",
+				"kid": orgKey.KeyID,
 				"n":   encodeBase64URL(nBytes),
 				"e":   encodeBase64URL(eBytes),
 			},

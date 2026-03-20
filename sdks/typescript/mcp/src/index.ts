@@ -1,20 +1,20 @@
 /**
- * @warrant/mcp — Warrant credential enforcement middleware for MCP servers.
+ * @attest-dev/mcp — Attest credential enforcement middleware for MCP servers.
  *
  * Drop-in wrapper for any McpServer that checks every tool call against a
- * Warrant credential before letting it through.
+ * Attest credential before letting it through.
  *
  * Quick start:
  *
  *   import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
- *   import { createWarrantMcpServer } from '@warrant/mcp';
+ *   import { createAttestMcpServer } from '@attest-dev/mcp';
  *
  *   const server = new McpServer({ name: 'my-server', version: '1.0.0' });
  *   // ...register tools normally...
  *
- *   const secured = createWarrantMcpServer(server, {
- *     warrantBaseUrl: 'http://localhost:8080',
- *     extractToken: (req) => req.params._meta?.warrant_token ?? null,
+ *   const secured = createAttestMcpServer(server, {
+ *     attestBaseUrl: 'http://localhost:8080',
+ *     extractToken: (req) => req.params._meta?.attest_token ?? null,
  *   });
  */
 
@@ -24,11 +24,11 @@ import type {
   CallToolRequest,
   CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { JWKSResponse, WarrantClaims } from '@warrant/sdk';
-import { WarrantVerifier } from './middleware.js';
+import type { JWKSResponse, AttestClaims } from '@attest-dev/sdk';
+import { AttestVerifier } from './middleware.js';
 
 export type { DeniedReason, DeniedCode, VerifyOptions } from './middleware.js';
-export { WarrantVerifier, isScopeCovered } from './middleware.js';
+export { AttestVerifier, isScopeCovered } from './middleware.js';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -39,12 +39,12 @@ export interface DeniedReason {
   message: string;
 }
 
-export interface WarrantMcpOptions {
-  /** Base URL of the Warrant server, e.g. "http://localhost:8080". */
-  warrantBaseUrl: string;
+export interface AttestMcpOptions {
+  /** Base URL of the Attest server, e.g. "http://localhost:8080". */
+  attestBaseUrl: string;
   /**
    * Full JWKS endpoint URL.
-   * Defaults to `warrantBaseUrl + "/.well-known/jwks.json"`.
+   * Defaults to `attestBaseUrl + "/.well-known/jwks.json"`.
    */
   jwksUrl?: string;
   /**
@@ -53,18 +53,18 @@ export interface WarrantMcpOptions {
    */
   staticJwks?: JWKSResponse;
   /**
-   * Extract the Warrant token from an incoming tool-call request.
+   * Extract the Attest token from an incoming tool-call request.
    *
    * Default strategy (in order):
-   *  1. `request.params._meta?.warrant_token`
-   *  2. `request.params.arguments?.warrant_token`
+   *  1. `request.params._meta?.attest_token`
+   *  2. `request.params.arguments?.attest_token`
    *
    * Supply your own function to read from a different location (e.g. a
    * shared HTTP header captured by your transport layer).
    */
   extractToken?: (request: CallToolRequest) => string | null;
   /**
-   * Whether to check the Warrant server's revocation list.
+   * Whether to check the Attest server's revocation list.
    * Default: true.
    * Set to false for latency-sensitive or fully offline scenarios.
    */
@@ -91,19 +91,19 @@ export interface WarrantMcpOptions {
 
 /**
  * Default token extraction strategy:
- *  1. `request.params._meta?.warrant_token`  (MCP meta field)
- *  2. `request.params.arguments?.warrant_token`  (tool argument)
+ *  1. `request.params._meta?.attest_token`  (MCP meta field)
+ *  2. `request.params.arguments?.attest_token`  (tool argument)
  */
 export function defaultExtractToken(request: CallToolRequest): string | null {
   // _meta is typed as Record<string, unknown> | undefined in MCP SDK
   const meta = request.params._meta as Record<string, unknown> | undefined;
-  if (typeof meta?.['warrant_token'] === 'string') {
-    return meta['warrant_token'];
+  if (typeof meta?.['attest_token'] === 'string') {
+    return meta['attest_token'];
   }
 
   const args = request.params.arguments as Record<string, unknown> | undefined;
-  if (typeof args?.['warrant_token'] === 'string') {
-    return args['warrant_token'];
+  if (typeof args?.['attest_token'] === 'string') {
+    return args['attest_token'];
   }
 
   return null;
@@ -131,7 +131,7 @@ function deniedResult(
   prefix?: string,
 ): CallToolResult {
   const body: Record<string, unknown> = {
-    error: 'warrant_denied',
+    error: 'attest_denied',
     code: reason.code,
     tool: reason.tool,
     message: reason.message,
@@ -157,11 +157,11 @@ function deniedResult(
   };
 }
 
-// ── createWarrantMcpServer ────────────────────────────────────────────────────
+// ── createAttestMcpServer ────────────────────────────────────────────────────
 
 /**
  * Wrap an existing McpServer so that every tool call is checked against a
- * Warrant credential before reaching the original handler.
+ * Attest credential before reaching the original handler.
  *
  * The returned server is the same McpServer instance — its
  * `CallToolRequestSchema` handler is replaced with one that performs
@@ -169,15 +169,15 @@ function deniedResult(
  * success.
  *
  * @param server   An already-configured McpServer (tools may already be registered).
- * @param options  Warrant enforcement configuration.
+ * @param options  Attest enforcement configuration.
  * @returns        The same McpServer instance, now with enforcement active.
  */
-export function createWarrantMcpServer(
+export function createAttestMcpServer(
   server: McpServer,
-  options: WarrantMcpOptions,
+  options: AttestMcpOptions,
 ): McpServer {
-  const verifier = new WarrantVerifier({
-    warrantBaseUrl: options.warrantBaseUrl,
+  const verifier = new AttestVerifier({
+    attestBaseUrl: options.attestBaseUrl,
     jwksUrl: options.jwksUrl,
     staticJwks: options.staticJwks,
     checkRevocation: options.checkRevocation,
@@ -221,7 +221,7 @@ export function createWarrantMcpServer(
         const reason: DeniedReason = {
           code: 'missing_token',
           tool: toolName,
-          message: 'No Warrant token found in request',
+          message: 'No Attest token found in request',
         };
         options.onDenied?.(reason, request);
         return deniedResult(reason, undefined, scopePrefix);
@@ -264,7 +264,7 @@ export function createWarrantMcpServer(
   return server;
 }
 
-// ── WarrantToolMiddleware ─────────────────────────────────────────────────────
+// ── AttestToolMiddleware ─────────────────────────────────────────────────────
 
 /**
  * Lower-level API for wrapping individual tool handlers rather than an entire
@@ -272,14 +272,14 @@ export function createWarrantMcpServer(
  * integrating with a custom server setup.
  *
  * @example
- *   const middleware = new WarrantToolMiddleware({
- *     warrantBaseUrl: 'http://localhost:8080',
+ *   const middleware = new AttestToolMiddleware({
+ *     attestBaseUrl: 'http://localhost:8080',
  *   });
  *
  *   server.tool('send_email', schema, middleware.wrap('send_email', sendEmailHandler));
  */
-export class WarrantToolMiddleware {
-  private readonly verifier: WarrantVerifier;
+export class AttestToolMiddleware {
+  private readonly verifier: AttestVerifier;
   private readonly extractToken: (request: CallToolRequest) => string | null;
   private readonly scopePrefix: string;
   private readonly onDenied?: (
@@ -287,9 +287,9 @@ export class WarrantToolMiddleware {
     request: CallToolRequest,
   ) => void;
 
-  constructor(options: WarrantMcpOptions) {
-    this.verifier = new WarrantVerifier({
-      warrantBaseUrl: options.warrantBaseUrl,
+  constructor(options: AttestMcpOptions) {
+    this.verifier = new AttestVerifier({
+      attestBaseUrl: options.attestBaseUrl,
       jwksUrl: options.jwksUrl,
       staticJwks: options.staticJwks,
       checkRevocation: options.checkRevocation,
@@ -302,14 +302,14 @@ export class WarrantToolMiddleware {
   }
 
   /**
-   * Wrap a tool handler with Warrant enforcement.
+   * Wrap a tool handler with Attest enforcement.
    *
    * @param toolName  The name of the tool (used for scope mapping).
    * @param handler   The original async handler to delegate to on success.
    */
   wrap<TArgs extends Record<string, unknown>>(
     toolName: string,
-    handler: (args: TArgs, claims: WarrantClaims) => Promise<CallToolResult>,
+    handler: (args: TArgs, claims: AttestClaims) => Promise<CallToolResult>,
   ): (request: CallToolRequest) => Promise<CallToolResult> {
     return async (request: CallToolRequest): Promise<CallToolResult> => {
       const token = this.extractToken(request);
@@ -317,7 +317,7 @@ export class WarrantToolMiddleware {
         const reason: DeniedReason = {
           code: 'missing_token',
           tool: toolName,
-          message: 'No Warrant token found in request',
+          message: 'No Attest token found in request',
         };
         this.onDenied?.(reason, request);
         return deniedResult(reason, undefined, this.scopePrefix);
@@ -344,7 +344,7 @@ export class WarrantToolMiddleware {
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 /**
- * Best-effort decode of wrt_scope from a JWT without verifying the signature.
+ * Best-effort decode of att_scope from a JWT without verifying the signature.
  * Used only to populate the "granted_scope" field in scope violation errors.
  */
 function tryDecodeScope(token: string): string[] | undefined {
@@ -354,7 +354,7 @@ function tryDecodeScope(token: string): string[] | undefined {
     const payload = JSON.parse(
       Buffer.from(parts[1], 'base64url').toString('utf8'),
     ) as Record<string, unknown>;
-    const scope = payload['wrt_scope'];
+    const scope = payload['att_scope'];
     if (Array.isArray(scope) && scope.every((s) => typeof s === 'string')) {
       return scope as string[];
     }

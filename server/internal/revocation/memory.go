@@ -19,7 +19,7 @@ type memEntry struct {
 type MemoryStore struct {
 	mu         sync.RWMutex
 	revoked    map[string]memEntry // jti → revocation record
-	chains     map[string][]string // jti → wrt_chain of that credential
+	chains     map[string][]string // jti → att_chain of that credential
 }
 
 // NewMemoryStore returns a ready-to-use in-memory revocation store.

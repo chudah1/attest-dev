@@ -1,4 +1,4 @@
-"""Scope parsing and subset-checking utilities for Warrant."""
+"""Scope parsing and subset-checking utilities for Attest."""
 
 from __future__ import annotations
 

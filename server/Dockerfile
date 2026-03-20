@@ -5,9 +5,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /warrant ./cmd/warrant
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /attest ./cmd/attest
 
 FROM gcr.io/distroless/static-debian12
-COPY --from=builder /warrant /warrant
+COPY --from=builder /attest /attest
 EXPOSE 8080
-ENTRYPOINT ["/warrant"]
+ENTRYPOINT ["/attest"]

@@ -6,22 +6,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/warrant-dev/warrant/pkg/warrant"
+	"github.com/attest-dev/attest/pkg/attest"
 )
 
-func newTestIssuer(t *testing.T) (*Issuer, *rsa.PublicKey) {
+const testKID = "test-key-id"
+
+func newTestIssuer(t *testing.T) (*Issuer, *rsa.PrivateKey) {
 	t.Helper()
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("generate key: %v", err)
 	}
-	return NewIssuer(key, "https://warrant.test"), &key.PublicKey
+	return NewIssuer("https://attest.test"), key
 }
 
 func TestIssue_HappyPath(t *testing.T) {
-	iss, pub := newTestIssuer(t)
+	iss, key := newTestIssuer(t)
 
-	tok, claims, err := iss.Issue(warrant.IssueParams{
+	tok, claims, err := iss.Issue(key, testKID, attest.IssueParams{
 		AgentID:     "orchestrator-v1",
 		UserID:      "usr_test",
 		Scope:       []string{"research:read", "gmail:send"},
@@ -43,7 +45,7 @@ func TestIssue_HappyPath(t *testing.T) {
 		t.Error("intent hash should not be empty")
 	}
 
-	result, err := iss.Verify(tok, pub)
+	result, err := iss.Verify(tok, &key.PublicKey)
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -53,8 +55,8 @@ func TestIssue_HappyPath(t *testing.T) {
 }
 
 func TestIssue_MissingAgentID(t *testing.T) {
-	iss, _ := newTestIssuer(t)
-	_, _, err := iss.Issue(warrant.IssueParams{
+	iss, key := newTestIssuer(t)
+	_, _, err := iss.Issue(key, testKID, attest.IssueParams{
 		UserID:      "usr_test",
 		Scope:       []string{"gmail:send"},
 		Instruction: "do the thing",
@@ -65,8 +67,8 @@ func TestIssue_MissingAgentID(t *testing.T) {
 }
 
 func TestIssue_InvalidScope(t *testing.T) {
-	iss, _ := newTestIssuer(t)
-	_, _, err := iss.Issue(warrant.IssueParams{
+	iss, key := newTestIssuer(t)
+	_, _, err := iss.Issue(key, testKID, attest.IssueParams{
 		AgentID:     "agent",
 		UserID:      "usr",
 		Scope:       []string{"notvalid"},
@@ -78,25 +80,24 @@ func TestIssue_InvalidScope(t *testing.T) {
 }
 
 func TestDelegate_HappyPath(t *testing.T) {
-	iss, pub := newTestIssuer(t)
+	iss, key := newTestIssuer(t)
 
-	rootTok, rootClaims, _ := iss.Issue(warrant.IssueParams{
+	rootTok, rootClaims, _ := iss.Issue(key, testKID, attest.IssueParams{
 		AgentID:     "orchestrator-v1",
 		UserID:      "usr_test",
 		Scope:       []string{"research:read", "gmail:send"},
 		Instruction: "do the thing",
 	})
 
-	childTok, childClaims, err := iss.Delegate(warrant.DelegateParams{
+	childTok, childClaims, err := iss.Delegate(key, testKID, attest.DelegateParams{
 		ParentToken: rootTok,
 		ChildAgent:  "email-agent-v1",
 		ChildScope:  []string{"gmail:send"},
-	}, pub)
+	})
 
 	if err != nil {
 		t.Fatalf("delegate: %v", err)
 	}
-
 	if childClaims.Depth != 1 {
 		t.Errorf("child depth = %d, want 1", childClaims.Depth)
 	}
@@ -116,7 +117,7 @@ func TestDelegate_HappyPath(t *testing.T) {
 		t.Error("chain tail should be child jti")
 	}
 
-	result, err := iss.Verify(childTok, pub)
+	result, err := iss.Verify(childTok, &key.PublicKey)
 	if err != nil {
 		t.Fatalf("verify child: %v", err)
 	}
@@ -126,20 +127,20 @@ func TestDelegate_HappyPath(t *testing.T) {
 }
 
 func TestDelegate_ScopeViolation(t *testing.T) {
-	iss, pub := newTestIssuer(t)
+	iss, key := newTestIssuer(t)
 
-	rootTok, _, _ := iss.Issue(warrant.IssueParams{
+	rootTok, _, _ := iss.Issue(key, testKID, attest.IssueParams{
 		AgentID:     "orchestrator-v1",
 		UserID:      "usr_test",
 		Scope:       []string{"gmail:send"},
 		Instruction: "do the thing",
 	})
 
-	_, _, err := iss.Delegate(warrant.DelegateParams{
+	_, _, err := iss.Delegate(key, testKID, attest.DelegateParams{
 		ParentToken: rootTok,
 		ChildAgent:  "bad-agent",
 		ChildScope:  []string{"database:delete"},
-	}, pub)
+	})
 
 	if err == nil {
 		t.Fatal("expected scope violation error")
@@ -150,9 +151,9 @@ func TestDelegate_ScopeViolation(t *testing.T) {
 }
 
 func TestDelegate_DepthLimit(t *testing.T) {
-	iss, pub := newTestIssuer(t)
+	iss, key := newTestIssuer(t)
 
-	tok, _, _ := iss.Issue(warrant.IssueParams{
+	tok, _, _ := iss.Issue(key, testKID, attest.IssueParams{
 		AgentID:     "agent-0",
 		UserID:      "usr_test",
 		Scope:       []string{"*:*"},
@@ -160,22 +161,22 @@ func TestDelegate_DepthLimit(t *testing.T) {
 	})
 
 	var err error
-	for i := 0; i < warrant.MaxDelegationDepth; i++ {
-		tok, _, err = iss.Delegate(warrant.DelegateParams{
+	for i := 0; i < attest.MaxDelegationDepth; i++ {
+		tok, _, err = iss.Delegate(key, testKID, attest.DelegateParams{
 			ParentToken: tok,
 			ChildAgent:  "agent",
 			ChildScope:  []string{"*:*"},
-		}, pub)
+		})
 		if err != nil {
 			t.Fatalf("delegate at depth %d: %v", i+1, err)
 		}
 	}
 
-	_, _, err = iss.Delegate(warrant.DelegateParams{
+	_, _, err = iss.Delegate(key, testKID, attest.DelegateParams{
 		ParentToken: tok,
 		ChildAgent:  "too-deep",
 		ChildScope:  []string{"*:*"},
-	}, pub)
+	})
 	if err == nil {
 		t.Fatal("expected depth limit error")
 	}

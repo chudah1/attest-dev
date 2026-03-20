@@ -1,17 +1,17 @@
-# Warrant
+# Attest
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Warrant is a cryptographic credentialing standard for AI agent pipelines. When an orchestrator spawns sub-agents to complete a task, Warrant issues each agent a short-lived, scope-limited JWT that is cryptographically bound to the original human instruction via a SHA-256 intent hash. Every delegation narrows scope, cannot outlive the parent, and is recorded in an append-only, hash-chained audit log — so the full chain of authority from a human principal down to any tool call is provable, revocable in a single operation, and independently verifiable by any party with access to the public key.
+Attest is a cryptographic credentialing standard for AI agent pipelines. When an orchestrator spawns sub-agents to complete a task, Attest issues each agent a short-lived, scope-limited JWT that is cryptographically bound to the original human instruction via a SHA-256 intent hash. Every delegation narrows scope, cannot outlive the parent, and is recorded in an append-only, hash-chained audit log — so the full chain of authority from a human principal down to any tool call is provable, revocable in a single operation, and independently verifiable by any party with access to the public key.
 
 ---
 
 ## Quickstart (TypeScript)
 
 ```ts
-import { WarrantClient, isScopeSubset } from '@warrant/sdk';
+import { AttestClient, isScopeSubset } from '@attest-dev/sdk';
 
-const client = new WarrantClient({ baseUrl: 'http://localhost:8080', apiKey: 'dev' });
+const client = new AttestClient({ baseUrl: 'http://localhost:8080', apiKey: 'dev' });
 
 // 1. Issue a root credential for your orchestrator
 const { token: rootToken, claims: root } = await client.issue({
@@ -37,7 +37,7 @@ console.log(result.valid, result.warnings);
 await client.revoke(root.jti);
 
 // 5. Retrieve the tamper-evident audit chain
-const chain = await client.audit(root.wrt_tid);
+const chain = await client.audit(root.att_tid);
 chain.events.forEach(e => console.log(e.event_type, e.jti, e.created_at));
 ```
 
@@ -65,8 +65,8 @@ The utility `isScopeSubset(parentScope, childScope)` replicates this check clien
 
 ```bash
 # Clone and start everything
-git clone https://github.com/warrant-dev/warrant
-cd warrant
+git clone https://github.com/attest-dev/attest
+cd attest
 docker compose up
 
 # The server is now running at http://localhost:8080
@@ -90,7 +90,7 @@ open demo/index.html
 
 ```bash
 cd server
-go run ./cmd/warrant          # starts on :8080, warns about missing DB
+go run ./cmd/attest          # starts on :8080, warns about missing DB
 ```
 
 ---
@@ -111,7 +111,7 @@ go run ./cmd/warrant          # starts on :8080, warns about missing DB
 
 ## Specification
 
-The credential format is defined in [spec/WCS-01.md](spec/WCS-01.md) (Warrant Credential Standard, revision 01).
+The credential format is defined in [spec/ACS-01.md](spec/ACS-01.md) (Attest Credential Standard, revision 01).
 
 ---
 

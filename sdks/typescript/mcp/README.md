@@ -1,269 +1,321 @@
-# @warrant/mcp
+# @attest-dev/sdk/mcp
 
-Warrant credential enforcement middleware for [Model Context Protocol](https://modelcontextprotocol.io/) servers.
+Attest credential enforcement middleware for [Model Context Protocol](https://modelcontextprotocol.io/) servers.
 
-Drop it in front of your existing MCP server in ~5 lines of code, and every tool call is checked against a Warrant credential before it reaches your handler.
+Two lines to protect every tool call on an existing MCP server.
 
 ## Install
 
 ```bash
-npm install @warrant/mcp @warrant/sdk @modelcontextprotocol/sdk jose
+npm install @attest-dev/sdk
 ```
 
-## 5-line integration
+`@attest-dev/sdk` ships both the core client and the MCP middleware as a single package with two entry points.
+
+## Two-line integration
 
 ```typescript
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { createWarrantMcpServer } from '@warrant/mcp';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { withAttest } from "@attest-dev/sdk/mcp";
 
-const server = new McpServer({ name: 'my-server', version: '1.0.0' });
-// Register your tools normally:
-server.tool('send_email', { to: z.string(), body: z.string() }, sendEmailHandler);
-
-const secured = createWarrantMcpServer(server, {
-  warrantBaseUrl: 'http://localhost:8080',
-  extractToken: (req) => req.params._meta?.warrant_token ?? null,
+const server = new McpServer({ name: "my-tools", version: "1.0.0" });
+const protectedServer = withAttest(server, {
+  issuerUri: "https://api.attest.dev",
 });
+
+// Register tools exactly as before — every call is now credential-gated.
+protectedServer.tool("send_email", schema, handler);
 ```
 
-That's it. Every call to `send_email` now requires a valid Warrant credential with scope `tool:send_email`.
+`withAttest` patches `server.tool()` in place and returns the same server object typed as the original. Everything else — `connect()`, `close()`, transports — works unchanged.
 
 ## How it works
 
-When a tool call arrives the middleware:
+On every tool call, before the handler executes:
 
-1. **Extracts the token** using your `extractToken` function (or the built-in default that checks `_meta.warrant_token` and then `arguments.warrant_token`).
-2. **Verifies the JWT offline** — RS256 signature + expiry check using the server's JWKS (fetched once at startup, cached; re-fetched on key rotation).
-3. **Checks scope** — does `wrt_scope` contain `tool:<toolName>`, `tool:*`, or `*:*`?
-4. **Checks revocation** — calls `GET /v1/revoked/{jti}` on the Warrant server (fail-closed: if the server is unreachable, the call is denied).
-5. **Passes through** to your original handler on success, or returns an MCP error on failure.
-
-## What an agent sees when denied
-
-```json
-{
-  "error": "warrant_denied",
-  "code": "scope_violation",
-  "tool": "send_email",
-  "required_scope": "tool:send_email",
-  "granted_scope": ["gmail:read"],
-  "jti": "abc123..."
-}
-```
-
-The `code` field is one of:
-
-| Code | Meaning |
-|---|---|
-| `missing_token` | No token was found in the request |
-| `invalid_token` | JWT signature verification failed |
-| `expired` | JWT has expired |
-| `revoked` | Credential has been revoked |
-| `scope_violation` | Token doesn't grant the required tool scope |
+1. **Extract credential** from `extra.authInfo.token` (MCP auth middleware path), `extra.meta.attest_token`, or `extra.meta.authorization`
+2. **Verify RS256 signature + expiry** offline against the issuer's JWKS (fetched once, cached for 1 hour by default)
+3. **Map tool name → scope** using `scopeForTool()` and check the credential's `att_scope` covers it
+4. **Check revocation** via `GET /v1/revoked/{jti}` (10-second in-process cache)
+5. **Pass through** to the original handler on success
+6. **Return a structured error** on any failure — agent frameworks receive `isError: true` with a typed JSON payload
+7. **Fire audit event** to `POST /v1/audit` — async, never blocks the tool call
 
 ## Scope mapping
 
-Tool names map to scope entries using the `scopePrefix` option (default `"tool"`):
+Tool names are automatically mapped to `resource:action` scope strings. The first word (before the first `_`) becomes the action; the remainder becomes the resource.
 
-| Tool name | Required scope |
+| Tool name | Required scope | Notes |
+|---|---|---|
+| `send_email` | `email:send` | |
+| `read_file` | `file:read` | |
+| `list_documents` | `documents:list` → `documents:read` | `list` aliases to `read` |
+| `create_user` | `user:create` → `user:write` | `create` aliases to `write` |
+| `delete_record` | `record:delete` | |
+| `get_weather_forecast` | `weather_forecast:read` | multi-word resources keep underscores |
+| `run_query` | `query:run` → `query:execute` | `run` aliases to `execute` |
+
+**Action aliases** — these raw prefixes map to canonical actions:
+
+| Raw prefix | Canonical action |
 |---|---|
-| `send_email` | `tool:send_email` |
-| `read_file` | `tool:read_file` |
-| `*` (any tool) | `tool:*` or `*:*` |
+| `create`, `update`, `put`, `patch`, `set`, `upsert` | `write` |
+| `get`, `fetch`, `list`, `search`, `query`, `find`, `lookup` | `read` |
+| `remove`, `destroy` | `delete` |
+| `run`, `invoke`, `call` | `execute` |
 
-When issuing credentials for an agent, set `wrt_scope` accordingly:
+**Multi-word resources** keep their underscores in the scope string. `get_weather_forecast` → `weather_forecast:read`. This is intentional — the full noun phrase is preserved as the resource. When issuing credentials, use the same string: `scope: ["weather_forecast:read"]`.
 
-```json
-{ "scope": ["tool:send_email", "tool:read_file"] }
-```
-
-## Options
+**Override at registration** — pass a `AttestToolOptions` object as the final argument to `server.tool()`. This is the preferred way to set scope for non-standard tool names because the scope lives next to the tool definition:
 
 ```typescript
-interface WarrantMcpOptions {
-  /** Warrant server base URL. Required. */
-  warrantBaseUrl: string;
+import { withAttest } from "@attest-dev/sdk/mcp";
+import type { AttestToolOptions } from "@attest-dev/sdk/mcp";
 
-  /** Full JWKS URL. Defaults to warrantBaseUrl + "/.well-known/jwks.json". */
-  jwksUrl?: string;
+protectedServer.tool("gh_create_issue", schema, handler, {
+  requiredScope: "github:write",
+} satisfies AttestToolOptions);
 
-  /**
-   * Pre-loaded JWKS for offline/test mode.
-   * When provided the JWKS endpoint is never contacted.
-   */
-  staticJwks?: JWKSResponse;
+protectedServer.tool("stripe_charge", schema, handler, {
+  requiredScope: "stripe:write",
+} satisfies AttestToolOptions);
 
-  /**
-   * How to extract the Warrant token from a tool call request.
-   * Default: checks _meta.warrant_token then arguments.warrant_token.
-   */
-  extractToken?: (request: CallToolRequest) => string | null;
-
-  /**
-   * Whether to check the revocation list on every call.
-   * Default: true. Set false for offline or latency-sensitive mode.
-   */
-  checkRevocation?: boolean;
-
-  /**
-   * Revocation check timeout in milliseconds.
-   * If the Warrant server doesn't respond in time the call is DENIED.
-   * Default: 500.
-   */
-  revocationTimeoutMs?: number;
-
-  /**
-   * Scope prefix for tool name mapping.
-   * Default: "tool"  →  tool "send_email" maps to scope "tool:send_email".
-   */
-  scopePrefix?: string;
-
-  /**
-   * Audit hook called whenever a tool call is denied.
-   * Use this to log or alert on denied attempts.
-   */
-  onDenied?: (reason: DeniedReason, request: CallToolRequest) => void;
-}
+// Auto-mapping still applies when requiredScope is omitted.
+protectedServer.tool("send_email", schema, handler);
+// → "email:send"
 ```
 
-## Token extraction strategies
+The options object is consumed by `withAttest` and stripped before the MCP SDK sees the arguments — the SDK is unaware of it.
 
-### From MCP `_meta` (recommended)
-
-MCP clients can attach metadata to any tool call via `_meta`:
+**Override globally** using `toolScopeMap` in options (applies to all tools that don't declare `requiredScope` explicitly):
 
 ```typescript
-extractToken: (req) => {
-  const meta = req.params._meta as Record<string, unknown> | undefined;
-  return typeof meta?.warrant_token === 'string' ? meta.warrant_token : null;
-}
+const protectedServer = withAttest(server, {
+  issuerUri: "https://api.attest.dev",
+  toolScopeMap: {
+    "send_message": "slack:send",
+    "query_db":     "postgres:read",
+  },
+});
 ```
 
-### From HTTP Authorization header
+## Scope discovery endpoint
 
-If your transport captures HTTP headers separately, pass the header through:
+`getAttestScopes()` returns the live scope registry — every tool name mapped to its resolved scope string. Wire it to an HTTP endpoint so credential issuers can query what scopes a server requires without out-of-band coordination.
 
 ```typescript
-import { extractTokenFromHeader } from '@warrant/mcp';
+import { withAttest, getAttestScopes } from "@attest-dev/sdk/mcp";
 
-// In your HTTP handler:
-const token = extractTokenFromHeader(req.headers.authorization ?? '');
+const protectedServer = withAttest(server, { issuerUri: "https://api.attest.dev" });
 
-// Then thread it into MCP meta when calling the tool, or:
-extractToken: () => token   // captured via closure
+protectedServer.tool("send_email", schema, handler);
+protectedServer.tool("gh_create_issue", schema, handler, { requiredScope: "github:write" });
+
+// Express / Hono / any HTTP framework:
+app.get("/.well-known/attest-scopes", (_req, res) => {
+  res.json({ tools: getAttestScopes(protectedServer) });
+});
 ```
 
-### From tool arguments
-
-The default extractor also checks `arguments.warrant_token`. Agents can include their token as a regular tool argument:
+Response:
 
 ```json
 {
-  "tool": "send_email",
-  "arguments": {
-    "to": "alice@example.com",
-    "body": "Hello",
-    "warrant_token": "eyJ..."
+  "tools": {
+    "send_email":      "email:send",
+    "gh_create_issue": "github:write"
   }
 }
 ```
 
-## Offline / test mode
-
-Pass a `staticJwks` to run fully offline — no network calls to the Warrant server:
+An orchestrator agent issues credentials by fetching this endpoint first:
 
 ```typescript
-import { createWarrantMcpServer } from '@warrant/mcp';
-import type { JWKSResponse } from '@warrant/sdk';
+// Before starting a task, discover what the MCP server needs:
+const { tools } = await fetch("https://my-mcp-server/.well-known/attest-scopes")
+  .then(r => r.json());
 
-const testJwks: JWKSResponse = { keys: [/* your public key */] };
-
-const secured = createWarrantMcpServer(server, {
-  warrantBaseUrl: 'http://localhost:8080',
-  staticJwks: testJwks,
-  checkRevocation: false,   // no network calls
-  extractToken: (req) => req.params._meta?.warrant_token ?? null,
+// Issue a credential with exactly those scopes:
+const { token } = await attestClient.issue({
+  agent_id: "my-agent",
+  user_id:  "usr_alice",
+  scope:    Object.values(tools),   // ["email:send", "github:write"]
+  instruction: "...",
 });
 ```
 
-## Lower-level: wrapping individual tools
+No spreadsheet of scope strings. No manual sync between server and client. The server is the source of truth.
 
-Use `WarrantToolMiddleware` to protect specific tools rather than the whole server:
+## What an agent receives when blocked
 
-```typescript
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { WarrantToolMiddleware } from '@warrant/mcp';
-import { z } from 'zod';
-
-const server = new McpServer({ name: 'my-server', version: '1.0.0' });
-
-const middleware = new WarrantToolMiddleware({
-  warrantBaseUrl: 'http://localhost:8080',
-});
-
-// Only send_email is protected; other tools are not.
-server.tool(
-  'send_email',
-  { to: z.string(), body: z.string() },
-  middleware.wrap('send_email', async (args, claims) => {
-    // args is typed as { to: string; body: string }
-    // claims contains the verified WarrantClaims (wrt_scope, wrt_uid, etc.)
-    await sendEmail(args.to, args.body);
-    return { content: [{ type: 'text', text: 'Email sent.' }] };
-  }),
-);
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n  \"error\": \"attest_violation\",\n  \"reason\": \"scope_violation\",\n  \"detail\": \"Credential (jti: abc-123) grants [research:read] but tool \\\"send_email\\\" requires \\\"email:send\\\".\",\n  \"jti\": \"abc-123\",\n  \"taskId\": \"tid-xyz\"\n}"
+    }
+  ],
+  "isError": true
+}
 ```
 
-## Audit logging
+`isError: true` signals the MCP framework that this is an error response. The `reason` field is machine-readable:
+
+| `reason` | Meaning |
+|---|---|
+| `no_credential` | No Attest JWT found in the request |
+| `invalid_credential` | JWT signature verification failed or malformed |
+| `credential_expired` | JWT `exp` has passed |
+| `credential_revoked` | JTI is in the revocation list |
+| `scope_violation` | Credential does not grant the required scope |
+
+## Options
 
 ```typescript
-const secured = createWarrantMcpServer(server, {
-  warrantBaseUrl: 'http://localhost:8080',
-  extractToken: (req) => req.params._meta?.warrant_token ?? null,
-  onDenied: (reason, request) => {
-    console.warn('Tool call denied', {
-      code: reason.code,
-      tool: reason.tool,
-      jti: reason.jti,
-      message: reason.message,
+withAttest(server, {
+  // Required: URI of your Attest server
+  issuerUri: "https://api.attest.dev",
+
+  // How long to cache JWKS before re-fetching (seconds). Default: 3600
+  jwksCacheTTL: 3600,
+
+  // How long to cache revocation status per JTI (seconds).
+  // Set 0 to disable caching (every call hits the server). Default: 10
+  revocationCacheTTL: 10,
+
+  // false = log violations via onViolation but don't block the call.
+  // Useful for gradual rollout. Default: true
+  requireCredential: true,
+
+  // Per-tool scope overrides. Keys are exact tool names.
+  toolScopeMap: {
+    "send_message": "slack:send",
+  },
+
+  // Called on every scope violation (synchronous).
+  // Use for metrics, alerting, structured logging.
+  onViolation: (event) => {
+    console.warn("Attest violation", {
+      tool:     event.toolName,
+      reason:   event.reason,
+      required: event.requiredScope,
+      granted:  event.grantedScope,
+      jti:      event.jti,
     });
   },
 });
 ```
 
+## Reading credential claims inside a tool handler
+
+After `withAttest` has already verified the credential, use `getAttestContext` to read the claims without re-verifying:
+
+```typescript
+import { withAttest, getAttestContext } from "@attest-dev/sdk/mcp";
+
+protectedServer.tool("send_email", schema, async (args, extra) => {
+  const ctx = getAttestContext(extra);
+  // ctx.att_uid   — the human who initiated the task
+  // ctx.att_tid   — task tree ID (use for audit correlation)
+  // ctx.att_scope — granted scopes
+  // ctx.att_depth — delegation depth (0 = root)
+  // ctx.jti       — this credential's unique ID
+
+  await sendEmail(args.to, args.body, { actingAs: ctx?.att_uid });
+  return { content: [{ type: "text", text: "sent" }] };
+});
+```
+
+## Gradual rollout
+
+Add Attest to an existing server without blocking traffic until you're confident the mapping is correct:
+
+```typescript
+const protectedServer = withAttest(server, {
+  issuerUri: "https://api.attest.dev",
+  requireCredential: false,   // observe, don't block
+  onViolation: (event) => metrics.increment("attest.violation", {
+    tool:   event.toolName,
+    reason: event.reason,
+  }),
+});
+```
+
+Flip `requireCredential` to `true` once violation rates drop to zero in your monitoring.
+
+## Audit logging
+
+Every tool call — pass or fail — fires a `POST /v1/audit` to your Attest server. Delivery is async and never blocks tool execution.
+
+**Audit delivery is best-effort with structured error surfacing. For guaranteed delivery, configure `onAuditError` and implement your own retry queue.**
+
+Failures surface in priority order — nothing is ever silently dropped:
+
+1. **`onAuditError(error, event)`** — you handle it (retry queue, fallback log, pager)
+2. **`onViolation({ reason: "audit_failure", ... })`** — surfaces to your existing monitoring if `onAuditError` is not set
+3. **`console.warn`** — last resort if neither callback is configured
+
+```typescript
+const protectedServer = withAttest(server, {
+  issuerUri: "https://api.attest.dev",
+
+  // Tier 1: implement a retry queue for guaranteed delivery
+  onAuditError: (err, event) => {
+    retryQueue.push({ event, attempts: 0, nextRetry: Date.now() + 5000 });
+    logger.error("attest audit delivery failed", {
+      jti:      event.jti,
+      agent_id: event.agent_id,
+      error:    err.message,
+    });
+  },
+
+  // Tier 2: violations (including audit_failure) go to your monitoring
+  onViolation: (e) => metrics.increment("attest.event", { reason: e.reason }),
+});
+```
+
+Non-2xx responses from the audit endpoint are treated as delivery failures, not silent successes.
+
+The audit event carries: `event_type`, `jti`, `att_tid`, `att_uid`, `agent_id` (`mcp:<toolName>`), `scope`, and an `outcome` meta field (`allowed`, `scope_violation`, `blocked_revoked`).
+
+Query the audit chain for a task tree:
+
+```typescript
+import { AttestClient } from "@attest-dev/sdk";
+
+const client = new AttestClient({ baseUrl: "https://api.attest.dev", apiKey: "..." });
+const chain = await client.audit(taskId);
+chain.events.forEach(e => console.log(e.event_type, e.jti, e.created_at));
+```
+
 ## Full example
 
 ```typescript
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createWarrantMcpServer } from '@warrant/mcp';
-import { z } from 'zod';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { withAttest } from "@attest-dev/sdk/mcp";
+import { z } from "zod";
 
-// 1. Create and configure your server normally.
-const server = new McpServer({ name: 'email-server', version: '1.0.0' });
+const server = new McpServer({ name: "email-server", version: "1.0.0" });
 
 server.tool(
-  'send_email',
+  "send_email",
   { to: z.string().email(), subject: z.string(), body: z.string() },
   async ({ to, subject, body }) => {
-    // Your implementation here.
-    return { content: [{ type: 'text', text: `Sent to ${to}` }] };
+    await sendEmail(to, subject, body);
+    return { content: [{ type: "text", text: `Sent to ${to}` }] };
   },
 );
 
-// 2. Wrap with Warrant enforcement.
-const secured = createWarrantMcpServer(server, {
-  warrantBaseUrl: process.env.WARRANT_URL ?? 'http://localhost:8080',
-  extractToken: (req) => {
-    const meta = req.params._meta as Record<string, unknown> | undefined;
-    return typeof meta?.warrant_token === 'string' ? meta.warrant_token : null;
-  },
-  onDenied: (reason) => console.warn('Denied:', reason),
+// Wrap — every tool now requires a valid credential with "email:send" scope.
+const protectedServer = withAttest(server, {
+  issuerUri: process.env.ATTEST_URI ?? "http://localhost:8080",
+  onViolation: (e) => console.warn("blocked:", e.reason, e.toolName),
 });
 
-// 3. Connect transport — same as without Warrant.
 const transport = new StdioServerTransport();
-await secured.connect(transport);
+await protectedServer.connect(transport);
 ```
 
 ## License

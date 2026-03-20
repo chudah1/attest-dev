@@ -1,4 +1,4 @@
-package warrant
+package attest
 
 import (
 	"time"
@@ -19,30 +19,30 @@ const (
 
 type EventType string
 
-// Claims extends jwt.RegisteredClaims with Warrant-specific fields (wrt_*).
+// Claims extends jwt.RegisteredClaims with Attest-specific fields (att_*).
 type Claims struct {
 	jwt.RegisteredClaims
 
-	// wrt_tid: task tree ID shared across the entire delegation chain
-	TaskID string `json:"wrt_tid"`
+	// att_tid: task tree ID shared across the entire delegation chain
+	TaskID string `json:"att_tid"`
 
-	// wrt_pid: jti of the parent credential (empty for root)
-	ParentID string `json:"wrt_pid,omitempty"`
+	// att_pid: jti of the parent credential (empty for root)
+	ParentID string `json:"att_pid,omitempty"`
 
-	// wrt_depth: delegation depth (0 = root)
-	Depth int `json:"wrt_depth"`
+	// att_depth: delegation depth (0 = root)
+	Depth int `json:"att_depth"`
 
-	// wrt_scope: list of "resource:action" permission entries
-	Scope []string `json:"wrt_scope"`
+	// att_scope: list of "resource:action" permission entries
+	Scope []string `json:"att_scope"`
 
-	// wrt_intent: SHA-256 hex of the original instruction
-	IntentHash string `json:"wrt_intent"`
+	// att_intent: SHA-256 hex of the original instruction
+	IntentHash string `json:"att_intent"`
 
-	// wrt_chain: ordered jti ancestry from root to this credential
-	Chain []string `json:"wrt_chain"`
+	// att_chain: ordered jti ancestry from root to this credential
+	Chain []string `json:"att_chain"`
 
-	// wrt_uid: original human principal who initiated the task
-	UserID string `json:"wrt_uid"`
+	// att_uid: original human principal who initiated the task
+	UserID string `json:"att_uid"`
 }
 
 // IssueParams carries the inputs needed to issue a root credential.
@@ -76,8 +76,8 @@ type AuditEvent struct {
 	EntryHash string            `json:"entry_hash"`
 	EventType EventType         `json:"event_type"`
 	JTI       string            `json:"jti"`
-	TaskID    string            `json:"wrt_tid"`
-	UserID    string            `json:"wrt_uid"`
+	TaskID    string            `json:"att_tid"`
+	UserID    string            `json:"att_uid"`
 	AgentID   string            `json:"agent_id"`
 	Scope     []string          `json:"scope"`
 	Meta      map[string]string `json:"meta,omitempty"`

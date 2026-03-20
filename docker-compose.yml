@@ -1,21 +1,21 @@
-# Composes the Warrant server, PostgreSQL, and Redis for local development.
+# Composes the Attest server, PostgreSQL, and Redis for local development.
 
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    networks: [warrant]
+    networks: [attest]
     environment:
-      POSTGRES_DB: warrant
-      POSTGRES_USER: warrant
-      POSTGRES_PASSWORD: warrant
+      POSTGRES_DB: attest
+      POSTGRES_USER: attest
+      POSTGRES_PASSWORD: attest
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./server/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U warrant -d warrant"]
+      test: ["CMD-SHELL", "pg_isready -U attest -d attest"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,7 +23,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    networks: [warrant]
+    networks: [attest]
     ports:
       - "6379:6379"
     healthcheck:
@@ -37,22 +37,19 @@ services:
       context: ./server
       dockerfile: Dockerfile
     restart: unless-stopped
-    networks: [warrant]
+    networks: [attest]
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       PORT: "8080"
-      DATABASE_URL: "postgres://warrant:warrant@postgres:5432/warrant"
+      DATABASE_URL: "postgres://attest:attest@postgres:5432/attest"
       ISSUER_URI: "http://localhost:8080"
-      PRIVATE_KEY_PATH: ""   # empty → ephemeral dev key generated at startup
 
 networks:
-  warrant:
+  attest:
     driver: bridge
 
 volumes:

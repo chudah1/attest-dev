@@ -1,8 +1,8 @@
 /**
- * @warrant/sdk — TypeScript client for the Warrant credential service.
+ * @attest-dev/sdk — TypeScript client for the Attest credential service.
  *
  * Offline JWT verification uses `jose` (no network call needed after
- * fetchJWKS). All network calls go through the Warrant server REST API.
+ * fetchJWKS). All network calls go through the Attest server REST API.
  */
 
 import {
@@ -14,40 +14,40 @@ import {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-/** Standard JWT claims plus every wrt_* Warrant extension. */
-export interface WarrantClaims extends JWTPayload {
+/** Standard JWT claims plus every att_* Attest extension. */
+export interface AttestClaims extends JWTPayload {
   /** Task tree ID shared across the entire delegation chain. */
-  wrt_tid: string;
+  att_tid: string;
   /** Parent credential jti (absent on root credentials). */
-  wrt_pid?: string;
+  att_pid?: string;
   /** Delegation depth (0 = root). */
-  wrt_depth: number;
+  att_depth: number;
   /** Granted permission scopes in "resource:action" form. */
-  wrt_scope: string[];
+  att_scope: string[];
   /** SHA-256 hex of the original instruction that initiated the task. */
-  wrt_intent: string;
+  att_intent: string;
   /** Ordered jti ancestry list from root to this credential. */
-  wrt_chain: string[];
+  att_chain: string[];
   /** Human principal who initiated the task. */
-  wrt_uid: string;
+  att_uid: string;
 }
 
 /** A root credential returned by issue(). */
-export interface WarrantToken {
+export interface AttestToken {
   token: string;
-  claims: WarrantClaims;
+  claims: AttestClaims;
 }
 
 /** A delegated child credential returned by delegate(). */
 export interface DelegatedToken {
   token: string;
-  claims: WarrantClaims;
+  claims: AttestClaims;
 }
 
 /** Returned by verify(). Valid is false if any check fails. */
 export interface VerifyResult {
   valid: boolean;
-  claims?: WarrantClaims;
+  claims?: AttestClaims;
   warnings: string[];
 }
 
@@ -64,8 +64,8 @@ export interface AuditEvent {
   entry_hash: string;
   event_type: 'issued' | 'delegated' | 'verified' | 'revoked' | 'expired';
   jti: string;
-  wrt_tid: string;
-  wrt_uid: string;
+  att_tid: string;
+  att_uid: string;
   agent_id: string;
   scope: string[];
   meta?: Record<string, string>;
@@ -103,9 +103,9 @@ export interface DelegateParams {
   ttl_seconds?: number;
 }
 
-// ── WarrantClient ─────────────────────────────────────────────────────────────
+// ── AttestClient ─────────────────────────────────────────────────────────────
 
-export class WarrantClient {
+export class AttestClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
 
@@ -118,14 +118,14 @@ export class WarrantClient {
   }
 
   /** Issue a root credential for the given agent and instruction. */
-  async issue(params: IssueParams): Promise<WarrantToken> {
+  async issue(params: IssueParams): Promise<AttestToken> {
     const res = await fetch(`${this.baseUrl}/v1/credentials`, {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(params),
     });
     if (!res.ok) await throwFromResponse(res);
-    return res.json() as Promise<WarrantToken>;
+    return res.json() as Promise<AttestToken>;
   }
 
   /** Delegate a narrowed child credential from a parent token. */
@@ -154,27 +154,27 @@ export class WarrantClient {
     const jwksData = JSON.stringify(jwks);
     const dataUrl = `data:application/json,${encodeURIComponent(jwksData)}`;
 
-    let payload: WarrantClaims;
+    let payload: AttestClaims;
     try {
       const keySet = createRemoteJWKSet(new URL(dataUrl));
       const { payload: raw } = await jwtVerify(token, keySet, {
         algorithms: ['RS256'],
       });
-      payload = raw as unknown as WarrantClaims;
+      payload = raw as unknown as AttestClaims;
     } catch (err) {
       return { valid: false, warnings: [`signature/expiry check failed: ${String(err)}`] };
     }
 
     // Chain length must equal depth + 1 (root depth=0 → chain=[jti]).
-    const expectedLen = (payload.wrt_depth ?? 0) + 1;
-    if (!payload.wrt_chain || payload.wrt_chain.length !== expectedLen) {
+    const expectedLen = (payload.att_depth ?? 0) + 1;
+    if (!payload.att_chain || payload.att_chain.length !== expectedLen) {
       warnings.push(
-        `chain length ${payload.wrt_chain?.length} does not match depth ${payload.wrt_depth} (expected ${expectedLen})`,
+        `chain length ${payload.att_chain?.length} does not match depth ${payload.att_depth} (expected ${expectedLen})`,
       );
     }
 
     // Chain tail must match jti.
-    const chain = payload.wrt_chain ?? [];
+    const chain = payload.att_chain ?? [];
     if (chain.length > 0 && chain[chain.length - 1] !== payload.jti) {
       warnings.push(`chain tail "${chain[chain.length - 1]}" does not match jti "${payload.jti}"`);
     }
@@ -246,11 +246,11 @@ export function isScopeSubset(parentScope: string[], childScope: string[]): bool
 }
 
 /**
- * Decodes a Warrant JWT without verifying the signature.
+ * Decodes a Attest JWT without verifying the signature.
  * Use verify() for trusted access to claims.
  */
-export function decodeToken(token: string): WarrantClaims {
-  return decodeJwt(token) as unknown as WarrantClaims;
+export function decodeToken(token: string): AttestClaims {
+  return decodeJwt(token) as unknown as AttestClaims;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────

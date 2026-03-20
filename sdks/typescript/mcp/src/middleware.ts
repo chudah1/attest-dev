@@ -1,15 +1,15 @@
 /**
- * Core Warrant verification logic, decoupled from MCP wiring.
+ * Core Attest verification logic, decoupled from MCP wiring.
  *
  * This module handles:
  *  - JWKS fetching and promise-cached refresh (handles key rotation)
  *  - Offline RS256 JWT verification via jose
- *  - Scope checking against wrt_scope claims
- *  - Revocation checking against the Warrant server (fail-closed on timeout)
+ *  - Scope checking against att_scope claims
+ *  - Revocation checking against the Attest server (fail-closed on timeout)
  */
 
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import type { WarrantClaims, JWKSResponse } from '@warrant/sdk';
+import type { AttestClaims, JWKSResponse } from '@attest-dev/sdk';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,11 +28,11 @@ export interface DeniedReason {
 }
 
 export interface VerifyOptions {
-  /** Base URL of the Warrant server, e.g. "http://localhost:8080". */
-  warrantBaseUrl: string;
+  /** Base URL of the Attest server, e.g. "http://localhost:8080". */
+  attestBaseUrl: string;
   /**
    * Full URL for the JWKS endpoint.
-   * Defaults to `warrantBaseUrl + "/.well-known/jwks.json"`.
+   * Defaults to `attestBaseUrl + "/.well-known/jwks.json"`.
    */
   jwksUrl?: string;
   /**
@@ -40,7 +40,7 @@ export interface VerifyOptions {
    * When provided the JWKS endpoint is never contacted.
    */
   staticJwks?: JWKSResponse;
-  /** Whether to check the Warrant revocation list. Default: true. */
+  /** Whether to check the Attest revocation list. Default: true. */
   checkRevocation?: boolean;
   /**
    * Milliseconds to wait for the revocation check before failing closed.
@@ -57,7 +57,7 @@ export interface VerifyOptions {
 
 export interface VerifyTokenResult {
   allowed: true;
-  claims: WarrantClaims;
+  claims: AttestClaims;
 }
 
 export interface DenyResult {
@@ -122,7 +122,7 @@ function keySetFromStatic(
 /**
  * Returns true if the granted scopes cover the required scope entry.
  *
- * Wildcard rules (mirrors isScopeSubset from @warrant/sdk but for a single
+ * Wildcard rules (mirrors isScopeSubset from @attest-dev/sdk but for a single
  * required entry so we can produce a precise error):
  *   - "*:*"           covers everything
  *   - "<prefix>:*"    covers all actions under that prefix
@@ -149,13 +149,13 @@ export function isScopeCovered(
 // ── Revocation check ──────────────────────────────────────────────────────────
 
 /**
- * Checks `GET /v1/revoked/{jti}` on the Warrant server.
+ * Checks `GET /v1/revoked/{jti}` on the Attest server.
  * Returns true if the credential IS revoked.
  *
  * Fails closed: any network error or timeout → returns true (deny).
  */
 async function isRevoked(
-  warrantBaseUrl: string,
+  attestBaseUrl: string,
   jti: string,
   timeoutMs: number,
 ): Promise<boolean> {
@@ -163,7 +163,7 @@ async function isRevoked(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const url = `${warrantBaseUrl.replace(/\/$/, '')}/v1/revoked/${encodeURIComponent(jti)}`;
+    const url = `${attestBaseUrl.replace(/\/$/, '')}/v1/revoked/${encodeURIComponent(jti)}`;
     const res = await fetch(url, { signal: controller.signal });
 
     // 200 → revoked, 404 → not revoked
@@ -182,7 +182,7 @@ async function isRevoked(
 
 // ── Main verifier ─────────────────────────────────────────────────────────────
 
-export class WarrantVerifier {
+export class AttestVerifier {
   private readonly opts: Required<
     Omit<VerifyOptions, 'staticJwks' | 'jwksUrl'>
   > & {
@@ -196,9 +196,9 @@ export class WarrantVerifier {
     | null = null;
 
   constructor(options: VerifyOptions) {
-    const base = options.warrantBaseUrl.replace(/\/$/, '');
+    const base = options.attestBaseUrl.replace(/\/$/, '');
     this.opts = {
-      warrantBaseUrl: base,
+      attestBaseUrl: base,
       jwksUrl: options.jwksUrl ?? `${base}/.well-known/jwks.json`,
       checkRevocation: options.checkRevocation ?? true,
       revocationTimeoutMs: options.revocationTimeoutMs ?? 500,
@@ -220,12 +220,12 @@ export class WarrantVerifier {
    * Steps:
    *  1. Decode + verify RS256 signature and expiry using cached JWKS.
    *  2. Re-fetch JWKS once if key not found (key rotation).
-   *  3. Scope check: does wrt_scope cover "<prefix>:<toolName>"?
+   *  3. Scope check: does att_scope cover "<prefix>:<toolName>"?
    *  4. Revocation check (unless disabled).
    */
   async verify(token: string, toolName: string): Promise<VerifyResult> {
     // ── 1. Verify JWT signature & expiry ──────────────────────────────────────
-    let claims: WarrantClaims;
+    let claims: AttestClaims;
     try {
       claims = await this.verifyJwt(token);
     } catch (err) {
@@ -253,7 +253,7 @@ export class WarrantVerifier {
     const requiredResource = this.opts.scopePrefix;
     const requiredAction = toolName;
 
-    if (!isScopeCovered(claims.wrt_scope, requiredResource, requiredAction)) {
+    if (!isScopeCovered(claims.att_scope, requiredResource, requiredAction)) {
       return {
         allowed: false,
         reason: {
@@ -268,7 +268,7 @@ export class WarrantVerifier {
     // ── 3. Revocation check ───────────────────────────────────────────────────
     if (this.opts.checkRevocation && jti) {
       const revoked = await isRevoked(
-        this.opts.warrantBaseUrl,
+        this.opts.attestBaseUrl,
         jti,
         this.opts.revocationTimeoutMs,
       );
@@ -290,13 +290,13 @@ export class WarrantVerifier {
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
-  private async verifyJwt(token: string): Promise<WarrantClaims> {
+  private async verifyJwt(token: string): Promise<AttestClaims> {
     // Static (offline) mode: no JWKS cache.
     if (this.staticKeySet) {
       const { payload } = await jwtVerify(token, this.staticKeySet, {
         algorithms: ['RS256'],
       });
-      return payload as unknown as WarrantClaims;
+      return payload as unknown as AttestClaims;
     }
 
     // Dynamic mode: try cached JWKS, retry once on key-not-found errors.
@@ -307,7 +307,7 @@ export class WarrantVerifier {
       const { payload } = await jwtVerify(token, keySet, {
         algorithms: ['RS256'],
       });
-      return payload as unknown as WarrantClaims;
+      return payload as unknown as AttestClaims;
     } catch (err) {
       // Re-fetch JWKS if the error looks like a key rotation issue.
       if (isKeyNotFoundError(err)) {
@@ -316,7 +316,7 @@ export class WarrantVerifier {
         const { payload } = await jwtVerify(token, freshKeySet, {
           algorithms: ['RS256'],
         });
-        return payload as unknown as WarrantClaims;
+        return payload as unknown as AttestClaims;
       }
       throw err;
     }

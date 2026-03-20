@@ -19,7 +19,7 @@ func NewStore(db *pgxpool.Pool) *Store {
 }
 
 // Revoke marks jti as revoked and cascades to every credential whose
-// wrt_chain contains jti (i.e. every descendant in the delegation tree).
+// att_chain contains jti (i.e. every descendant in the delegation tree).
 func (s *Store) Revoke(ctx context.Context, jti, revokedBy string) error {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {

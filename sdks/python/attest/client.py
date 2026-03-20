@@ -1,4 +1,4 @@
-"""Synchronous and asynchronous Warrant API clients."""
+"""Synchronous and asynchronous Attest API clients."""
 
 from __future__ import annotations
 
@@ -9,15 +9,15 @@ import httpx
 import jwt
 import jwt.algorithms
 
-from warrant.types import (
+from attest.types import (
     AuditChain,
     AuditEvent,
     DelegateParams,
     DelegatedToken,
     IssueParams,
     VerifyResult,
-    WarrantClaims,
-    WarrantToken,
+    AttestClaims,
+    AttestToken,
 )
 
 if TYPE_CHECKING:
@@ -29,12 +29,12 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-class WarrantError(Exception):
-    """Base class for all Warrant SDK errors."""
+class AttestError(Exception):
+    """Base class for all Attest SDK errors."""
 
 
-class WarrantAPIError(WarrantError):
-    """Raised when the Warrant server returns a non-2xx response."""
+class AttestAPIError(AttestError):
+    """Raised when the Attest server returns a non-2xx response."""
 
     def __init__(self, status_code: int, message: str) -> None:
         self.status_code = status_code
@@ -42,11 +42,11 @@ class WarrantAPIError(WarrantError):
         super().__init__(f"HTTP {status_code}: {message}")
 
 
-class WarrantVerifyError(WarrantError):
+class AttestVerifyError(AttestError):
     """Raised when offline JWT verification fails fatally."""
 
 
-class WarrantScopeError(WarrantError):
+class AttestScopeError(AttestError):
     """Raised when a tool is invoked without sufficient scope."""
 
     def __init__(
@@ -75,7 +75,7 @@ _DEFAULT_BASE_URL = "http://localhost:8080"
 
 
 def _raise_for_status(response: httpx.Response) -> None:
-    """Raise WarrantAPIError if the response indicates failure."""
+    """Raise AttestAPIError if the response indicates failure."""
     if response.is_success:
         return
     try:
@@ -83,10 +83,10 @@ def _raise_for_status(response: httpx.Response) -> None:
         message = body.get("error") or response.text
     except Exception:
         message = response.text or f"HTTP {response.status_code}"
-    raise WarrantAPIError(response.status_code, message)
+    raise AttestAPIError(response.status_code, message)
 
 
-def _parse_token_response(data: dict, delegated: bool = False) -> WarrantToken | DelegatedToken:
+def _parse_token_response(data: dict, delegated: bool = False) -> AttestToken | DelegatedToken:
     """Parse an issue or delegate response into the appropriate token type."""
     raw_claims = data.get("claims", {})
 
@@ -98,21 +98,21 @@ def _parse_token_response(data: dict, delegated: bool = False) -> WarrantToken |
         "iat": _extract_numeric_date(raw_claims.get("iat")),
         "exp": _extract_numeric_date(raw_claims.get("exp")),
         "jti": raw_claims.get("jti", ""),
-        "wrt_tid": raw_claims.get("wrt_tid", ""),
-        "wrt_depth": raw_claims.get("wrt_depth", 0),
-        "wrt_scope": raw_claims.get("wrt_scope") or [],
-        "wrt_intent": raw_claims.get("wrt_intent", ""),
-        "wrt_chain": raw_claims.get("wrt_chain") or [],
-        "wrt_uid": raw_claims.get("wrt_uid", ""),
-        "wrt_pid": raw_claims.get("wrt_pid"),
+        "att_tid": raw_claims.get("att_tid", ""),
+        "att_depth": raw_claims.get("att_depth", 0),
+        "att_scope": raw_claims.get("att_scope") or [],
+        "att_intent": raw_claims.get("att_intent", ""),
+        "att_chain": raw_claims.get("att_chain") or [],
+        "att_uid": raw_claims.get("att_uid", ""),
+        "att_pid": raw_claims.get("att_pid"),
     }
 
-    claims = WarrantClaims.from_dict(claims_dict)
+    claims = AttestClaims.from_dict(claims_dict)
     token_str: str = data["token"]
 
     if delegated:
         return DelegatedToken(token=token_str, claims=claims)
-    return WarrantToken(token=token_str, claims=claims)
+    return AttestToken(token=token_str, claims=claims)
 
 
 def _extract_numeric_date(v: object) -> int:
@@ -143,7 +143,7 @@ def _build_public_key(jwks: dict):  # type: ignore[return]
     for key in keys:
         if key.get("kty") == "RSA":
             return jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
-    raise WarrantVerifyError("No RSA key found in JWKS")
+    raise AttestVerifyError("No RSA key found in JWKS")
 
 
 def _verify_token(token: str, jwks: dict) -> VerifyResult:
@@ -152,12 +152,12 @@ def _verify_token(token: str, jwks: dict) -> VerifyResult:
     Checks performed:
     1. RS256 signature validity.
     2. Token expiry (PyJWT handles this via ``verify_exp``).
-    3. ``len(wrt_chain) == wrt_depth + 1``.
-    4. ``wrt_chain[-1] == jti``.
+    3. ``len(att_chain) == att_depth + 1``.
+    4. ``att_chain[-1] == jti``.
     """
     try:
         public_key = _build_public_key(jwks)
-    except WarrantVerifyError as exc:
+    except AttestVerifyError as exc:
         return VerifyResult(valid=False, claims=None, warnings=[str(exc)])
 
     try:
@@ -177,20 +177,20 @@ def _verify_token(token: str, jwks: dict) -> VerifyResult:
         return VerifyResult(valid=False, claims=None, warnings=[f"jwt error: {exc}"])
 
     try:
-        claims = WarrantClaims.from_dict(payload)
+        claims = AttestClaims.from_dict(payload)
     except (KeyError, TypeError, ValueError) as exc:
         return VerifyResult(valid=False, claims=None, warnings=[f"claims parse error: {exc}"])
 
     warnings: list[str] = []
 
-    expected_chain_len = claims.wrt_depth + 1
-    if len(claims.wrt_chain) != expected_chain_len:
+    expected_chain_len = claims.att_depth + 1
+    if len(claims.att_chain) != expected_chain_len:
         warnings.append(
-            f"chain length {len(claims.wrt_chain)} does not match "
-            f"depth {claims.wrt_depth} (expected {expected_chain_len})"
+            f"chain length {len(claims.att_chain)} does not match "
+            f"depth {claims.att_depth} (expected {expected_chain_len})"
         )
 
-    if claims.wrt_chain and claims.wrt_chain[-1] != claims.jti:
+    if claims.att_chain and claims.att_chain[-1] != claims.jti:
         warnings.append("chain tail does not match jti")
 
     if warnings:
@@ -209,8 +209,8 @@ def _parse_audit_response(task_id: str, data: list[dict]) -> AuditChain:
 # ---------------------------------------------------------------------------
 
 
-class WarrantClient:
-    """Synchronous Warrant client backed by ``httpx``."""
+class AttestClient:
+    """Synchronous Attest client backed by ``httpx``."""
 
     def __init__(
         self,
@@ -229,7 +229,7 @@ class WarrantClient:
         """Close the underlying HTTP connection pool."""
         self._http.close()
 
-    def __enter__(self) -> "WarrantClient":
+    def __enter__(self) -> "AttestClient":
         return self
 
     def __exit__(self, *_: object) -> None:
@@ -239,7 +239,7 @@ class WarrantClient:
     # Credential operations
     # ------------------------------------------------------------------
 
-    def issue(self, params: IssueParams) -> WarrantToken:
+    def issue(self, params: IssueParams) -> AttestToken:
         """Issue a root credential for *agent_id*."""
         body: dict = {
             "agent_id": params.agent_id,
@@ -253,7 +253,7 @@ class WarrantClient:
         resp = self._http.post("/v1/credentials", json=body)
         _raise_for_status(resp)
         result = _parse_token_response(resp.json(), delegated=False)
-        assert isinstance(result, WarrantToken)
+        assert isinstance(result, AttestToken)
         return result
 
     def delegate(self, params: DelegateParams) -> DelegatedToken:
@@ -314,8 +314,8 @@ class WarrantClient:
 # ---------------------------------------------------------------------------
 
 
-class AsyncWarrantClient:
-    """Async Warrant client backed by ``httpx.AsyncClient``."""
+class AsyncAttestClient:
+    """Async Attest client backed by ``httpx.AsyncClient``."""
 
     def __init__(
         self,
@@ -334,7 +334,7 @@ class AsyncWarrantClient:
         """Close the underlying async HTTP connection pool."""
         await self._http.aclose()
 
-    async def __aenter__(self) -> "AsyncWarrantClient":
+    async def __aenter__(self) -> "AsyncAttestClient":
         return self
 
     async def __aexit__(self, *_: object) -> None:
@@ -344,7 +344,7 @@ class AsyncWarrantClient:
     # Credential operations
     # ------------------------------------------------------------------
 
-    async def issue(self, params: IssueParams) -> WarrantToken:
+    async def issue(self, params: IssueParams) -> AttestToken:
         """Issue a root credential for *agent_id*."""
         body: dict = {
             "agent_id": params.agent_id,
@@ -358,7 +358,7 @@ class AsyncWarrantClient:
         resp = await self._http.post("/v1/credentials", json=body)
         _raise_for_status(resp)
         result = _parse_token_response(resp.json(), delegated=False)
-        assert isinstance(result, WarrantToken)
+        assert isinstance(result, AttestToken)
         return result
 
     async def delegate(self, params: DelegateParams) -> DelegatedToken:

@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/warrant-dev/warrant/pkg/warrant"
+	"github.com/attest-dev/attest/pkg/attest"
 )
 
 const genesisHash = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -17,8 +17,8 @@ const genesisHash = "00000000000000000000000000000000000000000000000000000000000
 // It maintains the same hash-chaining semantics as the Postgres Log.
 type MemoryLog struct {
 	mu      sync.RWMutex
-	entries []warrant.AuditEvent        // all entries in insertion order
-	tails   map[string]string           // wrt_tid → most recent entry_hash
+	entries []attest.AuditEvent        // all entries in insertion order
+	tails   map[string]string           // att_tid → most recent entry_hash
 	seq     atomic.Int64                // monotonic ID counter
 }
 
@@ -31,7 +31,7 @@ func NewMemoryLog() *MemoryLog {
 
 // Append adds an event to the log, computing prev_hash and entry_hash
 // using the same algorithm as the Postgres implementation.
-func (m *MemoryLog) Append(_ context.Context, event warrant.AuditEvent) error {
+func (m *MemoryLog) Append(_ context.Context, event attest.AuditEvent) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -57,11 +57,11 @@ func (m *MemoryLog) Append(_ context.Context, event warrant.AuditEvent) error {
 }
 
 // Query returns all events for taskID in insertion order.
-func (m *MemoryLog) Query(_ context.Context, taskID string) ([]warrant.AuditEvent, error) {
+func (m *MemoryLog) Query(_ context.Context, taskID string) ([]attest.AuditEvent, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var out []warrant.AuditEvent
+	var out []attest.AuditEvent
 	for _, e := range m.entries {
 		if e.TaskID == taskID {
 			out = append(out, e)

@@ -1,4 +1,4 @@
-package warrant
+package attest
 
 import "testing"
 

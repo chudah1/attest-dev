@@ -1,13 +1,49 @@
--- Warrant database schema
+-- Attest database schema
 -- Run once against a fresh PostgreSQL database.
+
+-- ── organisations ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS organizations (
+    id          TEXT        PRIMARY KEY,          -- UUID
+    name        TEXT        NOT NULL,
+    status      TEXT        NOT NULL DEFAULT 'active',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── api_keys ──────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id          TEXT        PRIMARY KEY,          -- UUID
+    org_id      TEXT        NOT NULL REFERENCES organizations(id),
+    key_hash    TEXT        NOT NULL UNIQUE,      -- SHA-256 hex of the raw key
+    name        TEXT        NOT NULL DEFAULT 'default',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_org ON api_keys (org_id);
+
+-- ── org_keys ──────────────────────────────────────────────────────────────────
+-- Stores RSA key pairs per org. Multiple rows per org are allowed (rotation).
+-- The active key has retired_at IS NULL.
+
+CREATE TABLE IF NOT EXISTS org_keys (
+    id          TEXT        PRIMARY KEY,          -- UUID, used as JWT kid
+    org_id      TEXT        NOT NULL REFERENCES organizations(id),
+    private_key BYTEA       NOT NULL,             -- PKCS1 DER; encrypt at rest in production
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retired_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_keys_org ON org_keys (org_id) WHERE retired_at IS NULL;
 
 -- ── credentials ──────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS credentials (
     jti         TEXT        PRIMARY KEY,
-    wrt_tid     TEXT        NOT NULL,
-    wrt_pid     TEXT,                        -- parent jti; NULL for root
-    wrt_uid     TEXT        NOT NULL,
+    att_tid     TEXT        NOT NULL,
+    att_pid     TEXT,                        -- parent jti; NULL for root
+    att_uid     TEXT        NOT NULL,
     agent_id    TEXT        NOT NULL,
     depth       INTEGER     NOT NULL DEFAULT 0,
     scope       TEXT[]      NOT NULL,
@@ -18,8 +54,8 @@ CREATE TABLE IF NOT EXISTS credentials (
 
 -- GIN index enables fast ancestor lookup: chain @> ARRAY['<jti>']
 CREATE INDEX IF NOT EXISTS idx_credentials_chain ON credentials USING GIN (chain);
-CREATE INDEX IF NOT EXISTS idx_credentials_tid   ON credentials (wrt_tid);
-CREATE INDEX IF NOT EXISTS idx_credentials_uid   ON credentials (wrt_uid);
+CREATE INDEX IF NOT EXISTS idx_credentials_tid   ON credentials (att_tid);
+CREATE INDEX IF NOT EXISTS idx_credentials_uid   ON credentials (att_uid);
 
 -- ── revocations ───────────────────────────────────────────────────────────────
 
@@ -40,15 +76,15 @@ CREATE TABLE IF NOT EXISTS audit_log (
     entry_hash  TEXT        NOT NULL,        -- SHA-256(prev_hash || event_type || jti || created_at)
     event_type  TEXT        NOT NULL,        -- issued | delegated | verified | revoked | expired
     jti         TEXT        NOT NULL,
-    wrt_tid     TEXT        NOT NULL,
-    wrt_uid     TEXT        NOT NULL,
+    att_tid     TEXT        NOT NULL,
+    att_uid     TEXT        NOT NULL,
     agent_id    TEXT        NOT NULL,
     scope       JSONB       NOT NULL DEFAULT '[]',
     meta        JSONB,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_tid ON audit_log (wrt_tid, id);
+CREATE INDEX IF NOT EXISTS idx_audit_tid ON audit_log (att_tid, id);
 CREATE INDEX IF NOT EXISTS idx_audit_jti ON audit_log (jti);
 
 -- Prevent UPDATE and DELETE on audit_log to keep it append-only.

@@ -1,30 +1,30 @@
-# warrant-sdk
+# attest-sdk
 
-Python SDK for the [Warrant](https://github.com/warrant-dev/warrant) cryptographic agent credential service.
+Python SDK for the [Attest](https://github.com/attest-dev/attest) cryptographic agent credential service.
 
-Warrant issues RS256-signed JWTs to AI agents. Each token carries:
-- `wrt_scope` — list of `"resource:action"` permission strings
-- `wrt_chain` — ordered delegation lineage (list of JTIs)
-- `wrt_depth` — delegation depth (0 = root)
-- `wrt_intent` — SHA-256 hex of the original instruction
-- `wrt_tid` — task tree UUID shared across the chain
-- `wrt_uid` — originating human user ID
+Attest issues RS256-signed JWTs to AI agents. Each token carries:
+- `att_scope` — list of `"resource:action"` permission strings
+- `att_chain` — ordered delegation lineage (list of JTIs)
+- `att_depth` — delegation depth (0 = root)
+- `att_intent` — SHA-256 hex of the original instruction
+- `att_tid` — task tree UUID shared across the chain
+- `att_uid` — originating human user ID
 
 ## Install
 
 ```bash
-pip install warrant-sdk
+pip install attest-sdk
 
 # With LangGraph integration
-pip install "warrant-sdk[langgraph]"
+pip install "attest-sdk[langgraph]"
 ```
 
 ## Basic usage
 
 ```python
-from warrant import WarrantClient, IssueParams, DelegateParams
+from attest import AttestClient, IssueParams, DelegateParams
 
-client = WarrantClient(
+client = AttestClient(
     base_url="http://localhost:8080",
     api_key="your-api-key",
 )
@@ -37,8 +37,8 @@ token = client.issue(IssueParams(
     instruction="Draft and send the quarterly report",
     ttl_seconds=3600,
 ))
-print(token.claims.wrt_tid)    # task tree UUID
-print(token.claims.wrt_scope)  # ["research:read", "gmail:send"]
+print(token.claims.att_tid)    # task tree UUID
+print(token.claims.att_scope)  # ["research:read", "gmail:send"]
 
 # Delegate to a child agent (scope must be a subset)
 child = client.delegate(DelegateParams(
@@ -62,7 +62,7 @@ is_revoked = client.check_revoked(token.claims.jti)
 client.revoke(token.claims.jti, revoked_by="orchestrator")
 
 # Audit trail for the whole task tree
-chain = client.audit(token.claims.wrt_tid)
+chain = client.audit(token.claims.att_tid)
 for event in chain.events:
     print(event.event_type, event.agent_id, event.created_at)
 ```
@@ -71,10 +71,10 @@ for event in chain.events:
 
 ```python
 import asyncio
-from warrant import AsyncWarrantClient, IssueParams
+from attest import AsyncAttestClient, IssueParams
 
 async def main():
-    async with AsyncWarrantClient(api_key="your-api-key") as client:
+    async with AsyncAttestClient(api_key="your-api-key") as client:
         token = await client.issue(IssueParams(
             agent_id="async-agent",
             user_id="user-1",
@@ -92,19 +92,19 @@ asyncio.run(main())
 
 ```python
 from typing import TypedDict
-from warrant import WarrantClient
-from warrant.integrations.langgraph import WarrantState, warrant_tool, WarrantNodes
+from attest import AttestClient
+from attest.integrations.langgraph import AttestState, attest_tool, AttestNodes
 
-client = WarrantClient(api_key="your-api-key")
+client = AttestClient(api_key="your-api-key")
 
-# 1. Extend WarrantState with your own fields
-class MyState(WarrantState):
+# 1. Extend AttestState with your own fields
+class MyState(AttestState):
     messages: list
     instruction: str
     user_id: str
 
-# 2. Issue at graph entry — stores JWT in state["warrant_tokens"]["orchestrator-v1"]
-graph.add_node("issue", WarrantNodes.issue(
+# 2. Issue at graph entry — stores JWT in state["attest_tokens"]["orchestrator-v1"]
+graph.add_node("issue", AttestNodes.issue(
     client=client,
     agent_id="orchestrator-v1",
     scope=["research:read", "gmail:send"],
@@ -112,13 +112,13 @@ graph.add_node("issue", WarrantNodes.issue(
     user_id_key="user_id",
 ))
 
-# 3. Enforce scope at tool call — raises WarrantScopeError if not covered
-@warrant_tool(scope="gmail:send", agent_id="email-agent-v1")
+# 3. Enforce scope at tool call — raises AttestScopeError if not covered
+@attest_tool(scope="gmail:send", agent_id="email-agent-v1")
 def send_email(state: MyState, to: str, body: str) -> str:
     ...
 
 # 4. Delegate when spawning a sub-agent
-graph.add_node("spawn_email_agent", WarrantNodes.delegate(
+graph.add_node("spawn_email_agent", AttestNodes.delegate(
     client=client,
     parent_agent_id="orchestrator-v1",
     child_agent_id="email-agent-v1",
@@ -126,7 +126,7 @@ graph.add_node("spawn_email_agent", WarrantNodes.delegate(
 ))
 
 # 5. Revoke at graph teardown
-graph.add_node("cleanup", WarrantNodes.revoke(
+graph.add_node("cleanup", AttestNodes.revoke(
     client=client,
     agent_id="orchestrator-v1",
 ))
