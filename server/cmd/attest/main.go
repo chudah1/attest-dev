@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,6 +18,9 @@ import (
 	"github.com/attest-dev/attest/internal/revocation"
 	"github.com/attest-dev/attest/internal/token"
 )
+
+//go:embed schema.sql
+var schemaSQL string
 
 type config struct {
 	Port        string
@@ -61,6 +65,12 @@ func main() {
 			os.Exit(1)
 		}
 		defer pool.Close()
+
+		if _, err := pool.Exec(ctx, schemaSQL); err != nil {
+			slog.Error("failed to apply schema migrations", "err", err)
+			os.Exit(1)
+		}
+		slog.Info("schema migrations applied")
 
 		slog.Info("storage: postgres", "url", cfg.DatabaseURL)
 		orgStore = org.NewPostgresStore(pool)

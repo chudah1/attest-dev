@@ -1,0 +1,95 @@
+-- Attest database schema
+-- Run once against a fresh PostgreSQL database.
+
+-- ── organisations ─────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS organizations (
+    id          TEXT        PRIMARY KEY,          -- UUID
+    name        TEXT        NOT NULL,
+    status      TEXT        NOT NULL DEFAULT 'active',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── api_keys ──────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id          TEXT        PRIMARY KEY,          -- UUID
+    org_id      TEXT        NOT NULL REFERENCES organizations(id),
+    key_hash    TEXT        NOT NULL UNIQUE,      -- SHA-256 hex of the raw key
+    name        TEXT        NOT NULL DEFAULT 'default',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_org ON api_keys (org_id);
+
+-- ── org_keys ──────────────────────────────────────────────────────────────────
+-- Stores RSA key pairs per org. Multiple rows per org are allowed (rotation).
+-- The active key has retired_at IS NULL.
+
+CREATE TABLE IF NOT EXISTS org_keys (
+    id          TEXT        PRIMARY KEY,          -- UUID, used as JWT kid
+    org_id      TEXT        NOT NULL REFERENCES organizations(id),
+    private_key BYTEA       NOT NULL,             -- PKCS1 DER; encrypt at rest in production
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    retired_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_org_keys_org ON org_keys (org_id) WHERE retired_at IS NULL;
+
+-- ── credentials ──────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS credentials (
+    jti         TEXT        PRIMARY KEY,
+    att_tid     TEXT        NOT NULL,
+    att_pid     TEXT,                        -- parent jti; NULL for root
+    att_uid     TEXT        NOT NULL,
+    agent_id    TEXT        NOT NULL,
+    depth       INTEGER     NOT NULL DEFAULT 0,
+    scope       TEXT[]      NOT NULL,
+    chain       TEXT[]      NOT NULL,        -- ordered ancestor jti list
+    issued_at   TIMESTAMPTZ NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL
+);
+
+-- GIN index enables fast ancestor lookup: chain @> ARRAY['<jti>']
+CREATE INDEX IF NOT EXISTS idx_credentials_chain ON credentials USING GIN (chain);
+CREATE INDEX IF NOT EXISTS idx_credentials_tid   ON credentials (att_tid);
+CREATE INDEX IF NOT EXISTS idx_credentials_uid   ON credentials (att_uid);
+
+-- ── revocations ───────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS revocations (
+    jti         TEXT        PRIMARY KEY,
+    revoked_at  TIMESTAMPTZ NOT NULL,
+    revoked_by  TEXT        NOT NULL         -- agent or user ID that triggered revocation
+);
+
+CREATE INDEX IF NOT EXISTS idx_revocations_at ON revocations (revoked_at);
+
+-- ── audit_log ─────────────────────────────────────────────────────────────────
+-- Append-only. Each row chains to the previous via prev_hash / entry_hash.
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id          BIGSERIAL   PRIMARY KEY,
+    prev_hash   TEXT        NOT NULL,        -- entry_hash of previous row for this tid
+    entry_hash  TEXT        NOT NULL,        -- SHA-256(prev_hash || event_type || jti || created_at)
+    event_type  TEXT        NOT NULL,        -- issued | delegated | verified | revoked | expired
+    jti         TEXT        NOT NULL,
+    att_tid     TEXT        NOT NULL,
+    att_uid     TEXT        NOT NULL,
+    agent_id    TEXT        NOT NULL,
+    scope       JSONB       NOT NULL DEFAULT '[]',
+    meta        JSONB,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_tid ON audit_log (att_tid, id);
+CREATE INDEX IF NOT EXISTS idx_audit_jti ON audit_log (jti);
+
+-- Prevent UPDATE and DELETE on audit_log to keep it append-only.
+CREATE OR REPLACE RULE audit_log_no_update AS
+    ON UPDATE TO audit_log DO INSTEAD NOTHING;
+
+CREATE OR REPLACE RULE audit_log_no_delete AS
+    ON DELETE TO audit_log DO INSTEAD NOTHING;
