@@ -106,18 +106,18 @@ func main() {
 
 	r.Get("/health", h.health)
 
-	// Public: org signup and per-org JWKS (no API key required).
+	// Public: org signup, per-org JWKS, and revocation check.
 	r.Post("/v1/orgs", h.signup)
 	r.Get("/orgs/{orgID}/jwks.json", h.jwks)
+	r.Get("/v1/revoked/{jti}", h.checkRevocation)
 
-	// Authenticated: all credential and audit endpoints.
+	// Authenticated: credential management and audit.
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(h.authMiddleware)
 		r.Get("/org", h.getOrg)
 		r.Post("/credentials", h.issueCredential)
 		r.Post("/credentials/delegate", h.delegateCredential)
 		r.Delete("/credentials/{jti}", h.revokeCredential)
-		r.Get("/revoked/{jti}", h.checkRevocation)
 		r.Get("/tasks/{tid}/audit", h.getAuditLog)
 	})
 
