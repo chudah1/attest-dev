@@ -48,6 +48,26 @@ func orgFromCtx(ctx context.Context) *org.Org {
 	return o
 }
 
+// corsMiddleware allows browser requests from the dashboard.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// GET /v1/org
+func (h *handlers) getOrg(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	writeJSON(w, http.StatusOK, o)
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

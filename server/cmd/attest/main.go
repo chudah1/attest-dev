@@ -102,6 +102,7 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(jsonLogger)
+	r.Use(corsMiddleware)
 
 	r.Get("/health", h.health)
 
@@ -112,6 +113,7 @@ func main() {
 	// Authenticated: all credential and audit endpoints.
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(h.authMiddleware)
+		r.Get("/org", h.getOrg)
 		r.Post("/credentials", h.issueCredential)
 		r.Post("/credentials/delegate", h.delegateCredential)
 		r.Delete("/credentials/{jti}", h.revokeCredential)
