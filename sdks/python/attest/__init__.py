@@ -18,6 +18,7 @@ Quick start::
     print(token.claims.att_scope) # ["files:read", "files:write"]
 """
 
+from attest.checksum import compute_agent_checksum
 from attest.client import (
     AsyncAttestClient,
     AttestAPIError,
@@ -27,6 +28,7 @@ from attest.client import (
     AttestVerifyError,
 )
 from attest.scope import is_subset, normalise_scope, parse_scope
+from attest.verifier import AttestVerifier
 from attest.types import (
     AuditChain,
     AuditEvent,
@@ -50,6 +52,12 @@ from attest.integrations.openai_agents import (
     AttestContext,
     AttestRunHooks,
     attest_tool_openai,
+)
+from attest.integrations.anthropic_sdk import (
+    AttestSession,
+    AsyncAttestSession,
+    current_attest_session,
+    attest_tool_anthropic,
 )
 
 __version__ = "0.1.0"
@@ -86,6 +94,15 @@ __all__ = [
     "AttestContext",
     "AttestRunHooks",
     "attest_tool_openai",
+    # Anthropic SDK integration
+    "AttestSession",
+    "AsyncAttestSession",
+    "current_attest_session",
+    "attest_tool_anthropic",
+    # Checksum utility
+    "compute_agent_checksum",
+    # Standalone verifier
+    "AttestVerifier",
     # Version
     "__version__",
 ]

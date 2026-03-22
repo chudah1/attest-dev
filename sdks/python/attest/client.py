@@ -105,6 +105,7 @@ def _parse_token_response(data: dict, delegated: bool = False) -> AttestToken | 
         "att_chain": raw_claims.get("att_chain") or [],
         "att_uid": raw_claims.get("att_uid", ""),
         "att_pid": raw_claims.get("att_pid"),
+        "att_ack": raw_claims.get("att_ack"),
     }
 
     claims = AttestClaims.from_dict(claims_dict)
@@ -249,6 +250,8 @@ class AttestClient:
         }
         if params.ttl_seconds is not None:
             body["ttl_seconds"] = params.ttl_seconds
+        if params.agent_checksum is not None:
+            body["agent_checksum"] = params.agent_checksum
 
         resp = self._http.post("/v1/credentials", json=body)
         _raise_for_status(resp)
@@ -354,6 +357,8 @@ class AsyncAttestClient:
         }
         if params.ttl_seconds is not None:
             body["ttl_seconds"] = params.ttl_seconds
+        if params.agent_checksum is not None:
+            body["agent_checksum"] = params.agent_checksum
 
         resp = await self._http.post("/v1/credentials", json=body)
         _raise_for_status(resp)

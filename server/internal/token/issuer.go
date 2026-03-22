@@ -65,12 +65,13 @@ func (is *Issuer) Issue(key *rsa.PrivateKey, kid string, p attest.IssueParams) (
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(ttl) * time.Second)),
 			ID:        jti,
 		},
-		TaskID:     tid,
-		Depth:      0,
-		Scope:      attest.NormaliseScope(p.Scope),
-		IntentHash: intentHash,
-		Chain:      []string{jti},
-		UserID:     p.UserID,
+		TaskID:        tid,
+		Depth:         0,
+		Scope:         attest.NormaliseScope(p.Scope),
+		IntentHash:    intentHash,
+		Chain:         []string{jti},
+		UserID:        p.UserID,
+		AgentChecksum: p.AgentChecksum,
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -138,13 +139,14 @@ func (is *Issuer) Delegate(key *rsa.PrivateKey, kid string, p attest.DelegatePar
 			ExpiresAt: jwt.NewNumericDate(exp),
 			ID:        jti,
 		},
-		TaskID:     parentClaims.TaskID,
-		ParentID:   parentClaims.ID,
-		Depth:      parentClaims.Depth + 1,
-		Scope:      childScope,
-		IntentHash: parentClaims.IntentHash,
-		Chain:      append(append([]string{}, parentClaims.Chain...), jti),
-		UserID:     parentClaims.UserID,
+		TaskID:        parentClaims.TaskID,
+		ParentID:      parentClaims.ID,
+		Depth:         parentClaims.Depth + 1,
+		Scope:         childScope,
+		IntentHash:    parentClaims.IntentHash,
+		Chain:         append(append([]string{}, parentClaims.Chain...), jti),
+		UserID:        parentClaims.UserID,
+		AgentChecksum: parentClaims.AgentChecksum,
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

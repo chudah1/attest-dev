@@ -43,15 +43,19 @@ type Claims struct {
 
 	// att_uid: original human principal who initiated the task
 	UserID string `json:"att_uid"`
+
+	// att_ack: SHA-256 checksum of the agent's system prompt + tool configuration
+	AgentChecksum string `json:"att_ack,omitempty"`
 }
 
 // IssueParams carries the inputs needed to issue a root credential.
 type IssueParams struct {
-	AgentID     string   `json:"agent_id"`
-	UserID      string   `json:"user_id"`
-	Scope       []string `json:"scope"`
-	Instruction string   `json:"instruction"`
-	TTLSeconds  int64    `json:"ttl_seconds,omitempty"`
+	AgentID       string   `json:"agent_id"`
+	UserID        string   `json:"user_id"`
+	Scope         []string `json:"scope"`
+	Instruction   string   `json:"instruction"`
+	TTLSeconds    int64    `json:"ttl_seconds,omitempty"`
+	AgentChecksum string   `json:"agent_checksum,omitempty"`
 }
 
 // DelegateParams carries the inputs needed to delegate to a child agent.

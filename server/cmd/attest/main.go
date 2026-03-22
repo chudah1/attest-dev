@@ -7,16 +7,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/attest-dev/attest/internal/audit"
 	"github.com/attest-dev/attest/internal/org"
 	"github.com/attest-dev/attest/internal/revocation"
 	"github.com/attest-dev/attest/internal/token"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/time/rate"
 )
 
 //go:embed schema.sql
@@ -39,6 +41,85 @@ func configFromEnv() config {
 		Port:        get("PORT", "8080"),
 		DatabaseURL: get("DATABASE_URL", ""),
 		IssuerURI:   get("ISSUER_URI", "https://api.attestdev.com"),
+	}
+}
+
+// rateLimiter manages per-key rate limiters with periodic cleanup.
+type rateLimiter struct {
+	mu       sync.Mutex
+	limiters map[string]*rateLimiterEntry
+	r        rate.Limit
+	b        int
+}
+
+type rateLimiterEntry struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
+func newRateLimiter(r rate.Limit, b int) *rateLimiter {
+	rl := &rateLimiter{
+		limiters: make(map[string]*rateLimiterEntry),
+		r:        r,
+		b:        b,
+	}
+	go rl.cleanup()
+	return rl
+}
+
+func (rl *rateLimiter) get(key string) *rate.Limiter {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	e, ok := rl.limiters[key]
+	if !ok {
+		e = &rateLimiterEntry{limiter: rate.NewLimiter(rl.r, rl.b)}
+		rl.limiters[key] = e
+	}
+	e.lastSeen = time.Now()
+	return e.limiter
+}
+
+func (rl *rateLimiter) cleanup() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		rl.mu.Lock()
+		cutoff := time.Now().Add(-10 * time.Minute)
+		for k, e := range rl.limiters {
+			if e.lastSeen.Before(cutoff) {
+				delete(rl.limiters, k)
+			}
+		}
+		rl.mu.Unlock()
+	}
+}
+
+// ipRateLimitMiddleware returns a middleware that rate-limits by remote IP.
+func ipRateLimitMiddleware(rl *rateLimiter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := r.RemoteAddr
+			if !rl.get(ip).Allow() {
+				writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// orgRateLimitMiddleware returns a middleware that rate-limits by org ID.
+// Must run after authMiddleware so the org is in context.
+func orgRateLimitMiddleware(rl *rateLimiter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			o := orgFromCtx(r.Context())
+			if o != nil && !rl.get(o.ID).Allow() {
+				writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
 
@@ -97,7 +178,17 @@ func main() {
 		auditLog: auditLog,
 	}
 
+	// Rate limiters: 5 req/min per IP for signup, 120 req/min per org for authenticated endpoints.
+	signupLimiter := newRateLimiter(rate.Every(time.Minute/5), 5)
+	orgLimiter := newRateLimiter(rate.Every(time.Minute/120), 20)
+
 	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
@@ -106,27 +197,36 @@ func main() {
 
 	r.Get("/health", h.health)
 
-	// Public: org signup, per-org JWKS, and revocation check.
-	r.Post("/v1/orgs", h.signup)
+	// Public: org signup (IP rate-limited), per-org JWKS, and revocation check.
+	r.With(ipRateLimitMiddleware(signupLimiter)).Post("/v1/orgs", h.signup)
 	r.Get("/orgs/{orgID}/jwks.json", h.jwks)
 	r.Get("/v1/revoked/{jti}", h.checkRevocation)
 
-	// Authenticated: credential management and audit.
+	// Authenticated: credential management, audit, and key management.
 	r.Route("/v1", func(r chi.Router) {
 		r.Use(h.authMiddleware)
+		r.Use(orgRateLimitMiddleware(orgLimiter))
+
 		r.Get("/org", h.getOrg)
 		r.Post("/credentials", h.issueCredential)
 		r.Post("/credentials/delegate", h.delegateCredential)
 		r.Delete("/credentials/{jti}", h.revokeCredential)
 		r.Get("/tasks/{tid}/audit", h.getAuditLog)
+
+		// API key management.
+		r.Get("/org/keys", h.listAPIKeys)
+		r.Post("/org/keys", h.createAPIKey)
+		r.Delete("/org/keys/{keyID}", h.revokeAPIKey)
+		r.Post("/org/keys/rotate", h.rotateKey)
 	})
 
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:           ":" + cfg.Port,
+		Handler:        r,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
 	done := make(chan struct{})

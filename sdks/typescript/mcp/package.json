@@ -32,7 +32,7 @@
     "jose": "^5.9.6"
   },
   "peerDependencies": {
-    "@attest-dev/sdk": "^0.1.0"
+    "@attest-dev/sdk": "file:.."
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

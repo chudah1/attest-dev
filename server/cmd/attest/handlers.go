@@ -3,19 +3,22 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
+	"os"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/attest-dev/attest/internal/audit"
 	"github.com/attest-dev/attest/internal/org"
 	"github.com/attest-dev/attest/internal/revocation"
 	"github.com/attest-dev/attest/internal/token"
 	"github.com/attest-dev/attest/pkg/attest"
+	"github.com/go-chi/chi/v5"
 )
 
 type orgCtxKey struct{}
+type apiKeyIDCtxKey struct{}
 
 type handlers struct {
 	issuer   *token.Issuer
@@ -24,7 +27,8 @@ type handlers struct {
 	auditLog audit.Logger
 }
 
-// authMiddleware resolves the Bearer API key to an org and injects it into context.
+// authMiddleware resolves the Bearer API key to an org and injects both the
+// org and the resolved API key ID into context.
 func (h *handlers) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -33,12 +37,13 @@ func (h *handlers) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		rawKey := strings.TrimPrefix(authHeader, "Bearer ")
-		o, err := h.orgStore.ResolveAPIKey(r.Context(), rawKey)
+		o, ak, err := h.orgStore.ResolveAPIKey(r.Context(), rawKey)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "invalid api key")
 			return
 		}
 		ctx := context.WithValue(r.Context(), orgCtxKey{}, o)
+		ctx = context.WithValue(ctx, apiKeyIDCtxKey{}, ak.ID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -48,10 +53,19 @@ func orgFromCtx(ctx context.Context) *org.Org {
 	return o
 }
 
+func apiKeyIDFromCtx(ctx context.Context) string {
+	id, _ := ctx.Value(apiKeyIDCtxKey{}).(string)
+	return id
+}
+
 // corsMiddleware allows browser requests from the dashboard.
 func corsMiddleware(next http.Handler) http.Handler {
+	allowed := os.Getenv("CORS_ORIGIN")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if allowed == "" || origin == allowed || strings.HasPrefix(origin, "http://localhost") {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		if r.Method == http.MethodOptions {
@@ -122,14 +136,17 @@ func (h *handlers) issueCredential(w http.ResponseWriter, r *http.Request) {
 
 	h.revStore.TrackCredential(claims.ID, claims.Chain)
 
-	_ = h.auditLog.Append(r.Context(), attest.AuditEvent{
+	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
 		EventType: attest.EventIssued,
 		JTI:       claims.ID,
 		TaskID:    claims.TaskID,
 		UserID:    claims.UserID,
 		AgentID:   p.AgentID,
 		Scope:     claims.Scope,
-	})
+	}); err != nil {
+		http.Error(w, `{"error":"audit log unavailable"}`, http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"token":  tok,
@@ -160,14 +177,17 @@ func (h *handlers) delegateCredential(w http.ResponseWriter, r *http.Request) {
 
 	h.revStore.TrackCredential(claims.ID, claims.Chain)
 
-	_ = h.auditLog.Append(r.Context(), attest.AuditEvent{
+	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
 		EventType: attest.EventDelegated,
 		JTI:       claims.ID,
 		TaskID:    claims.TaskID,
 		UserID:    claims.UserID,
 		AgentID:   p.ChildAgent,
 		Scope:     claims.Scope,
-	})
+	}); err != nil {
+		http.Error(w, `{"error":"audit log unavailable"}`, http.StatusInternalServerError)
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"token":  tok,
@@ -196,11 +216,14 @@ func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = h.auditLog.Append(r.Context(), attest.AuditEvent{
+	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
 		EventType: attest.EventRevoked,
 		JTI:       jti,
 		Meta:      map[string]string{"revoked_by": body.RevokedBy},
-	})
+	}); err != nil {
+		http.Error(w, `{"error":"audit log unavailable"}`, http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -260,6 +283,74 @@ func (h *handlers) jwks(w http.ResponseWriter, r *http.Request) {
 // GET /health
 func (h *handlers) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// GET /v1/org/keys — list all API keys for the authenticated org.
+func (h *handlers) listAPIKeys(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	keys, err := h.orgStore.ListAPIKeys(r.Context(), o.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "list api keys: "+err.Error())
+		return
+	}
+	if keys == nil {
+		keys = []*org.APIKey{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"keys": keys})
+}
+
+// POST /v1/org/keys — create a new API key for the authenticated org.
+func (h *handlers) createAPIKey(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	ak, rawKey, err := h.orgStore.CreateAPIKey(r.Context(), o.ID, body.Name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "create api key: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"api_key": rawKey,
+		"key_id":  ak.ID,
+	})
+}
+
+// DELETE /v1/org/keys/{keyID} — revoke a specific API key.
+func (h *handlers) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	keyID := chi.URLParam(r, "keyID")
+
+	// Prevent revoking the key currently used to authenticate this request.
+	if keyID == apiKeyIDFromCtx(r.Context()) {
+		writeError(w, http.StatusBadRequest, "cannot revoke the key used to authenticate this request")
+		return
+	}
+
+	if err := h.orgStore.RevokeAPIKey(r.Context(), o.ID, keyID); err != nil {
+		if errors.Is(err, org.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "api key not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "revoke api key: "+err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// POST /v1/org/keys/rotate — rotate the org's RSA signing key.
+func (h *handlers) rotateKey(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	newKey, err := h.orgStore.RotateSigningKey(r.Context(), o.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "rotate signing key: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"kid": newKey.KeyID})
 }
 
 // encodeBase64URL encodes bytes as unpadded base64url (RFC 7518 §2).

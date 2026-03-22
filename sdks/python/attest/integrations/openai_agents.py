@@ -300,6 +300,8 @@ def _check_openai_scope(
             f"attest_tool_openai on '{tool_name}': no credential for agent '{resolved_name}'"
         )
 
+    # verify_signature=False is correct: the credential was already verified by
+    # the server at issuance/delegation time; this is only a local scope-subset check.
     try:
         payload: dict = _jwt.decode(
             token_str,

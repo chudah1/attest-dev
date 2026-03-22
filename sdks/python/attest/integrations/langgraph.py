@@ -587,6 +587,16 @@ class AttestStateGraph:
         if inspect.iscoroutinefunction(fn):
             @functools.wraps(fn)
             async def async_wrapped(state: dict, *args: Any, **kwargs: Any) -> Any:
+                # Dedup: reuse existing credential if this node already has one
+                # (avoids unbounded delegation in ReAct loops / cyclic graphs).
+                existing_tokens: dict[str, str] = state.get("attest_tokens") or {}
+                if node_name in existing_tokens:
+                    tok_var = current_attest_token.set(existing_tokens[node_name])
+                    try:
+                        return await fn(state, *args, **kwargs)
+                    finally:
+                        current_attest_token.reset(tok_var)
+
                 token_str = _pick_parent_token(state, parent_agent_id)
                 if token_str:
                     import asyncio as _asyncio
@@ -618,6 +628,16 @@ class AttestStateGraph:
 
         @functools.wraps(fn)
         def sync_wrapped(state: dict, *args: Any, **kwargs: Any) -> Any:
+            # Dedup: reuse existing credential if this node already has one
+            # (avoids unbounded delegation in ReAct loops / cyclic graphs).
+            existing_tokens: dict[str, str] = state.get("attest_tokens") or {}
+            if node_name in existing_tokens:
+                tok_var = current_attest_token.set(existing_tokens[node_name])
+                try:
+                    return fn(state, *args, **kwargs)
+                finally:
+                    current_attest_token.reset(tok_var)
+
             token_str = _pick_parent_token(state, parent_agent_id)
             if token_str:
                 dt = client.delegate(

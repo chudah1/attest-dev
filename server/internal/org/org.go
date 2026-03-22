@@ -11,6 +11,9 @@ import (
 // ErrInvalidKey is returned when an API key cannot be resolved.
 var ErrInvalidKey = errors.New("invalid or revoked api key")
 
+// ErrNotFound is returned when a requested resource does not exist.
+var ErrNotFound = errors.New("not found")
+
 // Org represents a tenant organisation.
 type Org struct {
 	ID        string
@@ -25,6 +28,7 @@ type APIKey struct {
 	OrgID     string
 	Name      string
 	CreatedAt time.Time
+	RevokedAt *time.Time
 }
 
 // OrgKey holds the active RSA key pair for an org.
@@ -45,9 +49,25 @@ type Store interface {
 	CreateOrg(ctx context.Context, name string) (*Org, string, *APIKey, error)
 
 	// ResolveAPIKey looks up an organisation by raw API key.
+	// Returns the org and the resolved APIKey metadata (including ID).
 	// Returns ErrInvalidKey if the key does not exist or has been revoked.
-	ResolveAPIKey(ctx context.Context, rawKey string) (*Org, error)
+	ResolveAPIKey(ctx context.Context, rawKey string) (*Org, *APIKey, error)
 
 	// GetSigningKey returns the active RSA key pair for the given org.
 	GetSigningKey(ctx context.Context, orgID string) (*OrgKey, error)
+
+	// CreateAPIKey generates a new API key for the org and returns the
+	// key metadata and the raw key string (shown once).
+	CreateAPIKey(ctx context.Context, orgID, name string) (*APIKey, string, error)
+
+	// ListAPIKeys returns all API keys for the org, ordered newest first.
+	ListAPIKeys(ctx context.Context, orgID string) ([]*APIKey, error)
+
+	// RevokeAPIKey marks the given key as revoked.
+	// Returns ErrNotFound if the key does not exist for this org.
+	RevokeAPIKey(ctx context.Context, orgID, keyID string) error
+
+	// RotateSigningKey generates a new RSA-2048 signing key for the org,
+	// retires the previous one, and returns the new key.
+	RotateSigningKey(ctx context.Context, orgID string) (*OrgKey, error)
 }

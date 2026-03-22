@@ -197,14 +197,18 @@ export class AttestVerifier {
 
   constructor(options: VerifyOptions) {
     const base = options.attestBaseUrl.replace(/\/$/, '');
-    this.opts = {
+    const opts: Required<Omit<VerifyOptions, 'staticJwks' | 'jwksUrl'>> & {
+      jwksUrl: string;
+      staticJwks?: JWKSResponse;
+    } = {
       attestBaseUrl: base,
       jwksUrl: options.jwksUrl ?? `${base}/.well-known/jwks.json`,
       checkRevocation: options.checkRevocation ?? true,
       revocationTimeoutMs: options.revocationTimeoutMs ?? 500,
       scopePrefix: options.scopePrefix ?? 'tool',
-      staticJwks: options.staticJwks,
     };
+    if (options.staticJwks !== undefined) opts.staticJwks = options.staticJwks;
+    this.opts = opts;
 
     if (options.staticJwks) {
       this.jwksCache = null;
@@ -254,14 +258,15 @@ export class AttestVerifier {
     const requiredAction = toolName;
 
     if (!isScopeCovered(claims.att_scope, requiredResource, requiredAction)) {
+      const reason: DeniedReason = {
+        code: 'scope_violation',
+        tool: toolName,
+        message: `Token does not grant scope "${requiredResource}:${requiredAction}"`,
+      };
+      if (jti !== undefined) reason.jti = jti;
       return {
         allowed: false,
-        reason: {
-          code: 'scope_violation',
-          tool: toolName,
-          jti,
-          message: `Token does not grant scope "${requiredResource}:${requiredAction}"`,
-        },
+        reason,
       };
     }
 

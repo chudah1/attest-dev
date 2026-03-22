@@ -26,8 +26,9 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { JWKSResponse, AttestClaims } from '@attest-dev/sdk';
 import { AttestVerifier } from './middleware.js';
+import type { VerifyOptions } from './middleware.js';
 
-export type { DeniedReason, DeniedCode, VerifyOptions } from './middleware.js';
+export type { DeniedCode, VerifyOptions } from './middleware.js';
 export { AttestVerifier, isScopeCovered } from './middleware.js';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -176,14 +177,15 @@ export function createAttestMcpServer(
   server: McpServer,
   options: AttestMcpOptions,
 ): McpServer {
-  const verifier = new AttestVerifier({
+  const verifierOpts: VerifyOptions = {
     attestBaseUrl: options.attestBaseUrl,
-    jwksUrl: options.jwksUrl,
-    staticJwks: options.staticJwks,
-    checkRevocation: options.checkRevocation,
-    revocationTimeoutMs: options.revocationTimeoutMs,
-    scopePrefix: options.scopePrefix,
-  });
+  };
+  if (options.jwksUrl !== undefined) verifierOpts.jwksUrl = options.jwksUrl;
+  if (options.staticJwks !== undefined) verifierOpts.staticJwks = options.staticJwks;
+  if (options.checkRevocation !== undefined) verifierOpts.checkRevocation = options.checkRevocation;
+  if (options.revocationTimeoutMs !== undefined) verifierOpts.revocationTimeoutMs = options.revocationTimeoutMs;
+  if (options.scopePrefix !== undefined) verifierOpts.scopePrefix = options.scopePrefix;
+  const verifier = new AttestVerifier(verifierOpts);
 
   const extractToken = options.extractToken ?? defaultExtractToken;
   const scopePrefix = options.scopePrefix ?? 'tool';
@@ -288,17 +290,18 @@ export class AttestToolMiddleware {
   ) => void;
 
   constructor(options: AttestMcpOptions) {
-    this.verifier = new AttestVerifier({
+    const verifierOpts: VerifyOptions = {
       attestBaseUrl: options.attestBaseUrl,
-      jwksUrl: options.jwksUrl,
-      staticJwks: options.staticJwks,
-      checkRevocation: options.checkRevocation,
-      revocationTimeoutMs: options.revocationTimeoutMs,
-      scopePrefix: options.scopePrefix,
-    });
+    };
+    if (options.jwksUrl !== undefined) verifierOpts.jwksUrl = options.jwksUrl;
+    if (options.staticJwks !== undefined) verifierOpts.staticJwks = options.staticJwks;
+    if (options.checkRevocation !== undefined) verifierOpts.checkRevocation = options.checkRevocation;
+    if (options.revocationTimeoutMs !== undefined) verifierOpts.revocationTimeoutMs = options.revocationTimeoutMs;
+    if (options.scopePrefix !== undefined) verifierOpts.scopePrefix = options.scopePrefix;
+    this.verifier = new AttestVerifier(verifierOpts);
     this.extractToken = options.extractToken ?? defaultExtractToken;
     this.scopePrefix = options.scopePrefix ?? 'tool';
-    this.onDenied = options.onDenied;
+    if (options.onDenied !== undefined) this.onDenied = options.onDenied;
   }
 
   /**

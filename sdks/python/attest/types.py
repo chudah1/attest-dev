@@ -21,6 +21,7 @@ class AttestClaims:
     att_chain: list[str]
     att_uid: str
     att_pid: str | None = None  # parent jti, absent on root
+    att_ack: str | None = None  # SHA-256 checksum of system prompt + tools
 
     @classmethod
     def from_dict(cls, d: dict) -> "AttestClaims":
@@ -38,6 +39,7 @@ class AttestClaims:
             att_chain=list(d["att_chain"]),
             att_uid=d["att_uid"],
             att_pid=d.get("att_pid"),
+            att_ack=d.get("att_ack"),
         )
 
     @property
@@ -125,6 +127,7 @@ class IssueParams:
     scope: list[str]
     instruction: str
     ttl_seconds: int | None = None
+    agent_checksum: str | None = None
 
 
 @dataclass

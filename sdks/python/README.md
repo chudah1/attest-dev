@@ -1,6 +1,6 @@
 # attest-sdk
 
-Python SDK for the [Attest](https://github.com/attest-dev/attest) cryptographic agent credential service.
+Python SDK for the [Attest](https://github.com/chudah1/attest-dev) cryptographic agent credential service.
 
 Attest issues RS256-signed JWTs to AI agents. Each token carries:
 - `att_scope` — list of `"resource:action"` permission strings
@@ -15,8 +15,9 @@ Attest issues RS256-signed JWTs to AI agents. Each token carries:
 ```bash
 pip install attest-sdk
 
-# With LangGraph integration
+# With framework integrations
 pip install "attest-sdk[langgraph]"
+pip install "attest-sdk[anthropic]"
 ```
 
 ## Basic usage
@@ -130,6 +131,34 @@ graph.add_node("cleanup", AttestNodes.revoke(
     client=client,
     agent_id="orchestrator-v1",
 ))
+```
+
+## Anthropic SDK integration
+
+```python
+from attest import AttestClient
+from attest.integrations.anthropic_sdk import AttestSession, attest_tool_anthropic
+
+client = AttestClient(base_url="http://localhost:8080", api_key="your-api-key")
+
+with AttestSession(
+    client=client,
+    agent_id="claude-orchestrator",
+    user_id="usr_alice",
+    scope=["web:read", "files:read", "files:write"],
+    instruction="Refactor the auth module",
+    system_prompt=SYSTEM_PROMPT,   # auto-computes att_ack checksum
+) as session:
+
+    @attest_tool_anthropic(scope="web:read")
+    def search_docs(query: str) -> str:
+        ...
+
+    # Delegate narrower scope to a sub-agent
+    child = session.delegate("code-reviewer", ["files:read"])
+    run_reviewer(child.token, "src/auth.py")
+
+# Exiting revokes the root credential and all descendants
 ```
 
 ## Offline verification note
