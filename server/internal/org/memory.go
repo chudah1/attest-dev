@@ -160,6 +160,21 @@ func (s *MemoryStore) ResolveAPIKey(_ context.Context, rawKey string) (*Org, *AP
 	return org, ak, nil
 }
 
+func (s *MemoryStore) UpdateOrg(_ context.Context, orgID string, requireIDP bool, issuerURL, clientID *string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	o, ok := s.orgs[orgID]
+	if !ok {
+		return ErrNotFound
+	}
+
+	o.RequireIDP = requireIDP
+	o.IDPIssuerURL = issuerURL
+	o.IDPClientID = clientID
+	return nil
+}
+
 func (s *MemoryStore) GetSigningKey(_ context.Context, orgID string) (*OrgKey, error) {
 	s.mu.RLock()
 	ks := s.keys[orgID]

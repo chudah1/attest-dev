@@ -72,6 +72,8 @@ func (is *Issuer) Issue(key *rsa.PrivateKey, kid string, p attest.IssueParams) (
 		Chain:         []string{jti},
 		UserID:        p.UserID,
 		AgentChecksum: p.AgentChecksum,
+		IDPIssuer:     p.VerifiedIDPIssuer,
+		IDPSubject:    p.VerifiedIDPSubject,
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
@@ -131,6 +133,19 @@ func (is *Issuer) Delegate(key *rsa.PrivateKey, kid string, p attest.DelegatePar
 		}
 	}
 
+	hitlReq := parentClaims.HITLRequestID
+	if p.VerifiedHITLRequestID != nil {
+		hitlReq = p.VerifiedHITLRequestID
+	}
+	hitlSub := parentClaims.HITLSubject
+	if p.VerifiedHITLSubject != nil {
+		hitlSub = p.VerifiedHITLSubject
+	}
+	hitlIss := parentClaims.HITLIssuer
+	if p.VerifiedHITLIssuer != nil {
+		hitlIss = p.VerifiedHITLIssuer
+	}
+
 	claims := &attest.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    is.issuerURI,
@@ -147,6 +162,11 @@ func (is *Issuer) Delegate(key *rsa.PrivateKey, kid string, p attest.DelegatePar
 		Chain:         append(append([]string{}, parentClaims.Chain...), jti),
 		UserID:        parentClaims.UserID,
 		AgentChecksum: parentClaims.AgentChecksum,
+		IDPIssuer:     parentClaims.IDPIssuer,
+		IDPSubject:    parentClaims.IDPSubject,
+		HITLRequestID: hitlReq,
+		HITLSubject:   hitlSub,
+		HITLIssuer:    hitlIss,
 	}
 
 	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

@@ -181,3 +181,40 @@ func TestDelegate_DepthLimit(t *testing.T) {
 		t.Fatal("expected depth limit error")
 	}
 }
+
+func TestDelegate_IdPInheritance(t *testing.T) {
+	iss, key := newTestIssuer(t)
+
+	idpIssuer := "https://login.company.com"
+	idpSubject := "employee_999"
+
+	rootTok, _, err := iss.Issue(key, testKID, attest.IssueParams{
+		AgentID:            "orchestrator-v1",
+		UserID:             "usr_test",
+		Scope:              []string{"*:*"},
+		Instruction:        "do the thing",
+		VerifiedIDPIssuer:  &idpIssuer,
+		VerifiedIDPSubject: &idpSubject,
+	})
+
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+
+	_, childClaims, err := iss.Delegate(key, testKID, attest.DelegateParams{
+		ParentToken: rootTok,
+		ChildAgent:  "sub-agent-v1",
+		ChildScope:  []string{"*:*"},
+	})
+
+	if err != nil {
+		t.Fatalf("delegate: %v", err)
+	}
+
+	if childClaims.IDPIssuer == nil || *childClaims.IDPIssuer != idpIssuer {
+		t.Errorf("expected inherited IdPIssuer %q, got %v", idpIssuer, childClaims.IDPIssuer)
+	}
+	if childClaims.IDPSubject == nil || *childClaims.IDPSubject != idpSubject {
+		t.Errorf("expected inherited IdPSubject %q, got %v", idpSubject, childClaims.IDPSubject)
+	}
+}

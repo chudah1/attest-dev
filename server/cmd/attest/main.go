@@ -11,7 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/attest-dev/attest/internal/approval"
 	"github.com/attest-dev/attest/internal/audit"
+	"github.com/attest-dev/attest/internal/oidcauth"
 	"github.com/attest-dev/attest/internal/org"
 	"github.com/attest-dev/attest/internal/revocation"
 	"github.com/attest-dev/attest/internal/token"
@@ -134,6 +136,7 @@ func main() {
 		orgStore org.Store
 		revStore revocation.Revoker
 		auditLog audit.Logger
+		appStore approval.Store
 	)
 
 	if cfg.DatabaseURL != "" {
@@ -157,6 +160,7 @@ func main() {
 		orgStore = org.NewPostgresStore(pool)
 		revStore = revocation.NewStore(pool)
 		auditLog = audit.NewLog(pool)
+		appStore = approval.NewPostgresStore(pool)
 	} else {
 		slog.Warn("DATABASE_URL not set — using in-memory storage (dev mode, data lost on restart)")
 		memOrg, err := org.NewMemoryStore()
@@ -167,15 +171,18 @@ func main() {
 		orgStore = memOrg
 		revStore = revocation.NewMemoryStore()
 		auditLog = audit.NewMemoryLog()
+		appStore = approval.NewMemoryStore()
 	}
 
 	iss := token.NewIssuer(cfg.IssuerURI)
 
 	h := &handlers{
-		issuer:   iss,
-		orgStore: orgStore,
-		revStore: revStore,
-		auditLog: auditLog,
+		issuer:      iss,
+		orgStore:    orgStore,
+		revStore:    revStore,
+		auditLog:    auditLog,
+		oidcManager: oidcauth.NewManager(),
+		appStore:    appStore,
 	}
 
 	// Rate limiters: 5 req/min per IP for signup, 120 req/min per org for authenticated endpoints.
@@ -208,9 +215,16 @@ func main() {
 		r.Use(orgRateLimitMiddleware(orgLimiter))
 
 		r.Get("/org", h.getOrg)
+		r.Patch("/org", h.updateOrg)
 		r.Post("/credentials", h.issueCredential)
 		r.Post("/credentials/delegate", h.delegateCredential)
+		r.Post("/approvals", h.requestApproval)
+		r.Get("/approvals/{id}", h.getApproval)
+		r.Post("/approvals/{id}/grant", h.grantApproval)
+		r.Post("/approvals/{id}/deny", h.denyApproval)
 		r.Delete("/credentials/{jti}", h.revokeCredential)
+		r.Post("/audit/report", h.reportAction)
+		r.Post("/audit/status", h.reportStatus)
 		r.Get("/tasks/{tid}/audit", h.getAuditLog)
 
 		// API key management.

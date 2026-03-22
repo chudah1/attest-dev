@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Warrant — Cryptographic trust for AI agents</title>
+<title>Attest — Cryptographic trust for AI agents</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -270,6 +270,9 @@
   .audit-pill.tool-fail { color: var(--red);   background: rgba(239,68,68,0.12);   border: 1px solid rgba(239,68,68,0.3); }
   .audit-pill.verified  { color: var(--green); background: rgba(34,197,94,0.12);   border: 1px solid rgba(34,197,94,0.3); }
   .audit-pill.revoked   { color: var(--amber); background: rgba(245,158,11,0.12);  border: 1px solid rgba(245,158,11,0.3); }
+  .audit-pill.hitl      { color: var(--green); background: rgba(34,197,94,0.12);   border: 1px solid rgba(34,197,94,0.3); }
+  .audit-pill.denied    { color: var(--red);   background: rgba(239,68,68,0.12);   border: 1px solid rgba(239,68,68,0.3); }
+  .audit-pill.lifecycle { color: var(--muted);  background: rgba(148,163,184,0.12); border: 1px solid rgba(148,163,184,0.3); }
 
   .audit-body { flex: 1; min-width: 0; }
   .audit-agent { font-family: var(--mono); font-size: 11px; color: var(--text); margin-bottom: 2px; }
@@ -313,7 +316,7 @@
 
 <!-- ════════ HEADER ════════ -->
 <header>
-  <div class="wordmark">WAR<span>R</span>ANT</div>
+  <div class="wordmark">ATT<span>E</span>ST</div>
   <div class="header-sub">Cryptographic trust for AI agents</div>
   <button class="btn btn-ghost" onclick="resetAll()">↺ Reset</button>
 </header>
@@ -361,6 +364,27 @@
       <div class="json-view" id="child-json"></div>
     </div>
 
+    <!-- HITL Approval -->
+    <div id="hitl-area" class="hidden">
+      <hr class="divider">
+      <div class="instruction-label" style="margin-bottom:8px">Human-in-the-Loop approval</div>
+      <div class="scene-label" id="label-hitl-pending" style="margin-bottom:8px">email-agent-v1 requests approval for a high-risk action.</div>
+      <div class="btn-row">
+        <button class="btn btn-success" id="btn-hitl-approve" onclick="sceneHITLApprove()">Approve (as human)</button>
+        <button class="btn btn-danger" id="btn-hitl-deny" onclick="sceneHITLDeny()">Deny</button>
+      </div>
+      <div class="scene-label hidden" id="label-hitl-result"></div>
+    </div>
+
+    <!-- HITL-elevated credential card -->
+    <div class="card hidden" id="card-hitl" style="margin-top:8px">
+      <div class="card-title">
+        <div class="dot" style="background:var(--green)"></div>
+        <span>email-agent-v1 (HITL-elevated)</span>
+      </div>
+      <div class="json-view" id="hitl-json"></div>
+    </div>
+
     <!-- Tool calls -->
     <div id="tool-call-area" class="hidden">
       <hr class="divider">
@@ -370,6 +394,16 @@
         <button class="btn btn-danger"  onclick="sceneDeleteRecord()">Delete record (database:delete)</button>
       </div>
       <div class="scene-label">The tool enforces scope — not the agent.</div>
+    </div>
+
+    <!-- Agent lifecycle -->
+    <div id="lifecycle-area" class="hidden">
+      <hr class="divider">
+      <div class="instruction-label" style="margin-bottom:8px">Agent lifecycle</div>
+      <div class="btn-row">
+        <button class="btn btn-success" id="btn-complete" onclick="sceneAgentComplete()">Agent completed</button>
+        <button class="btn btn-danger" id="btn-fail" onclick="sceneAgentFailed()">Agent failed</button>
+      </div>
     </div>
 
     <!-- Verify provenance -->
@@ -430,14 +464,16 @@
         <div class="node-id">email-agent-v1</div>
         <div class="node-role">Sub-agent · depth 1</div>
         <div class="node-scope-pills" id="email-pills"></div>
+        <div id="node-hitl-badge"></div>
         <div id="node-tool-results"></div>
+        <div id="node-lifecycle-badge"></div>
       </div>
 
       <!-- FIX 4 — provenance panel lives in centre col -->
       <div class="prov-panel hidden" id="prov-panel">
         <div class="prov-header">Provenance verification</div>
         <div class="prov-hash-block">
-          <div class="prov-hash-label">Stored in wrt_intent (credential):</div>
+          <div class="prov-hash-label">Stored in att_intent (credential):</div>
           <div class="prov-hash-val" id="prov-stored"></div>
         </div>
         <div class="prov-hash-block">
@@ -470,7 +506,7 @@
 
 <!-- ════════ FOOTER ════════ -->
 <footer>
-  Warrant — open standard for agent trust — <a href="#">warrant.dev</a>
+  Attest — open standard for agent trust — <a href="#">attestdev.com</a>
 </footer>
 
 <!-- ════════ JAVASCRIPT ════════ -->
@@ -499,30 +535,31 @@ function issueRootCredential(agentId, userId, scope, intentHash) {
   const now = Math.floor(Date.now() / 1000);
   const jti = crypto.randomUUID();
   return {
-    iss: 'warrant.dev', sub: `agent:${agentId}`,
+    iss: 'attestdev.com', sub: `agent:${agentId}`,
     iat: now, exp: now + 3600, jti,
-    wrt_tid:    crypto.randomUUID(),
-    wrt_depth:  0,
-    wrt_scope:  scope,
-    wrt_intent: intentHash,
-    wrt_chain:  [jti],
-    wrt_uid:    userId,
+    att_tid:    crypto.randomUUID(),
+    att_depth:  0,
+    att_scope:  scope,
+    att_intent: intentHash,
+    att_chain:  [jti],
+    att_uid:    userId,
   };
 }
 
 function delegateCredential(parentCred, childAgentId, childScope) {
-  if (!isScopeSubset(parentCred.wrt_scope, childScope))
+  if (!isScopeSubset(parentCred.att_scope, childScope))
     throw new Error('Scope violation: child scope exceeds parent authority');
   const newJti = crypto.randomUUID();
   return {
-    iss: 'warrant.dev', sub: `agent:${childAgentId}`,
+    iss: 'attestdev.com', sub: `agent:${childAgentId}`,
     iat: Math.floor(Date.now() / 1000), exp: parentCred.exp, jti: newJti,
-    wrt_tid:    parentCred.wrt_tid,
-    wrt_depth:  parentCred.wrt_depth + 1,
-    wrt_scope:  childScope,
-    wrt_intent: parentCred.wrt_intent,
-    wrt_chain:  [...parentCred.wrt_chain, newJti],
-    wrt_uid:    parentCred.wrt_uid,
+    att_tid:    parentCred.att_tid,
+    att_pid:    parentCred.jti,
+    att_depth:  parentCred.att_depth + 1,
+    att_scope:  childScope,
+    att_intent: parentCred.att_intent,
+    att_chain:  [...parentCred.att_chain, newJti],
+    att_uid:    parentCred.att_uid,
   };
 }
 
@@ -541,18 +578,18 @@ function simulateToolCall(credential, toolEntry) {
     return { allowed: false, reason: 'revoked', detail: 'BLOCKED — credential revoked' };
   if (Math.floor(Date.now() / 1000) > credential.exp)
     return { allowed: false, reason: 'expired', detail: 'BLOCKED — credential expired' };
-  if (!isScopeSubset(credential.wrt_scope, [toolEntry]))
-    return { allowed: false, reason: 'scope', detail: `BLOCKED — not in scope [${credential.wrt_scope.join(', ')}]` };
+  if (!isScopeSubset(credential.att_scope, [toolEntry]))
+    return { allowed: false, reason: 'scope', detail: `BLOCKED — not in scope [${credential.att_scope.join(', ')}]` };
   return { allowed: true, reason: 'ok', detail: 'authorised' };
 }
 
 function revokeTask(rootCred, creds) {
-  creds.forEach(c => { if (c.wrt_chain.includes(rootCred.jti)) revokedTokens.add(c.jti); });
+  creds.forEach(c => { if (c.att_chain.includes(rootCred.jti)) revokedTokens.add(c.jti); });
 }
 
 async function verifyProvenance(instruction, rootCred) {
   const recomputedHash = await sha256(instruction);
-  return { match: recomputedHash === rootCred.wrt_intent, recomputedHash, storedHash: rootCred.wrt_intent };
+  return { match: recomputedHash === rootCred.att_intent, recomputedHash, storedHash: rootCred.att_intent };
 }
 
 // ── FIX 2 — Audit log rendering with pills ───────────────────────────────────
@@ -581,12 +618,12 @@ function renderAuditLog() {
       case 'issued':
         pillLabel  = 'credential_issued';
         agentLine  = sub;
-        detailLine = `jti:${jtiShort} · depth:0 · scope:[${credential.wrt_scope.join(', ')}]`;
+        detailLine = `jti:${jtiShort} · depth:0 · scope:[${credential.att_scope.join(', ')}]`;
         break;
       case 'delegated':
         pillLabel  = 'delegated';
         agentLine  = sub;
-        detailLine = `jti:${jtiShort} · depth:${credential.wrt_depth} · scope:[${credential.wrt_scope.join(', ')}]`;
+        detailLine = `jti:${jtiShort} · depth:${credential.att_depth} · scope:[${credential.att_scope.join(', ')}]`;
         break;
       case 'tool-ok':
         pillLabel   = 'tool_call';
@@ -618,6 +655,24 @@ function renderAuditLog() {
         detailLine  = `cascaded to ${meta.cascaded} credential(s) · root:${jtiShort}`;
         detailClass = 'warn';
         break;
+      case 'hitl-approved':
+        pillLabel   = 'hitl_granted';
+        agentLine   = sub;
+        detailLine  = `approved by ${meta.approver} · jti:${jtiShort}`;
+        detailClass = 'ok';
+        break;
+      case 'hitl-denied':
+        pillLabel   = 'hitl_denied';
+        agentLine   = sub;
+        detailLine  = `request denied · jti:${jtiShort}`;
+        detailClass = 'fail';
+        break;
+      case 'lifecycle':
+        pillLabel   = meta.status;
+        agentLine   = sub;
+        detailLine  = `agent ${meta.status} · jti:${jtiShort}`;
+        detailClass = meta.status === 'completed' ? 'ok' : 'fail';
+        break;
       default:
         pillLabel = eventType;
         agentLine = sub;
@@ -634,6 +689,11 @@ function renderAuditLog() {
       'provenance_ok':     'verified',
       'provenance_fail':   'tool-fail',
       'revoked':           'revoked',
+      'hitl_granted':      'hitl',
+      'hitl_denied':       'denied',
+      'started':           'lifecycle',
+      'completed':         'lifecycle',
+      'failed':            'denied',
     }[pillLabel] ?? 'issued';
 
     return `
@@ -656,7 +716,7 @@ function renderAuditLog() {
 function renderJSON(obj) {
   return JSON.stringify(obj, null, 2).split('\n').map(line =>
     line.replace(/^(\s*)("([^"]+)")\s*:\s*(.+)$/, (_, indent, fullKey, key, val) => {
-      const keyHtml = key.startsWith('wrt_')
+      const keyHtml = key.startsWith('att_')
         ? `<span class="json-wrt">${fullKey}</span>`
         : `<span class="json-key">${fullKey}</span>`;
       const raw   = val.replace(/,$/, '');
@@ -712,7 +772,7 @@ async function sceneIssue() {
   const orchNode = document.getElementById('node-orch');
   orchNode.classList.remove('hidden');
   orchNode.classList.add('active');
-  renderScopePills(rootCredential.wrt_scope, 'orch-pills');
+  renderScopePills(rootCredential.att_scope, 'orch-pills');
 
   appendAudit('issued', rootCredential);
 }
@@ -730,7 +790,7 @@ function sceneDelegate() {
   document.getElementById('card-child').classList.remove('hidden');
   document.getElementById('child-json').innerHTML = renderJSON(childCredential);
   document.getElementById('label-delegate').classList.remove('hidden');
-  document.getElementById('tool-call-area').classList.remove('hidden');
+  document.getElementById('hitl-area').classList.remove('hidden');
   document.getElementById('revoke-area').classList.remove('hidden');
   document.getElementById('btn-delegate').disabled = true;
 
@@ -739,25 +799,86 @@ function sceneDelegate() {
   const emailNode = document.getElementById('node-email');
   emailNode.classList.remove('hidden');
   emailNode.classList.add('delegated');
-  renderScopePills(childCredential.wrt_scope, 'email-pills');
+  renderScopePills(childCredential.att_scope, 'email-pills');
 
   appendAudit('delegated', childCredential);
+}
+
+// ── Scene 3b: HITL Approval ──────────────────────────────────────────────────
+
+let hitlCredential = null;
+
+function sceneHITLApprove() {
+  if (!childCredential) return;
+
+  // Mint a new credential with HITL claims baked in
+  const newJti = crypto.randomUUID();
+  hitlCredential = {
+    ...childCredential,
+    jti: newJti,
+    att_chain: [...childCredential.att_chain.slice(0, -1), newJti],
+    att_hitl_req: crypto.randomUUID().slice(0, 8),
+    att_hitl_uid: 'usr_demo',
+    att_hitl_iss: 'https://login.attestdev.com',
+  };
+  allCredentials.push(hitlCredential);
+
+  // Show HITL credential card
+  document.getElementById('card-hitl').classList.remove('hidden');
+  document.getElementById('hitl-json').innerHTML = renderJSON(hitlCredential);
+  document.getElementById('label-hitl-result').textContent = 'Human approved. Credential re-minted with cryptographic proof of approval.';
+  document.getElementById('label-hitl-result').classList.remove('hidden');
+  document.getElementById('btn-hitl-approve').disabled = true;
+  document.getElementById('btn-hitl-deny').disabled = true;
+
+  // Show HITL badge on diagram node
+  const badge = document.createElement('div');
+  badge.className = 'node-tool-result ok';
+  badge.textContent = 'HITL approved by usr_demo';
+  document.getElementById('node-hitl-badge').appendChild(badge);
+
+  // Show tool calls and lifecycle now
+  document.getElementById('tool-call-area').classList.remove('hidden');
+  document.getElementById('lifecycle-area').classList.remove('hidden');
+
+  appendAudit('hitl-approved', hitlCredential, { approver: 'usr_demo' });
+  appendAudit('lifecycle', hitlCredential, { status: 'started' });
+}
+
+function sceneHITLDeny() {
+  if (!childCredential) return;
+
+  document.getElementById('label-hitl-result').textContent = 'Human denied the request. Agent cannot proceed with this action.';
+  document.getElementById('label-hitl-result').classList.remove('hidden');
+  document.getElementById('label-hitl-result').classList.add('danger');
+  document.getElementById('btn-hitl-approve').disabled = true;
+  document.getElementById('btn-hitl-deny').disabled = true;
+
+  // Show denial badge on diagram node
+  const badge = document.createElement('div');
+  badge.className = 'node-tool-result fail';
+  badge.textContent = 'HITL denied';
+  document.getElementById('node-hitl-badge').appendChild(badge);
+
+  appendAudit('hitl-denied', childCredential);
 }
 
 // ── Scene 4: Tool calls ───────────────────────────────────────────────────────
 
 function sceneSendEmail() {
-  if (!childCredential) return;
-  const result = simulateToolCall(childCredential, 'gmail:send');
+  const cred = hitlCredential || childCredential;
+  if (!cred) return;
+  const result = simulateToolCall(cred, 'gmail:send');
   addNodeToolResult('gmail:send', result.allowed);
-  appendAudit(result.allowed ? 'tool-ok' : 'tool-fail', childCredential, { tool: 'gmail:send', detail: result.detail, reason: result.reason });
+  appendAudit(result.allowed ? 'tool-ok' : 'tool-fail', cred, { tool: 'gmail:send', detail: result.detail, reason: result.reason });
 }
 
 function sceneDeleteRecord() {
-  if (!childCredential) return;
-  const result = simulateToolCall(childCredential, 'database:delete');
+  const cred = hitlCredential || childCredential;
+  if (!cred) return;
+  const result = simulateToolCall(cred, 'database:delete');
   addNodeToolResult('database:delete', result.allowed);
-  appendAudit(result.allowed ? 'tool-ok' : 'tool-fail', childCredential, { tool: 'database:delete', detail: result.detail, reason: result.reason });
+  appendAudit(result.allowed ? 'tool-ok' : 'tool-fail', cred, { tool: 'database:delete', detail: result.detail, reason: result.reason });
 }
 
 function addNodeToolResult(toolName, allowed) {
@@ -765,6 +886,32 @@ function addNodeToolResult(toolName, allowed) {
   div.className = `node-tool-result ${allowed ? 'ok' : 'fail'}`;
   div.textContent = allowed ? `${toolName} ✓` : `${toolName} ✗ BLOCKED`;
   document.getElementById('node-tool-results').appendChild(div);
+}
+
+// ── Scene 4b: Agent lifecycle ─────────────────────────────────────────────────
+
+function sceneAgentComplete() {
+  const cred = hitlCredential || childCredential;
+  if (!cred) return;
+  const badge = document.createElement('div');
+  badge.className = 'node-tool-result ok';
+  badge.textContent = 'completed';
+  document.getElementById('node-lifecycle-badge').appendChild(badge);
+  document.getElementById('btn-complete').disabled = true;
+  document.getElementById('btn-fail').disabled = true;
+  appendAudit('lifecycle', cred, { status: 'completed' });
+}
+
+function sceneAgentFailed() {
+  const cred = hitlCredential || childCredential;
+  if (!cred) return;
+  const badge = document.createElement('div');
+  badge.className = 'node-tool-result fail';
+  badge.textContent = 'failed';
+  document.getElementById('node-lifecycle-badge').appendChild(badge);
+  document.getElementById('btn-complete').disabled = true;
+  document.getElementById('btn-fail').disabled = true;
+  appendAudit('lifecycle', cred, { status: 'failed' });
 }
 
 // ── Scene 5: Verify Provenance ────────────────────────────────────────────────
@@ -831,7 +978,7 @@ function sceneRevoke() {
   revokeTask(rootCredential, allCredentials);
 
   // FIX 3 — dim cards + add REVOKED badge
-  ['card-root', 'card-child'].forEach(id => {
+  ['card-root', 'card-child', 'card-hitl'].forEach(id => {
     const card = document.getElementById(id);
     if (!card.classList.contains('hidden')) {
       card.classList.add('revoked');
@@ -869,6 +1016,7 @@ function sceneRevoke() {
 function resetAll() {
   rootCredential  = null;
   childCredential = null;
+  hitlCredential  = null;
   allCredentials  = [];
   revokedTokens   = new Set();
   auditLog        = [];
@@ -881,8 +1029,8 @@ function resetAll() {
   document.getElementById('hash-short').textContent = 'computing…';
   document.getElementById('hash-preview').title = '';
 
-  const hideable = ['card-root','card-child','label-issue','label-delegate',
-                    'btn-row-delegate','tool-call-area','provenance-area','revoke-area'];
+  const hideable = ['card-root','card-child','card-hitl','label-issue','label-delegate',
+                    'btn-row-delegate','hitl-area','tool-call-area','lifecycle-area','provenance-area','revoke-area'];
   hideable.forEach(id => {
     const el = document.getElementById(id);
     el.classList.add('hidden');
@@ -891,6 +1039,15 @@ function resetAll() {
 
   document.getElementById('root-json').innerHTML  = '';
   document.getElementById('child-json').innerHTML = '';
+  document.getElementById('hitl-json').innerHTML  = '';
+  document.getElementById('label-hitl-result').classList.add('hidden');
+  document.getElementById('label-hitl-result').classList.remove('danger');
+  document.getElementById('btn-hitl-approve').disabled = false;
+  document.getElementById('btn-hitl-deny').disabled = false;
+  document.getElementById('btn-complete').disabled = false;
+  document.getElementById('btn-fail').disabled = false;
+  document.getElementById('node-hitl-badge').innerHTML = '';
+  document.getElementById('node-lifecycle-badge').innerHTML = '';
 
   // Remove any REVOKED badges
   document.querySelectorAll('.revoked-badge').forEach(b => b.remove());

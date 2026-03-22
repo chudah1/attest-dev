@@ -16,10 +16,13 @@ var ErrNotFound = errors.New("not found")
 
 // Org represents a tenant organisation.
 type Org struct {
-	ID        string
-	Name      string
-	Status    string
-	CreatedAt time.Time
+	ID           string
+	Name         string
+	Status       string
+	RequireIDP   bool
+	IDPIssuerURL *string
+	IDPClientID  *string
+	CreatedAt    time.Time
 }
 
 // APIKey holds metadata for an issued API key (never the raw value).
@@ -55,6 +58,9 @@ type Store interface {
 
 	// GetSigningKey returns the active RSA key pair for the given org.
 	GetSigningKey(ctx context.Context, orgID string) (*OrgKey, error)
+
+	// UpdateOrg updates the organisation's configuration (IdP settings).
+	UpdateOrg(ctx context.Context, orgID string, requireIDP bool, issuerURL, clientID *string) error
 
 	// CreateAPIKey generates a new API key for the org and returns the
 	// key metadata and the raw key string (shown once).

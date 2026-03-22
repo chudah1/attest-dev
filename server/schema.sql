@@ -4,10 +4,13 @@
 -- ── organisations ─────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS organizations (
-    id          TEXT        PRIMARY KEY,          -- UUID
-    name        TEXT        NOT NULL,
-    status      TEXT        NOT NULL DEFAULT 'active',
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id             TEXT        PRIMARY KEY,          -- UUID
+    name           TEXT        NOT NULL,
+    status         TEXT        NOT NULL DEFAULT 'active',
+    require_idp    BOOLEAN     NOT NULL DEFAULT FALSE,
+    idp_issuer_url TEXT,
+    idp_client_id  TEXT,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ── api_keys ──────────────────────────────────────────────────────────────────
@@ -67,6 +70,24 @@ CREATE TABLE IF NOT EXISTS revocations (
 
 CREATE INDEX IF NOT EXISTS idx_revocations_at ON revocations (revoked_at);
 
+-- ── approvals ──────────────────────────────────────────────────────────────────
+-- Stores pending requests from an agent for a human to approve
+
+CREATE TABLE IF NOT EXISTS approvals (
+    id             TEXT        PRIMARY KEY,     -- The Approval Challenge ID (e.g. uuid)
+    agent_id       TEXT        NOT NULL,        -- The sub-agent requesting approval
+    att_tid        TEXT        NOT NULL,        -- Task tree ID
+    parent_token   TEXT        NOT NULL,        -- The credential of the agent asking
+    intent         TEXT        NOT NULL,        -- Description of the action needing approval
+    requested_scope TEXT[]     NOT NULL,        -- The specific scope required (e.g., finance:transfer)
+    status         TEXT        NOT NULL DEFAULT 'pending', -- pending, approved, rejected
+    approved_by    TEXT,                        -- The IdP Subject who approved it
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at    TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_approvals_agent ON approvals (agent_id) WHERE status = 'pending';
+
 -- ── audit_log ─────────────────────────────────────────────────────────────────
 -- Append-only. Each row chains to the previous via prev_hash / entry_hash.
 
@@ -74,13 +95,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
     id          BIGSERIAL   PRIMARY KEY,
     prev_hash   TEXT        NOT NULL,        -- entry_hash of previous row for this tid
     entry_hash  TEXT        NOT NULL,        -- SHA-256(prev_hash || event_type || jti || created_at)
-    event_type  TEXT        NOT NULL,        -- issued | delegated | verified | revoked | expired
+    event_type  TEXT        NOT NULL,        -- issued | delegated | verified | revoked | expired | hitl_granted
     jti         TEXT        NOT NULL,
     att_tid     TEXT        NOT NULL,
     att_uid     TEXT        NOT NULL,
     agent_id    TEXT        NOT NULL,
     scope       JSONB       NOT NULL DEFAULT '[]',
     meta        JSONB,
+    idp_issuer  TEXT,                        -- Okta/Entra issuer (Root credential identity)
+    idp_subject TEXT,                        -- Okta/Entra unique user subject (Root credential identity)
+    hitl_req    TEXT,                        -- The approval challenge ID
+    hitl_issuer TEXT,                        -- The IdP issuer of the human who approved mid-chain
+    hitl_subject TEXT,                       -- The subject of the human who approved mid-chain
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

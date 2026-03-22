@@ -30,6 +30,16 @@ export interface AttestClaims extends JWTPayload {
   att_chain: string[];
   /** Human principal who initiated the task. */
   att_uid: string;
+  /** Verified Okta/OIDC issuer */
+  att_idp_iss?: string;
+  /** Verified Okta/OIDC subject/user ID */
+  att_idp_sub?: string;
+  /** HITL approval challenge/request ID */
+  att_hitl_req?: string;
+  /** HITL approver's verified IdP subject */
+  att_hitl_uid?: string;
+  /** HITL approver's verified IdP issuer */
+  att_hitl_iss?: string;
 }
 
 /** A root credential returned by issue(). */
@@ -62,13 +72,18 @@ export interface AuditEvent {
   id?: number;
   prev_hash: string;
   entry_hash: string;
-  event_type: 'issued' | 'delegated' | 'verified' | 'revoked' | 'expired';
+  event_type: 'issued' | 'delegated' | 'verified' | 'revoked' | 'expired' | 'hitl_granted' | 'action' | 'lifecycle';
   jti: string;
   att_tid: string;
   att_uid: string;
   agent_id: string;
   scope: string[];
   meta?: Record<string, string>;
+  idp_issuer?: string;
+  idp_subject?: string;
+  hitl_req?: string;
+  hitl_subject?: string;
+  hitl_issuer?: string;
   created_at: string;
 }
 
@@ -93,6 +108,7 @@ export interface IssueParams {
   scope: string[];
   instruction: string;
   ttl_seconds?: number;
+  id_token?: string;
 }
 
 /** Parameters for delegating to a child agent. */
@@ -101,6 +117,25 @@ export interface DelegateParams {
   child_agent: string;
   child_scope: string[];
   ttl_seconds?: number;
+}
+
+/** An active human-in-the-loop approval challenge. */
+export interface ApprovalChallenge {
+  challenge_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+/** Status of a polled approval request. */
+export interface ApprovalStatus {
+  id: string;
+  agent_id: string;
+  att_tid: string;
+  intent: string;
+  requested_scope: string[];
+  status: 'pending' | 'approved' | 'rejected';
+  approved_by?: string;
+  created_at: string;
+  resolved_at?: string;
 }
 
 // ── AttestClient ─────────────────────────────────────────────────────────────
@@ -196,6 +231,35 @@ export class AttestClient {
     if (!res.ok && res.status !== 204) await throwFromResponse(res);
   }
 
+  /** Report an agent lifecycle event (started, completed, failed). */
+  async reportStatus(params: {
+    token: string;
+    status: 'started' | 'completed' | 'failed';
+    meta?: Record<string, string>;
+  }): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/v1/audit/status`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(params),
+    });
+    if (!res.ok && res.status !== 204) await throwFromResponse(res);
+  }
+
+  /** Report an action outcome against a credential for the audit trail. */
+  async reportAction(params: {
+    token: string;
+    tool: string;
+    outcome: string;
+    meta?: Record<string, string>;
+  }): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/v1/audit/report`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(params),
+    });
+    if (!res.ok && res.status !== 204) await throwFromResponse(res);
+  }
+
   /** Fetch the full audit chain for a task tree. */
   async audit(taskId: string): Promise<AuditChain> {
     const res = await fetch(
@@ -212,6 +276,61 @@ export class AttestClient {
     const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(orgId)}/jwks.json`);
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<JWKSResponse>;
+  }
+
+  /** Request human approval for a high-risk delegation. */
+  async requestApproval(params: {
+    parent_token: string;
+    agent_id: string;
+    att_tid: string;
+    intent: string;
+    requested_scope: string[];
+  }): Promise<ApprovalChallenge> {
+    const res = await fetch(`${this.baseUrl}/v1/approvals`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ApprovalChallenge>;
+  }
+
+  /** Poll the status of an approval request. */
+  async getApproval(challengeId: string): Promise<ApprovalStatus> {
+    const res = await fetch(
+      `${this.baseUrl}/v1/approvals/${encodeURIComponent(challengeId)}`,
+      { headers: this.headers },
+    );
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ApprovalStatus>;
+  }
+
+  /** Grant a pending approval and receive the HITL-authorized credential. */
+  async grantApproval(challengeId: string, idToken: string): Promise<DelegatedToken> {
+    const res = await fetch(
+      `${this.baseUrl}/v1/approvals/${encodeURIComponent(challengeId)}/grant`,
+      {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({ id_token: idToken }),
+      },
+    );
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<DelegatedToken>;
+  }
+
+  /** Deny a pending approval request. */
+  async denyApproval(challengeId: string): Promise<{ id: string; status: string }> {
+    const res = await fetch(
+      `${this.baseUrl}/v1/approvals/${encodeURIComponent(challengeId)}/deny`,
+      {
+        method: 'POST',
+        headers: this.headers,
+        body: '{}',
+      },
+    );
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<{ id: string; status: string }>;
   }
 }
 

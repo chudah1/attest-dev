@@ -22,6 +22,11 @@ class AttestClaims:
     att_uid: str
     att_pid: str | None = None  # parent jti, absent on root
     att_ack: str | None = None  # SHA-256 checksum of system prompt + tools
+    att_idp_iss: str | None = None  # IdP issuer URL
+    att_idp_sub: str | None = None  # IdP user subject
+    att_hitl_req: str | None = None # HITL request ID
+    att_hitl_uid: str | None = None # HITL approver subject ID
+    att_hitl_iss: str | None = None # HITL approver IdP issuer
 
     @classmethod
     def from_dict(cls, d: dict) -> "AttestClaims":
@@ -40,6 +45,11 @@ class AttestClaims:
             att_uid=d["att_uid"],
             att_pid=d.get("att_pid"),
             att_ack=d.get("att_ack"),
+            att_idp_iss=d.get("att_idp_iss"),
+            att_idp_sub=d.get("att_idp_sub"),
+            att_hitl_req=d.get("att_hitl_req"),
+            att_hitl_uid=d.get("att_hitl_uid"),
+            att_hitl_iss=d.get("att_hitl_iss"),
         )
 
     @property
@@ -47,7 +57,7 @@ class AttestClaims:
         """Extract the agent ID from the sub claim (strips 'agent:' prefix)."""
         prefix = "agent:"
         if self.sub.startswith(prefix):
-            return self.sub[len(prefix):]
+            return self.sub.removeprefix(prefix)
         return self.sub
 
 
@@ -90,6 +100,11 @@ class AuditEvent:
     agent_id: str
     scope: list[str]
     meta: dict[str, str] | None
+    idp_issuer: str | None
+    idp_subject: str | None
+    hitl_req: str | None
+    hitl_subject: str | None
+    hitl_issuer: str | None
     created_at: str
 
     @classmethod
@@ -106,6 +121,11 @@ class AuditEvent:
             agent_id=d.get("agent_id", ""),
             scope=list(d.get("scope") or []),
             meta=d.get("meta"),
+            idp_issuer=d.get("idp_issuer"),
+            idp_subject=d.get("idp_subject"),
+            hitl_req=d.get("hitl_req"),
+            hitl_subject=d.get("hitl_subject"),
+            hitl_issuer=d.get("hitl_issuer"),
             created_at=d.get("created_at", ""),
         )
 
@@ -128,6 +148,41 @@ class IssueParams:
     instruction: str
     ttl_seconds: int | None = None
     agent_checksum: str | None = None
+    id_token: str | None = None
+
+@dataclass
+class ApprovalChallenge:
+    """An active human-in-the-loop approval challenge."""
+    challenge_id: str
+    status: str
+
+
+@dataclass
+class ApprovalStatus:
+    """Status of a polled approval request."""
+    id: str
+    agent_id: str
+    att_tid: str
+    intent: str
+    requested_scope: list[str]
+    status: str
+    approved_by: str | None = None
+    created_at: str = ""
+    resolved_at: str | None = None
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "ApprovalStatus":
+        return cls(
+            id=d.get("id", ""),
+            agent_id=d.get("agent_id", ""),
+            att_tid=d.get("att_tid", ""),
+            intent=d.get("intent", ""),
+            requested_scope=list(d.get("requested_scope") or []),
+            status=d.get("status", ""),
+            approved_by=d.get("approved_by"),
+            created_at=d.get("created_at", ""),
+            resolved_at=d.get("resolved_at"),
+        )
 
 
 @dataclass

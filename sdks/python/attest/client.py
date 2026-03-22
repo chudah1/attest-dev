@@ -10,6 +10,8 @@ import jwt
 import jwt.algorithms
 
 from attest.types import (
+    ApprovalChallenge,
+    ApprovalStatus,
     AuditChain,
     AuditEvent,
     DelegateParams,
@@ -106,6 +108,11 @@ def _parse_token_response(data: dict, delegated: bool = False) -> AttestToken | 
         "att_uid": raw_claims.get("att_uid", ""),
         "att_pid": raw_claims.get("att_pid"),
         "att_ack": raw_claims.get("att_ack"),
+        "att_idp_iss": raw_claims.get("att_idp_iss"),
+        "att_idp_sub": raw_claims.get("att_idp_sub"),
+        "att_hitl_req": raw_claims.get("att_hitl_req"),
+        "att_hitl_uid": raw_claims.get("att_hitl_uid"),
+        "att_hitl_iss": raw_claims.get("att_hitl_iss"),
     }
 
     claims = AttestClaims.from_dict(claims_dict)
@@ -252,6 +259,8 @@ class AttestClient:
             body["ttl_seconds"] = params.ttl_seconds
         if params.agent_checksum is not None:
             body["agent_checksum"] = params.agent_checksum
+        if params.id_token is not None:
+            body["id_token"] = params.id_token
 
         resp = self._http.post("/v1/credentials", json=body)
         _raise_for_status(resp)
@@ -275,6 +284,50 @@ class AttestClient:
         assert isinstance(result, DelegatedToken)
         return result
 
+    def request_approval(
+        self,
+        parent_token: str,
+        agent_id: str,
+        task_id: str,
+        intent: str,
+        requested_scope: list[str],
+    ) -> ApprovalChallenge:
+        """Request human approval for a high-risk delegation."""
+        body = {
+            "parent_token": parent_token,
+            "agent_id": agent_id,
+            "att_tid": task_id,
+            "intent": intent,
+            "requested_scope": requested_scope,
+        }
+        resp = self._http.post("/v1/approvals", json=body)
+        _raise_for_status(resp)
+        data = resp.json()
+        return ApprovalChallenge(
+            challenge_id=data["challenge_id"],
+            status=data["status"],
+        )
+
+    def grant_approval(self, challenge_id: str, id_token: str) -> DelegatedToken:
+        """Grant a pending approval and receive the HITL-authorized credential."""
+        resp = self._http.post(f"/v1/approvals/{challenge_id}/grant", json={"id_token": id_token})
+        _raise_for_status(resp)
+        result = _parse_token_response(resp.json(), delegated=True)
+        assert isinstance(result, DelegatedToken)
+        return result
+
+    def get_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Poll the status of an approval request."""
+        resp = self._http.get(f"/v1/approvals/{challenge_id}")
+        _raise_for_status(resp)
+        return ApprovalStatus.from_dict(resp.json())
+
+    def deny_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Deny a pending approval request."""
+        resp = self._http.post(f"/v1/approvals/{challenge_id}/deny", json={})
+        _raise_for_status(resp)
+        return ApprovalStatus.from_dict(resp.json())
+
     def revoke(self, jti: str, revoked_by: str = "sdk") -> None:
         """Revoke credential *jti* and all its descendants."""
         resp = self._http.request(
@@ -289,6 +342,33 @@ class AttestClient:
         resp = self._http.get(f"/v1/revoked/{jti}")
         _raise_for_status(resp)
         return bool(resp.json().get("revoked", False))
+
+    def report_action(
+        self,
+        token: str,
+        tool: str,
+        outcome: str,
+        meta: dict[str, str] | None = None,
+    ) -> None:
+        """Report an action outcome against a credential for the audit trail."""
+        body: dict = {"token": token, "tool": tool, "outcome": outcome}
+        if meta:
+            body["meta"] = meta
+        resp = self._http.post("/v1/audit/report", json=body)
+        _raise_for_status(resp)
+
+    def report_status(
+        self,
+        token: str,
+        status: str,
+        meta: dict[str, str] | None = None,
+    ) -> None:
+        """Report an agent lifecycle event (started, completed, failed)."""
+        body: dict = {"token": token, "status": status}
+        if meta:
+            body["meta"] = meta
+        resp = self._http.post("/v1/audit/status", json=body)
+        _raise_for_status(resp)
 
     def audit(self, task_id: str) -> AuditChain:
         """Fetch the full audit chain for task tree *task_id*."""
@@ -359,6 +439,8 @@ class AsyncAttestClient:
             body["ttl_seconds"] = params.ttl_seconds
         if params.agent_checksum is not None:
             body["agent_checksum"] = params.agent_checksum
+        if params.id_token is not None:
+            body["id_token"] = params.id_token
 
         resp = await self._http.post("/v1/credentials", json=body)
         _raise_for_status(resp)
@@ -382,6 +464,50 @@ class AsyncAttestClient:
         assert isinstance(result, DelegatedToken)
         return result
 
+    async def request_approval(
+        self,
+        parent_token: str,
+        agent_id: str,
+        task_id: str,
+        intent: str,
+        requested_scope: list[str],
+    ) -> ApprovalChallenge:
+        """Request human approval for a high-risk delegation."""
+        body = {
+            "parent_token": parent_token,
+            "agent_id": agent_id,
+            "att_tid": task_id,
+            "intent": intent,
+            "requested_scope": requested_scope,
+        }
+        resp = await self._http.post("/v1/approvals", json=body)
+        _raise_for_status(resp)
+        data = resp.json()
+        return ApprovalChallenge(
+            challenge_id=data["challenge_id"],
+            status=data["status"],
+        )
+
+    async def grant_approval(self, challenge_id: str, id_token: str) -> DelegatedToken:
+        """Grant a pending approval and receive the HITL-authorized credential."""
+        resp = await self._http.post(f"/v1/approvals/{challenge_id}/grant", json={"id_token": id_token})
+        _raise_for_status(resp)
+        result = _parse_token_response(resp.json(), delegated=True)
+        assert isinstance(result, DelegatedToken)
+        return result
+
+    async def get_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Poll the status of an approval request."""
+        resp = await self._http.get(f"/v1/approvals/{challenge_id}")
+        _raise_for_status(resp)
+        return ApprovalStatus.from_dict(resp.json())
+
+    async def deny_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Deny a pending approval request."""
+        resp = await self._http.post(f"/v1/approvals/{challenge_id}/deny", json={})
+        _raise_for_status(resp)
+        return ApprovalStatus.from_dict(resp.json())
+
     async def revoke(self, jti: str, revoked_by: str = "sdk") -> None:
         """Revoke credential *jti* and all its descendants."""
         resp = await self._http.request(
@@ -396,6 +522,33 @@ class AsyncAttestClient:
         resp = await self._http.get(f"/v1/revoked/{jti}")
         _raise_for_status(resp)
         return bool(resp.json().get("revoked", False))
+
+    async def report_action(
+        self,
+        token: str,
+        tool: str,
+        outcome: str,
+        meta: dict[str, str] | None = None,
+    ) -> None:
+        """Report an action outcome against a credential for the audit trail."""
+        body: dict = {"token": token, "tool": tool, "outcome": outcome}
+        if meta:
+            body["meta"] = meta
+        resp = await self._http.post("/v1/audit/report", json=body)
+        _raise_for_status(resp)
+
+    async def report_status(
+        self,
+        token: str,
+        status: str,
+        meta: dict[str, str] | None = None,
+    ) -> None:
+        """Report an agent lifecycle event (started, completed, failed)."""
+        body: dict = {"token": token, "status": status}
+        if meta:
+            body["meta"] = meta
+        resp = await self._http.post("/v1/audit/status", json=body)
+        _raise_for_status(resp)
 
     async def audit(self, task_id: str) -> AuditChain:
         """Fetch the full audit chain for task tree *task_id*."""

@@ -60,10 +60,11 @@ func (l *Log) Append(ctx context.Context, event attest.AuditEvent) error {
 
 	_, err = l.db.Exec(ctx, `
 		INSERT INTO audit_log
-			(prev_hash, entry_hash, event_type, jti, att_tid, att_uid, agent_id, scope, meta, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			(prev_hash, entry_hash, event_type, jti, att_tid, att_uid, agent_id, scope, meta, idp_issuer, idp_subject, hitl_req, hitl_issuer, hitl_subject, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 	`, prevHash, entryHash, string(event.EventType), event.JTI, event.TaskID,
-		event.UserID, event.AgentID, scopeJSON, metaJSON, now)
+		event.UserID, event.AgentID, scopeJSON, metaJSON, event.IDPIssuer, event.IDPSubject,
+		event.HITLRequestID, event.HITLIssuer, event.HITLSubject, now)
 	if err != nil {
 		return fmt.Errorf("insert audit entry: %w", err)
 	}
@@ -74,7 +75,7 @@ func (l *Log) Append(ctx context.Context, event attest.AuditEvent) error {
 // Query returns all audit events for a given task ID in insertion order.
 func (l *Log) Query(ctx context.Context, taskID string) ([]attest.AuditEvent, error) {
 	rows, err := l.db.Query(ctx, `
-		SELECT id, prev_hash, entry_hash, event_type, jti, att_tid, att_uid, agent_id, scope, meta, created_at
+		SELECT id, prev_hash, entry_hash, event_type, jti, att_tid, att_uid, agent_id, scope, meta, idp_issuer, idp_subject, hitl_req, hitl_issuer, hitl_subject, created_at
 		FROM audit_log
 		WHERE att_tid = $1
 		ORDER BY id ASC
@@ -93,7 +94,8 @@ func (l *Log) Query(ctx context.Context, taskID string) ([]attest.AuditEvent, er
 		err := rows.Scan(
 			&e.ID, &e.PrevHash, &e.EntryHash, &evType,
 			&e.JTI, &e.TaskID, &e.UserID, &e.AgentID,
-			&scopeJSON, &metaJSON, &e.CreatedAt,
+			&scopeJSON, &metaJSON, &e.IDPIssuer, &e.IDPSubject,
+			&e.HITLRequestID, &e.HITLIssuer, &e.HITLSubject, &e.CreatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan audit row: %w", err)

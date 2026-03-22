@@ -76,7 +76,7 @@ func (s *PostgresStore) CreateOrg(ctx context.Context, name string) (*Org, strin
 func (s *PostgresStore) ResolveAPIKey(ctx context.Context, rawKey string) (*Org, *APIKey, error) {
 	h := hashKey(rawKey)
 	row := s.pool.QueryRow(ctx, `
-		SELECT o.id, o.name, o.status, o.created_at, k.id, k.name, k.created_at
+		SELECT o.id, o.name, o.status, o.require_idp, o.idp_issuer_url, o.idp_client_id, o.created_at, k.id, k.name, k.created_at
 		FROM api_keys k
 		JOIN organizations o ON o.id = k.org_id
 		WHERE k.key_hash = $1
@@ -86,7 +86,10 @@ func (s *PostgresStore) ResolveAPIKey(ctx context.Context, rawKey string) (*Org,
 
 	var o Org
 	var ak APIKey
-	err := row.Scan(&o.ID, &o.Name, &o.Status, &o.CreatedAt, &ak.ID, &ak.Name, &ak.CreatedAt)
+	err := row.Scan(
+		&o.ID, &o.Name, &o.Status, &o.RequireIDP, &o.IDPIssuerURL, &o.IDPClientID, &o.CreatedAt,
+		&ak.ID, &ak.Name, &ak.CreatedAt,
+	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, ErrInvalidKey
 	}
@@ -95,6 +98,21 @@ func (s *PostgresStore) ResolveAPIKey(ctx context.Context, rawKey string) (*Org,
 	}
 	ak.OrgID = o.ID
 	return &o, &ak, nil
+}
+
+func (s *PostgresStore) UpdateOrg(ctx context.Context, orgID string, requireIDP bool, issuerURL, clientID *string) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE organizations 
+		SET require_idp = $1, idp_issuer_url = $2, idp_client_id = $3 
+		WHERE id = $4
+	`, requireIDP, issuerURL, clientID, orgID)
+	if err != nil {
+		return fmt.Errorf("update org: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *PostgresStore) GetSigningKey(ctx context.Context, orgID string) (*OrgKey, error) {
