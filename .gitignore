@@ -81,5 +81,4 @@ out/
 # Internal docs (keep local, exclude from repo)
 GTM.md
 context.md
-spec/WCS-01.md
 .github/agents/*.agent.md
