@@ -602,7 +602,10 @@ class AttestEnforcer {
 
     // ── 3. Verify signature + expiry via JWKS ───────────────────────────────
     try {
-      await jwtVerify(rawToken, this.jwks.get(), { algorithms: ['RS256'] });
+      await jwtVerify(rawToken, this.jwks.get(), {
+        algorithms: ['RS256'],
+        requiredClaims: ['exp', 'jti'],
+      });
     } catch (err) {
       const isExpiry =
         err instanceof Error && err.message.toLowerCase().includes('exp');

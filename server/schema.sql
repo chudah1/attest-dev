@@ -44,6 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_org_keys_org ON org_keys (org_id) WHERE retired_a
 
 CREATE TABLE IF NOT EXISTS credentials (
     jti         TEXT        PRIMARY KEY,
+    org_id      TEXT        NOT NULL REFERENCES organizations(id),
     att_tid     TEXT        NOT NULL,
     att_pid     TEXT,                        -- parent jti; NULL for root
     att_uid     TEXT        NOT NULL,
@@ -75,6 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_revocations_at ON revocations (revoked_at);
 
 CREATE TABLE IF NOT EXISTS approvals (
     id             TEXT        PRIMARY KEY,     -- The Approval Challenge ID (e.g. uuid)
+    org_id         TEXT        NOT NULL REFERENCES organizations(id),
     agent_id       TEXT        NOT NULL,        -- The sub-agent requesting approval
     att_tid        TEXT        NOT NULL,        -- Task tree ID
     parent_token   TEXT        NOT NULL,        -- The credential of the agent asking
@@ -93,6 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_approvals_agent ON approvals (agent_id) WHERE sta
 
 CREATE TABLE IF NOT EXISTS audit_log (
     id          BIGSERIAL   PRIMARY KEY,
+    org_id      TEXT        NOT NULL REFERENCES organizations(id),
     prev_hash   TEXT        NOT NULL,        -- entry_hash of previous row for this tid
     entry_hash  TEXT        NOT NULL,        -- SHA-256(prev_hash || event_type || jti || created_at)
     event_type  TEXT        NOT NULL,        -- issued | delegated | verified | revoked | expired | hitl_granted
@@ -110,6 +113,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_audit_org_tid ON audit_log (org_id, att_tid, id);
 CREATE INDEX IF NOT EXISTS idx_audit_tid ON audit_log (att_tid, id);
 CREATE INDEX IF NOT EXISTS idx_audit_jti ON audit_log (jti);
 

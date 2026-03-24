@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/attest-dev/attest/pkg/attest"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/attest-dev/attest/pkg/attest"
 )
 
 // Issuer signs and verifies Attest credentials using RS256.
@@ -46,7 +46,12 @@ func (is *Issuer) Issue(key *rsa.PrivateKey, kid string, p attest.IssueParams) (
 	}
 
 	ttl := p.TTLSeconds
-	if ttl <= 0 || ttl > attest.MaxTTLSeconds {
+	if ttl < 0 {
+		return "", nil, errors.New("ttl_seconds must not be negative")
+	}
+	if ttl == 0 {
+		ttl = attest.DefaultTTLSeconds
+	} else if ttl > attest.MaxTTLSeconds {
 		ttl = attest.MaxTTLSeconds
 	}
 
@@ -130,6 +135,11 @@ func (is *Issuer) Delegate(key *rsa.PrivateKey, kid string, p attest.DelegatePar
 		requested := now.Add(time.Duration(p.TTLSeconds) * time.Second)
 		if requested.Before(parentExp) {
 			exp = requested
+		}
+	} else {
+		defaultExp := now.Add(time.Duration(attest.DefaultTTLSeconds) * time.Second)
+		if defaultExp.Before(parentExp) {
+			exp = defaultExp
 		}
 	}
 

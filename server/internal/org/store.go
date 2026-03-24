@@ -7,11 +7,13 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // PostgresStore is the production implementation backed by PostgreSQL.
@@ -34,8 +36,6 @@ func (s *PostgresStore) CreateOrg(ctx context.Context, name string) (*Org, strin
 	now := time.Now().UTC()
 	orgID := uuid.NewString()
 	keyID := uuid.NewString()
-	apiKeyID := uuid.NewString()
-	rawKey := generateAPIKey()
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -56,10 +56,18 @@ func (s *PostgresStore) CreateOrg(ctx context.Context, name string) (*Org, strin
 	); err != nil {
 		return nil, "", nil, fmt.Errorf("insert org key: %w", err)
 	}
+	secret := generateAPIKeySecret()
+	apiKeyID := uuid.NewString()
+	rawKey := "att_live_" + apiKeyID + "." + secret
+
+	h, hashErr := hashKey(secret)
+	if hashErr != nil {
+		return nil, "", nil, fmt.Errorf("hash key: %w", hashErr)
+	}
 
 	if _, err = tx.Exec(ctx,
 		`INSERT INTO api_keys (id, org_id, key_hash, name, created_at) VALUES ($1, $2, $3, 'default', $4)`,
-		apiKeyID, orgID, hashKey(rawKey), now,
+		apiKeyID, orgID, h, now,
 	); err != nil {
 		return nil, "", nil, fmt.Errorf("insert api key: %w", err)
 	}
@@ -74,21 +82,28 @@ func (s *PostgresStore) CreateOrg(ctx context.Context, name string) (*Org, strin
 }
 
 func (s *PostgresStore) ResolveAPIKey(ctx context.Context, rawKey string) (*Org, *APIKey, error) {
-	h := hashKey(rawKey)
+	parts := strings.Split(rawKey, ".")
+	if len(parts) != 2 || !strings.HasPrefix(parts[0], "att_live_") {
+		return nil, nil, ErrInvalidKey
+	}
+	keyID := strings.TrimPrefix(parts[0], "att_live_")
+	secret := parts[1]
+
 	row := s.pool.QueryRow(ctx, `
-		SELECT o.id, o.name, o.status, o.require_idp, o.idp_issuer_url, o.idp_client_id, o.created_at, k.id, k.name, k.created_at
+		SELECT o.id, o.name, o.status, o.require_idp, o.idp_issuer_url, o.idp_client_id, o.created_at, k.id, k.name, k.created_at, k.key_hash
 		FROM api_keys k
 		JOIN organizations o ON o.id = k.org_id
-		WHERE k.key_hash = $1
+		WHERE k.id = $1
 		  AND k.revoked_at IS NULL
 		  AND o.status = 'active'
-	`, h)
+	`, keyID)
 
 	var o Org
 	var ak APIKey
+	var hash string
 	err := row.Scan(
 		&o.ID, &o.Name, &o.Status, &o.RequireIDP, &o.IDPIssuerURL, &o.IDPClientID, &o.CreatedAt,
-		&ak.ID, &ak.Name, &ak.CreatedAt,
+		&ak.ID, &ak.Name, &ak.CreatedAt, &hash,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, ErrInvalidKey
@@ -96,6 +111,11 @@ func (s *PostgresStore) ResolveAPIKey(ctx context.Context, rawKey string) (*Org,
 	if err != nil {
 		return nil, nil, fmt.Errorf("resolve api key: %w", err)
 	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(secret)); err != nil {
+		return nil, nil, ErrInvalidKey
+	}
+
 	ak.OrgID = o.ID
 	return &o, &ak, nil
 }
@@ -149,13 +169,19 @@ func (s *PostgresStore) GetSigningKey(ctx context.Context, orgID string) (*OrgKe
 }
 
 func (s *PostgresStore) CreateAPIKey(ctx context.Context, orgID, name string) (*APIKey, string, error) {
-	rawKey := generateAPIKey()
+	secret := generateAPIKeySecret()
 	now := time.Now().UTC()
 	apiKeyID := uuid.NewString()
+	rawKey := "att_live_" + apiKeyID + "." + secret
 
-	_, err := s.pool.Exec(ctx,
+	h, err := hashKey(secret)
+	if err != nil {
+		return nil, "", fmt.Errorf("hash key: %w", err)
+	}
+
+	_, err = s.pool.Exec(ctx,
 		`INSERT INTO api_keys (id, org_id, key_hash, name, created_at) VALUES ($1, $2, $3, $4, $5)`,
-		apiKeyID, orgID, hashKey(rawKey), name, now,
+		apiKeyID, orgID, h, name, now,
 	)
 	if err != nil {
 		return nil, "", fmt.Errorf("insert api key: %w", err)

@@ -88,7 +88,7 @@ func (e *testEnv) issueToken(t *testing.T, scope []string) (tokenStr string, jti
 		t.Fatalf("issueToken: %v", err)
 	}
 	// track in rev store so revocation tests work
-	e.h.revStore.TrackCredential(claims.ID, claims.Chain)
+	e.h.revStore.TrackCredential(context.Background(), e.orgID, claims)
 
 	// Re-issue through issuer to get the real signed token string.
 	tok, _, err := e.issuer.Issue(e.sigKey, "kid-test", attest.IssueParams{
@@ -103,7 +103,7 @@ func (e *testEnv) issueToken(t *testing.T, scope []string) (tokenStr string, jti
 	}
 	// We need the jti of the *second* call — track it too.
 	result, _ := e.issuer.Verify(tok, &e.sigKey.PublicKey)
-	e.h.revStore.TrackCredential(result.Claims.ID, result.Claims.Chain)
+	e.h.revStore.TrackCredential(context.Background(), e.orgID, result.Claims)
 	return tok, result.Claims.ID
 }
 
@@ -248,7 +248,7 @@ func TestReportAction_AgentIDStrippedOfPrefix(t *testing.T) {
 	}
 
 	// Check the audit log entry has a bare agent ID (no "agent:" prefix).
-	events, err := e.h.auditLog.Query(context.Background(), taskID)
+	events, err := e.h.auditLog.Query(context.Background(), e.orgID, taskID)
 	if err != nil {
 		t.Fatalf("query audit log: %v", err)
 	}

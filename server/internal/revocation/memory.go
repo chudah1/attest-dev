@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/attest-dev/attest/pkg/attest"
 )
 
 // memEntry records when and by whom a JTI was revoked.
@@ -20,40 +22,51 @@ type MemoryStore struct {
 	mu         sync.RWMutex
 	revoked    map[string]memEntry // jti → revocation record
 	chains     map[string][]string // jti → att_chain of that credential
+	orgByJTI   map[string]string   // jti → org_id
 }
 
 // NewMemoryStore returns a ready-to-use in-memory revocation store.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		revoked: make(map[string]memEntry),
-		chains:  make(map[string][]string),
+		revoked:  make(map[string]memEntry),
+		chains:   make(map[string][]string),
+		orgByJTI: make(map[string]string),
 	}
 }
 
 // TrackCredential registers a credential so its chain is available for
 // cascade revocation. Call this immediately after issuing or delegating.
-func (m *MemoryStore) TrackCredential(jti string, chain []string) {
+func (m *MemoryStore) TrackCredential(_ context.Context, orgID string, claims *attest.Claims) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	cp := make([]string, len(chain))
-	copy(cp, chain)
-	m.chains[jti] = cp
+	cp := make([]string, len(claims.Chain))
+	copy(cp, claims.Chain)
+	m.chains[claims.ID] = cp
+	m.orgByJTI[claims.ID] = orgID
+	return nil
 }
 
 // Revoke marks jti and all descendants (credentials whose chain contains jti)
 // as revoked. Cascade is derived from the chains registered via TrackCredential.
-func (m *MemoryStore) Revoke(_ context.Context, jti, revokedBy string) error {
+func (m *MemoryStore) Revoke(_ context.Context, orgID, jti, revokedBy string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	now := time.Now().UTC()
 	entry := memEntry{revokedAt: now, revokedBy: revokedBy}
 
-	// Always revoke the target itself.
+	// Only revoke if the credential belongs to this org.
+	if owner, ok := m.orgByJTI[jti]; ok && owner != orgID {
+		return nil
+	}
 	m.revoked[jti] = entry
 
-	// Cascade: any credential whose recorded chain contains jti is a descendant.
+	// Cascade: any credential whose recorded chain contains jti is a descendant,
+	// but only within the same org.
 	for credJTI, chain := range m.chains {
+		if m.orgByJTI[credJTI] != orgID {
+			continue
+		}
 		for _, ancestor := range chain {
 			if ancestor == jti {
 				m.revoked[credJTI] = entry
@@ -66,9 +79,17 @@ func (m *MemoryStore) Revoke(_ context.Context, jti, revokedBy string) error {
 }
 
 // IsRevoked reports whether jti has been revoked.
-func (m *MemoryStore) IsRevoked(_ context.Context, jti string) (bool, error) {
+// If orgID is empty (public endpoint), skip the org ownership check.
+func (m *MemoryStore) IsRevoked(_ context.Context, orgID, jti string) (bool, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+
+	if orgID != "" {
+		if owner, ok := m.orgByJTI[jti]; ok && owner != orgID {
+			return false, nil
+		}
+	}
+
 	_, ok := m.revoked[jti]
 	return ok, nil
 }

@@ -8,6 +8,7 @@ import (
 
 const (
 	MaxDelegationDepth = 10
+	DefaultTTLSeconds  = 3600
 	MaxTTLSeconds      = 86400
 
 	EventIssued    EventType = "issued"
@@ -105,6 +106,7 @@ type AuditEvent struct {
 	EntryHash string            `json:"entry_hash"`
 	EventType EventType         `json:"event_type"`
 	JTI       string            `json:"jti"`
+	OrgID     string            `json:"org_id"`
 	TaskID    string            `json:"att_tid"`
 	UserID    string            `json:"att_uid"`
 	AgentID   string            `json:"agent_id"`

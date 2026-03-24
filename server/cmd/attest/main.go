@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -100,7 +101,10 @@ func (rl *rateLimiter) cleanup() {
 func ipRateLimitMiddleware(rl *rateLimiter) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := r.RemoteAddr
+			ip, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				ip = r.RemoteAddr // fallback if no port (e.g. unix socket)
+			}
 			if !rl.get(ip).Allow() {
 				writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
 				return
@@ -156,7 +160,7 @@ func main() {
 		}
 		slog.Info("schema migrations applied")
 
-		slog.Info("storage: postgres", "url", cfg.DatabaseURL)
+		slog.Info("storage: postgres")
 		orgStore = org.NewPostgresStore(pool)
 		revStore = revocation.NewStore(pool)
 		auditLog = audit.NewLog(pool)
@@ -187,6 +191,7 @@ func main() {
 
 	// Rate limiters: 5 req/min per IP for signup, 120 req/min per org for authenticated endpoints.
 	signupLimiter := newRateLimiter(rate.Every(time.Minute/5), 5)
+	publicLimiter := newRateLimiter(rate.Every(time.Minute/600), 20) // 10 req/sec sustained, burst 20
 	orgLimiter := newRateLimiter(rate.Every(time.Minute/120), 20)
 
 	r := chi.NewRouter()
@@ -202,12 +207,12 @@ func main() {
 	r.Use(jsonLogger)
 	r.Use(corsMiddleware)
 
-	r.Get("/health", h.health)
+	r.With(ipRateLimitMiddleware(publicLimiter)).Get("/health", h.health)
 
 	// Public: org signup (IP rate-limited), per-org JWKS, and revocation check.
 	r.With(ipRateLimitMiddleware(signupLimiter)).Post("/v1/orgs", h.signup)
-	r.Get("/orgs/{orgID}/jwks.json", h.jwks)
-	r.Get("/v1/revoked/{jti}", h.checkRevocation)
+	r.With(ipRateLimitMiddleware(publicLimiter)).Get("/orgs/{orgID}/jwks.json", h.jwks)
+	r.With(ipRateLimitMiddleware(publicLimiter)).Get("/v1/revoked/{jti}", h.checkRevocation)
 
 	// Authenticated: credential management, audit, and key management.
 	r.Route("/v1", func(r chi.Router) {

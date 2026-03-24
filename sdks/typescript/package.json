@@ -1,6 +1,6 @@
 {
   "name": "@attest-dev/sdk",
-  "version": "0.1.0-beta.3",
+  "version": "0.1.0-beta.4",
   "description": "TypeScript SDK for the Attest cryptographic agent credential service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

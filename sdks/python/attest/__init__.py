@@ -30,6 +30,8 @@ from attest.client import (
 from attest.scope import is_subset, normalise_scope, parse_scope
 from attest.verifier import AttestVerifier
 from attest.types import (
+    ApprovalChallenge,
+    ApprovalStatus,
     AuditChain,
     AuditEvent,
     DelegateParams,
@@ -72,6 +74,8 @@ __all__ = [
     "AttestScopeError",
     "AttestVerifyError",
     # Types
+    "ApprovalChallenge",
+    "ApprovalStatus",
     "AttestClaims",
     "AttestToken",
     "DelegatedToken",

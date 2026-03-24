@@ -14,10 +14,12 @@ const (
 	StatusPending  Status = "pending"
 	StatusApproved Status = "approved"
 	StatusRejected Status = "rejected"
+	StatusExpired  Status = "expired"
 )
 
 type ApprovalRequest struct {
 	ID             string     `json:"id"`
+	OrgID          string     `json:"org_id"`
 	AgentID        string     `json:"agent_id"`
 	TaskID         string     `json:"att_tid"`
 	ParentToken    string     `json:"parent_token"`
@@ -32,7 +34,7 @@ type ApprovalRequest struct {
 // Store provides persistence for approval requests.
 type Store interface {
 	RequestApproval(ctx context.Context, req ApprovalRequest) error
-	GetPending(ctx context.Context, id string) (*ApprovalRequest, error)
-	Get(ctx context.Context, id string) (*ApprovalRequest, error)
-	Resolve(ctx context.Context, id string, status Status, approvedBy string) error
+	GetPending(ctx context.Context, orgID, id string) (*ApprovalRequest, error)
+	Get(ctx context.Context, orgID, id string) (*ApprovalRequest, error)
+	Resolve(ctx context.Context, orgID, id string, status Status, approvedBy string) error
 }

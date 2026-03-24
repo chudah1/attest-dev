@@ -11,6 +11,8 @@ import (
 	"github.com/attest-dev/attest/pkg/attest"
 )
 
+const testOrgID = "org-test-123"
+
 // TestCompleteFlow tests the full credential lifecycle:
 // Issue → Delegate → Audit → Revoke → Cascade
 func TestCompleteFlow(t *testing.T) {
@@ -42,10 +44,10 @@ func TestCompleteFlow(t *testing.T) {
 	}
 
 	// Track the credential for revocation
-	revStore.TrackCredential(rootClaims.ID, rootClaims.Chain)
+	revStore.TrackCredential(ctx, testOrgID, rootClaims)
 
 	// Log the issuance
-	auditLog.Append(ctx, attest.AuditEvent{
+	auditLog.Append(ctx, testOrgID, attest.AuditEvent{
 		EventType: attest.EventIssued,
 		JTI:       rootClaims.ID,
 		TaskID:    rootClaims.TaskID,
@@ -82,8 +84,8 @@ func TestCompleteFlow(t *testing.T) {
 	}
 
 	// Track and log delegation
-	revStore.TrackCredential(childClaims.ID, childClaims.Chain)
-	auditLog.Append(ctx, attest.AuditEvent{
+	revStore.TrackCredential(ctx, testOrgID, childClaims)
+	auditLog.Append(ctx, testOrgID, attest.AuditEvent{
 		EventType: attest.EventDelegated,
 		JTI:       childClaims.ID,
 		TaskID:    childClaims.TaskID,
@@ -106,8 +108,8 @@ func TestCompleteFlow(t *testing.T) {
 	}
 
 	// Verify neither are revoked yet
-	rootRevoked, _ := revStore.IsRevoked(ctx, rootClaims.ID)
-	childRevoked, _ := revStore.IsRevoked(ctx, childClaims.ID)
+	rootRevoked, _ := revStore.IsRevoked(ctx, testOrgID, rootClaims.ID)
+	childRevoked, _ := revStore.IsRevoked(ctx, testOrgID, childClaims.ID)
 
 	if rootRevoked || childRevoked {
 		t.Error("Tokens should not be revoked yet")
@@ -116,13 +118,13 @@ func TestCompleteFlow(t *testing.T) {
 	t.Log("✓ Step 3: Both tokens verified successfully")
 
 	// ========== STEP 4: Revoke Parent (Cascade) ==========
-	err = revStore.Revoke(ctx, rootClaims.ID, "admin-user")
+	err = revStore.Revoke(ctx, testOrgID, rootClaims.ID, "admin-user")
 	if err != nil {
 		t.Fatalf("Failed to revoke: %v", err)
 	}
 
 	// Log the revocation event
-	auditLog.Append(ctx, attest.AuditEvent{
+	auditLog.Append(ctx, testOrgID, attest.AuditEvent{
 		EventType: attest.EventRevoked,
 		JTI:       rootClaims.ID,
 		TaskID:    rootClaims.TaskID,
@@ -135,8 +137,8 @@ func TestCompleteFlow(t *testing.T) {
 	})
 
 	// Verify cascade: both parent and child should now be revoked
-	rootRevoked, _ = revStore.IsRevoked(ctx, rootClaims.ID)
-	childRevoked, _ = revStore.IsRevoked(ctx, childClaims.ID)
+	rootRevoked, _ = revStore.IsRevoked(ctx, testOrgID, rootClaims.ID)
+	childRevoked, _ = revStore.IsRevoked(ctx, testOrgID, childClaims.ID)
 
 	if !rootRevoked {
 		t.Error("Parent should be revoked")
@@ -148,7 +150,7 @@ func TestCompleteFlow(t *testing.T) {
 	t.Log("✓ Step 4: Parent revoked, child revoked via cascade")
 
 	// ========== STEP 5: Verify Full Audit Trail ==========
-	events, err := auditLog.Query(ctx, rootClaims.TaskID)
+	events, err := auditLog.Query(ctx, testOrgID, rootClaims.TaskID)
 	if err != nil {
 		t.Fatalf("Failed to query audit log: %v", err)
 	}
@@ -199,8 +201,8 @@ func TestMultipleDelegationLevels(t *testing.T) {
 	}
 
 	rootToken, rootClaims, _ := iss.Issue(key, "kid", rootParams)
-	revStore.TrackCredential(rootClaims.ID, rootClaims.Chain)
-	auditLog.Append(ctx, attest.AuditEvent{
+	revStore.TrackCredential(ctx, testOrgID, rootClaims)
+	auditLog.Append(ctx, testOrgID, attest.AuditEvent{
 		EventType: attest.EventIssued,
 		JTI:       rootClaims.ID,
 		TaskID:    rootClaims.TaskID,
@@ -238,8 +240,8 @@ func TestMultipleDelegationLevels(t *testing.T) {
 			t.Errorf("Level %d should have chain length %d, got %d", level, level+1, len(newClaims.Chain))
 		}
 
-		revStore.TrackCredential(newClaims.ID, newClaims.Chain)
-		auditLog.Append(ctx, attest.AuditEvent{
+		revStore.TrackCredential(ctx, testOrgID, newClaims)
+		auditLog.Append(ctx, testOrgID, attest.AuditEvent{
 			EventType: attest.EventDelegated,
 			JTI:       newClaims.ID,
 			TaskID:    newClaims.TaskID,
@@ -253,18 +255,18 @@ func TestMultipleDelegationLevels(t *testing.T) {
 	}
 
 	// Revoke at root
-	revStore.Revoke(ctx, rootClaims.ID, "admin")
+	revStore.Revoke(ctx, testOrgID, rootClaims.ID, "admin")
 
 	// Verify all 4 credentials are revoked (cascade)
 	for i, jti := range jtis {
-		revoked, _ := revStore.IsRevoked(ctx, jti)
+		revoked, _ := revStore.IsRevoked(ctx, testOrgID, jti)
 		if !revoked {
 			t.Errorf("Level %d should be revoked", i)
 		}
 	}
 
 	// Verify audit log has 4 events
-	events, _ := auditLog.Query(ctx, rootClaims.TaskID)
+	events, _ := auditLog.Query(ctx, testOrgID, rootClaims.TaskID)
 	if len(events) != 4 {
 		t.Fatalf("Expected 4 audit events, got %d", len(events))
 	}

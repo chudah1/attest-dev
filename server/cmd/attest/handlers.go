@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"os"
@@ -69,9 +70,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 	allowed := os.Getenv("CORS_ORIGIN")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if allowed == "" || origin == allowed || strings.HasPrefix(origin, "http://localhost") {
+		if origin == "http://localhost" || strings.HasPrefix(origin, "http://localhost:") {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else if allowed != "" && origin == allowed {
+			w.Header().Set("Access-Control-Allow-Origin", allowed)
 		}
+		
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		if r.Method == http.MethodOptions {
@@ -129,7 +133,7 @@ func (h *handlers) updateOrg(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.orgStore.UpdateOrg(r.Context(), o.ID, requireIDP, issuerURL, clientID); err != nil {
-		writeError(w, http.StatusInternalServerError, "update org: "+err.Error())
+		writeInternalError(w, "update org", err)
 		return
 	}
 
@@ -150,6 +154,11 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
+func writeInternalError(w http.ResponseWriter, msg string, err error) {
+	slog.Error(msg, "err", err)
+	writeError(w, http.StatusInternalServerError, msg)
+}
+
 // POST /v1/orgs — create a new organisation (unauthenticated signup).
 func (h *handlers) signup(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -161,7 +170,7 @@ func (h *handlers) signup(w http.ResponseWriter, r *http.Request) {
 	}
 	o, rawKey, apiKey, err := h.orgStore.CreateOrg(r.Context(), body.Name)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "create org: "+err.Error())
+		writeInternalError(w, "create org", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -190,7 +199,7 @@ func (h *handlers) issueCredential(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusPreconditionFailed, "org missing idp configuration")
 			return
 		}
-		
+
 		claims, err := h.oidcManager.VerifyToken(r.Context(), *o.IDPIssuerURL, *o.IDPClientID, p.IDToken)
 		if err != nil {
 			if errors.Is(err, oidcauth.ErrProviderUnavailable) {
@@ -207,7 +216,7 @@ func (h *handlers) issueCredential(w http.ResponseWriter, r *http.Request) {
 
 	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "get signing key: "+err.Error())
+		writeInternalError(w, "get signing key", err)
 		return
 	}
 
@@ -217,15 +226,18 @@ func (h *handlers) issueCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.revStore.TrackCredential(claims.ID, claims.Chain)
+	if err := h.revStore.TrackCredential(r.Context(), o.ID, claims); err != nil {
+		writeInternalError(w, "track credential", err)
+		return
+	}
 
-	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
-		EventType: attest.EventIssued,
-		JTI:       claims.ID,
-		TaskID:    claims.TaskID,
-		UserID:    claims.UserID,
-		AgentID:   p.AgentID,
-		Scope:     claims.Scope,
+	if err := h.auditLog.Append(r.Context(), o.ID, attest.AuditEvent{
+		EventType:     attest.EventIssued,
+		JTI:           claims.ID,
+		TaskID:        claims.TaskID,
+		UserID:        claims.UserID,
+		AgentID:       p.AgentID,
+		Scope:         claims.Scope,
 		IDPIssuer:     claims.IDPIssuer,
 		IDPSubject:    claims.IDPSubject,
 		HITLRequestID: claims.HITLRequestID,
@@ -253,7 +265,7 @@ func (h *handlers) delegateCredential(w http.ResponseWriter, r *http.Request) {
 
 	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "get signing key: "+err.Error())
+		writeInternalError(w, "get signing key", err)
 		return
 	}
 
@@ -263,15 +275,18 @@ func (h *handlers) delegateCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.revStore.TrackCredential(claims.ID, claims.Chain)
+	if err := h.revStore.TrackCredential(r.Context(), o.ID, claims); err != nil {
+		writeInternalError(w, "track credential", err)
+		return
+	}
 
-	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
-		EventType: attest.EventDelegated,
-		JTI:       claims.ID,
-		TaskID:    claims.TaskID,
-		UserID:    claims.UserID,
-		AgentID:   p.ChildAgent,
-		Scope:     claims.Scope,
+	if err := h.auditLog.Append(r.Context(), o.ID, attest.AuditEvent{
+		EventType:     attest.EventDelegated,
+		JTI:           claims.ID,
+		TaskID:        claims.TaskID,
+		UserID:        claims.UserID,
+		AgentID:       p.ChildAgent,
+		Scope:         claims.Scope,
 		IDPIssuer:     claims.IDPIssuer,
 		IDPSubject:    claims.IDPSubject,
 		HITLRequestID: claims.HITLRequestID,
@@ -290,6 +305,7 @@ func (h *handlers) delegateCredential(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /v1/credentials/{jti}
 func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
 	jti := chi.URLParam(r, "jti")
 	if jti == "" {
 		writeError(w, http.StatusBadRequest, "jti path parameter required")
@@ -304,12 +320,12 @@ func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
 		body.RevokedBy = "unknown"
 	}
 
-	if err := h.revStore.Revoke(r.Context(), jti, body.RevokedBy); err != nil {
-		writeError(w, http.StatusInternalServerError, "revocation failed: "+err.Error())
+	if err := h.revStore.Revoke(r.Context(), o.ID, jti, body.RevokedBy); err != nil {
+		writeInternalError(w, "revocation failed", err)
 		return
 	}
 
-	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
+	if err := h.auditLog.Append(r.Context(), o.ID, attest.AuditEvent{
 		EventType: attest.EventRevoked,
 		JTI:       jti,
 		Meta:      map[string]string{"revoked_by": body.RevokedBy},
@@ -323,10 +339,13 @@ func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/revoked/{jti}
 func (h *handlers) checkRevocation(w http.ResponseWriter, r *http.Request) {
+	// This is a public endpoint (no authMiddleware). orgFromCtx will return nil.
+	// Since JTIs are high-entropy UUIDs (122 bits), they act as capability URLs.
 	jti := chi.URLParam(r, "jti")
-	revoked, err := h.revStore.IsRevoked(r.Context(), jti)
+	// Pass an empty string for orgID. The store must implement a global lookup for this public endpoint.
+	revoked, err := h.revStore.IsRevoked(r.Context(), "", jti)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalError(w, "check revocation", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"revoked": revoked})
@@ -334,10 +353,11 @@ func (h *handlers) checkRevocation(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/tasks/{tid}/audit
 func (h *handlers) getAuditLog(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
 	tid := chi.URLParam(r, "tid")
-	events, err := h.auditLog.Query(r.Context(), tid)
+	events, err := h.auditLog.Query(r.Context(), o.ID, tid)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalError(w, "query audit log", err)
 		return
 	}
 	if events == nil {
@@ -383,7 +403,7 @@ func (h *handlers) listAPIKeys(w http.ResponseWriter, r *http.Request) {
 	o := orgFromCtx(r.Context())
 	keys, err := h.orgStore.ListAPIKeys(r.Context(), o.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "list api keys: "+err.Error())
+		writeInternalError(w, "list api keys", err)
 		return
 	}
 	if keys == nil {
@@ -404,7 +424,7 @@ func (h *handlers) createAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 	ak, rawKey, err := h.orgStore.CreateAPIKey(r.Context(), o.ID, body.Name)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "create api key: "+err.Error())
+		writeInternalError(w, "create api key", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -429,7 +449,7 @@ func (h *handlers) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "api key not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "revoke api key: "+err.Error())
+		writeInternalError(w, "revoke api key", err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -440,7 +460,7 @@ func (h *handlers) rotateKey(w http.ResponseWriter, r *http.Request) {
 	o := orgFromCtx(r.Context())
 	newKey, err := h.orgStore.RotateSigningKey(r.Context(), o.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "rotate signing key: "+err.Error())
+		writeInternalError(w, "rotate signing key", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"kid": newKey.KeyID})
@@ -497,11 +517,26 @@ func (h *handlers) requestApproval(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing required fields (agent_id, att_tid, requested_scope)")
 		return
 	}
+	if len(body.Intent) > 2000 {
+		writeError(w, http.StatusBadRequest, "intent exceeds maximum length of 2000 characters")
+		return
+	}
+	if len(body.RequestedScope) > 50 {
+		writeError(w, http.StatusBadRequest, "requested_scope contains too many items (max 50)")
+		return
+	}
+	for _, s := range body.RequestedScope {
+		if len(s) > 200 {
+			writeError(w, http.StatusBadRequest, "a scope item exceeds maximum length of 200 characters")
+			return
+		}
+	}
 
 	challengeID := "hitl_" + uuid.NewString()
 
 	req := approval.ApprovalRequest{
 		ID:             challengeID,
+		OrgID:          o.ID,
 		AgentID:        body.AgentID,
 		TaskID:         body.TaskID,
 		ParentToken:    body.ParentToken,
@@ -510,7 +545,7 @@ func (h *handlers) requestApproval(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.appStore.RequestApproval(r.Context(), req); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to store approval request: "+err.Error())
+		writeInternalError(w, "failed to store approval request", err)
 		return
 	}
 
@@ -522,19 +557,20 @@ func (h *handlers) requestApproval(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/approvals/{id} — called by the Agent/SDK to poll approval status.
 func (h *handlers) getApproval(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
 	challengeID := chi.URLParam(r, "id")
 	if challengeID == "" {
 		writeError(w, http.StatusBadRequest, "challenge id required")
 		return
 	}
 
-	req, err := h.appStore.Get(r.Context(), challengeID)
+	req, err := h.appStore.Get(r.Context(), o.ID, challengeID)
 	if err != nil {
 		if errors.Is(err, approval.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "approval request not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "failed to fetch approval: "+err.Error())
+		writeInternalError(w, "failed to fetch approval", err)
 		return
 	}
 
@@ -554,18 +590,29 @@ func (h *handlers) getApproval(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/approvals/{id}/deny — called by Dashboard/Slack to reject an approval.
 func (h *handlers) denyApproval(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
 	challengeID := chi.URLParam(r, "id")
 	if challengeID == "" {
 		writeError(w, http.StatusBadRequest, "challenge id required")
 		return
 	}
 
-	if err := h.appStore.Resolve(r.Context(), challengeID, approval.StatusRejected, ""); err != nil {
+	// Verify the approval belongs to this org before resolving.
+	if _, err := h.appStore.Get(r.Context(), o.ID, challengeID); err != nil {
+		if errors.Is(err, approval.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "approval request not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to fetch approval")
+		return
+	}
+
+	if err := h.appStore.Resolve(r.Context(), o.ID, challengeID, approval.StatusRejected, ""); err != nil {
 		if errors.Is(err, approval.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "approval request not found or not pending")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "failed to deny approval: "+err.Error())
+		writeInternalError(w, "failed to deny approval", err)
 		return
 	}
 
@@ -602,9 +649,9 @@ func (h *handlers) grantApproval(w http.ResponseWriter, r *http.Request) {
 		verifiedClaims, err := h.oidcManager.VerifyToken(r.Context(), *o.IDPIssuerURL, *o.IDPClientID, body.IDToken)
 		if err != nil {
 			if errors.Is(err, oidcauth.ErrProviderUnavailable) {
-				writeError(w, http.StatusBadGateway, "identity provider unreachable: "+err.Error())
+				writeError(w, http.StatusBadGateway, "identity provider unreachable")
 			} else {
-				writeError(w, http.StatusUnauthorized, "invalid id_token: "+err.Error())
+				writeError(w, http.StatusUnauthorized, "invalid id_token")
 			}
 			return
 		}
@@ -616,42 +663,42 @@ func (h *handlers) grantApproval(w http.ResponseWriter, r *http.Request) {
 		verifiedIssuer = "local_dashboard_session"
 	}
 
-	// Fetch the pending request
-	pending, err := h.appStore.GetPending(r.Context(), challengeID)
+	// Fetch the pending request (scoped to this org)
+	pending, err := h.appStore.GetPending(r.Context(), o.ID, challengeID)
 	if err != nil {
 		if errors.Is(err, approval.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "approval request not found or not pending")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "failed to fetch approval: "+err.Error())
+		writeInternalError(w, "failed to fetch approval", err)
 		return
 	}
 
 	// Pre-check: verify the parent token hasn't expired while waiting for approval.
 	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "get signing key: "+err.Error())
+		writeInternalError(w, "get signing key", err)
 		return
 	}
 
 	parentResult, err := h.issuer.Verify(pending.ParentToken, &orgKey.PrivateKey.PublicKey)
 	if err != nil || !parentResult.Valid {
 		// Parent token expired or invalid — reject the approval automatically.
-		_ = h.appStore.Resolve(r.Context(), challengeID, approval.StatusRejected, "system:parent_expired")
+		_ = h.appStore.Resolve(r.Context(), o.ID, challengeID, approval.StatusRejected, "system:parent_expired")
 		writeError(w, http.StatusGone, "parent token expired while waiting for approval")
 		return
 	}
 
 	// Check there's enough remaining TTL to be useful (at least 30 seconds).
 	if parentResult.Claims.ExpiresAt != nil && time.Until(parentResult.Claims.ExpiresAt.Time) < 30*time.Second {
-		_ = h.appStore.Resolve(r.Context(), challengeID, approval.StatusRejected, "system:parent_expiring")
+		_ = h.appStore.Resolve(r.Context(), o.ID, challengeID, approval.StatusRejected, "system:parent_expiring")
 		writeError(w, http.StatusGone, "parent token expires in less than 30 seconds, approval too late")
 		return
 	}
 
 	// Mark it resolved.
-	if err := h.appStore.Resolve(r.Context(), challengeID, approval.StatusApproved, verifiedSubject); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update approval status: "+err.Error())
+	if err := h.appStore.Resolve(r.Context(), o.ID, challengeID, approval.StatusApproved, verifiedSubject); err != nil {
+		writeInternalError(w, "failed to update approval status", err)
 		return
 	}
 
@@ -672,9 +719,12 @@ func (h *handlers) grantApproval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.revStore.TrackCredential(claims.ID, claims.Chain)
+	if err := h.revStore.TrackCredential(r.Context(), o.ID, claims); err != nil {
+		writeInternalError(w, "track credential", err)
+		return
+	}
 
-	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
+	if err := h.auditLog.Append(r.Context(), o.ID, attest.AuditEvent{
 		EventType:     "hitl_granted",
 		JTI:           claims.ID,
 		TaskID:        claims.TaskID,
@@ -704,7 +754,7 @@ func (h *handlers) verifyCred(w http.ResponseWriter, r *http.Request, token stri
 	o := orgFromCtx(r.Context())
 	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "get signing key: "+err.Error())
+		writeInternalError(w, "get signing key", err)
 		return nil
 	}
 	result, err := h.issuer.Verify(token, &orgKey.PrivateKey.PublicKey)
@@ -713,7 +763,7 @@ func (h *handlers) verifyCred(w http.ResponseWriter, r *http.Request, token stri
 		return nil
 	}
 	// Reject revoked credentials.
-	if revoked, _ := h.revStore.IsRevoked(r.Context(), result.Claims.ID); revoked {
+	if revoked, _ := h.revStore.IsRevoked(r.Context(), o.ID, result.Claims.ID); revoked {
 		writeError(w, http.StatusUnauthorized, "credential has been revoked")
 		return nil
 	}
@@ -722,9 +772,10 @@ func (h *handlers) verifyCred(w http.ResponseWriter, r *http.Request, token stri
 
 // appendAudit writes an audit event derived from verified claims.
 func (h *handlers) appendAudit(w http.ResponseWriter, r *http.Request, eventType attest.EventType, claims *attest.Claims, meta map[string]string) bool {
+	o := orgFromCtx(r.Context())
 	// Strip the "agent:" prefix so the stored agent_id is the bare identifier.
 	agentID := strings.TrimPrefix(claims.Subject, "agent:")
-	if err := h.auditLog.Append(r.Context(), attest.AuditEvent{
+	if err := h.auditLog.Append(r.Context(), o.ID, attest.AuditEvent{
 		EventType:     eventType,
 		JTI:           claims.ID,
 		TaskID:        claims.TaskID,

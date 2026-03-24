@@ -3,17 +3,27 @@ package revocation
 import (
 	"context"
 	"testing"
+
+	"github.com/attest-dev/attest/pkg/attest"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+func makeClaims(jti string, chain []string) *attest.Claims {
+	return &attest.Claims{
+		RegisteredClaims: jwt.RegisteredClaims{ID: jti},
+		Chain:            chain,
+	}
+}
 
 // TestMemoryStore_BasicRevocation tests basic revocation tracking.
 func TestMemoryStore_BasicRevocation(t *testing.T) {
 	store := NewMemoryStore()
 	ctx := context.Background()
 
-	store.TrackCredential("jti-1", []string{"jti-1"})
+	store.TrackCredential(ctx, "test-org", makeClaims("jti-1", []string{"jti-1"}))
 
 	// Initially not revoked
-	revoked, err := store.IsRevoked(ctx, "jti-1")
+	revoked, err := store.IsRevoked(ctx, "test-org", "jti-1")
 	if err != nil {
 		t.Fatalf("IsRevoked failed: %v", err)
 	}
@@ -22,13 +32,13 @@ func TestMemoryStore_BasicRevocation(t *testing.T) {
 	}
 
 	// Revoke it
-	err = store.Revoke(ctx, "jti-1", "admin")
+	err = store.Revoke(ctx, "test-org", "jti-1", "admin")
 	if err != nil {
 		t.Fatalf("Revoke failed: %v", err)
 	}
 
 	// Now should be revoked
-	revoked, err = store.IsRevoked(ctx, "jti-1")
+	revoked, err = store.IsRevoked(ctx, "test-org", "jti-1")
 	if err != nil {
 		t.Fatalf("IsRevoked failed: %v", err)
 	}
@@ -43,13 +53,13 @@ func TestMemoryStore_CascadeRevocation(t *testing.T) {
 	ctx := context.Background()
 
 	// Build a chain: root → parent → child
-	store.TrackCredential("root", []string{"root"})
-	store.TrackCredential("parent", []string{"root", "parent"})
-	store.TrackCredential("child", []string{"root", "parent", "child"})
-	store.TrackCredential("sibling", []string{"root", "sibling"})
+	store.TrackCredential(ctx, "test-org", makeClaims("root", []string{"root"}))
+	store.TrackCredential(ctx, "test-org", makeClaims("parent", []string{"root", "parent"}))
+	store.TrackCredential(ctx, "test-org", makeClaims("child", []string{"root", "parent", "child"}))
+	store.TrackCredential(ctx, "test-org", makeClaims("sibling", []string{"root", "sibling"}))
 
 	// Revoke the parent
-	err := store.Revoke(ctx, "parent", "admin")
+	err := store.Revoke(ctx, "test-org", "parent", "admin")
 	if err != nil {
 		t.Fatalf("Revoke failed: %v", err)
 	}
@@ -66,7 +76,7 @@ func TestMemoryStore_CascadeRevocation(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		revoked, _ := store.IsRevoked(ctx, tt.jti)
+		revoked, _ := store.IsRevoked(ctx, "test-org", tt.jti)
 		if revoked != tt.expected {
 			t.Errorf("jti=%s: expected %v, got %v", tt.jti, tt.expected, revoked)
 		}
@@ -78,7 +88,7 @@ func TestMemoryStore_NonExistent(t *testing.T) {
 	store := NewMemoryStore()
 	ctx := context.Background()
 
-	revoked, err := store.IsRevoked(ctx, "never-tracked")
+	revoked, err := store.IsRevoked(ctx, "test-org", "never-tracked")
 	if err != nil {
 		t.Fatalf("IsRevoked failed: %v", err)
 	}

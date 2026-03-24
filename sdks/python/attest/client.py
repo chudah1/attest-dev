@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+import urllib.parse
 import httpx
 import jwt
 import jwt.algorithms
@@ -173,7 +174,7 @@ def _verify_token(token: str, jwks: dict) -> VerifyResult:
             token,
             public_key,
             algorithms=["RS256"],
-            options={"verify_exp": True},
+            options={"require": ["exp", "jti"]},
         )
     except jwt.ExpiredSignatureError:
         return VerifyResult(valid=False, claims=None, warnings=["token has expired"])
@@ -308,38 +309,40 @@ class AttestClient:
             status=data["status"],
         )
 
-    def grant_approval(self, challenge_id: str, id_token: str) -> DelegatedToken:
-        """Grant a pending approval and receive the HITL-authorized credential."""
-        resp = self._http.post(f"/v1/approvals/{challenge_id}/grant", json={"id_token": id_token})
+    def grant_approval(self, challenge_id: str, id_token: str) -> None:
+        """Grant a pending approval challenge using an OIDC identity token."""
+        cid = urllib.parse.quote(challenge_id)
+        resp = self._http.post(f"/v1/approvals/{cid}/grant", json={"id_token": id_token})
         _raise_for_status(resp)
-        result = _parse_token_response(resp.json(), delegated=True)
-        assert isinstance(result, DelegatedToken)
-        return result
 
-    def get_approval(self, challenge_id: str) -> ApprovalStatus:
-        """Poll the status of an approval request."""
-        resp = self._http.get(f"/v1/approvals/{challenge_id}")
+    def get_approval(self, challenge_id: str) -> ApprovalChallenge:
+        """Get the status of an approval challenge."""
+        cid = urllib.parse.quote(challenge_id)
+        resp = self._http.get(f"/v1/approvals/{cid}")
+        _raise_for_status(resp)
+        return ApprovalChallenge(**resp.json())
+
+    def deny_approval(self, challenge_id: str) -> None:
+        """Deny an approval challenge."""
+        cid = urllib.parse.quote(challenge_id)
+        resp = self._http.post(f"/v1/approvals/{cid}/deny", json={})
         _raise_for_status(resp)
         return ApprovalStatus.from_dict(resp.json())
 
-    def deny_approval(self, challenge_id: str) -> ApprovalStatus:
-        """Deny a pending approval request."""
-        resp = self._http.post(f"/v1/approvals/{challenge_id}/deny", json={})
-        _raise_for_status(resp)
-        return ApprovalStatus.from_dict(resp.json())
-
-    def revoke(self, jti: str, revoked_by: str = "sdk") -> None:
-        """Revoke credential *jti* and all its descendants."""
+    def revoke(self, jti: str, revoked_by: str | None = None) -> None:
+        """Revoke a credential by its JTI."""
+        qjti = urllib.parse.quote(jti)
         resp = self._http.request(
             "DELETE",
-            f"/v1/credentials/{jti}",
+            f"/v1/credentials/{qjti}",
             json={"revoked_by": revoked_by},
         )
         _raise_for_status(resp)
 
-    def check_revoked(self, jti: str) -> bool:
-        """Return ``True`` if credential *jti* has been revoked."""
-        resp = self._http.get(f"/v1/revoked/{jti}")
+    def is_revoked(self, jti: str) -> bool:
+        """Check if a credential has been revoked."""
+        qjti = urllib.parse.quote(jti)
+        resp = self._http.get(f"/v1/revoked/{qjti}")
         _raise_for_status(resp)
         return bool(resp.json().get("revoked", False))
 
@@ -370,26 +373,32 @@ class AttestClient:
         resp = self._http.post("/v1/audit/status", json=body)
         _raise_for_status(resp)
 
-    def audit(self, task_id: str) -> AuditChain:
-        """Fetch the full audit chain for task tree *task_id*."""
-        resp = self._http.get(f"/v1/tasks/{task_id}/audit")
+    def audit_log(self, task_id: str) -> AuditChain:
+        """Retrieve the cryptographic audit chain for a given task ID."""
+        tid = urllib.parse.quote(task_id)
+        resp = self._http.get(f"/v1/tasks/{tid}/audit")
         _raise_for_status(resp)
         return _parse_audit_response(task_id, resp.json())
 
-    def fetch_jwks(self) -> dict:
+    def fetch_jwks(self, org_id: str) -> dict:
         """Fetch the server's JWKS (public key set) for offline verification."""
-        resp = self._http.get("/.well-known/jwks.json")
+        qorg_id = urllib.parse.quote(org_id)
+        resp = self._http.get(f"/orgs/{qorg_id}/jwks.json")
         _raise_for_status(resp)
         return resp.json()
 
-    def verify(self, token: str, jwks: dict | None = None) -> VerifyResult:
+    def verify(self, token: str, org_id: str | None = None, jwks: dict | None = None) -> VerifyResult:
         """Verify *token* offline using RS256.
 
-        If *jwks* is ``None``, the JWKS is fetched from the server first.
+        If *jwks* is ``None``, the JWKS is fetched from the server first
+        (requires *org_id*).
         Checks RS256 signature, expiry, chain length, and chain tail.
         """
-        resolved_jwks = jwks if jwks is not None else self.fetch_jwks()
-        return _verify_token(token, resolved_jwks)
+        if jwks is None:
+            if org_id is None:
+                raise AttestError("org_id is required when jwks is not provided")
+            jwks = self.fetch_jwks(org_id)
+        return _verify_token(token, jwks)
 
 
 # ---------------------------------------------------------------------------
@@ -488,38 +497,40 @@ class AsyncAttestClient:
             status=data["status"],
         )
 
-    async def grant_approval(self, challenge_id: str, id_token: str) -> DelegatedToken:
-        """Grant a pending approval and receive the HITL-authorized credential."""
-        resp = await self._http.post(f"/v1/approvals/{challenge_id}/grant", json={"id_token": id_token})
+    async def grant_approval(self, challenge_id: str, id_token: str) -> None:
+        """Grant a pending approval challenge using an OIDC identity token."""
+        cid = urllib.parse.quote(challenge_id)
+        resp = await self._http.post(f"/v1/approvals/{cid}/grant", json={"id_token": id_token})
         _raise_for_status(resp)
-        result = _parse_token_response(resp.json(), delegated=True)
-        assert isinstance(result, DelegatedToken)
-        return result
 
-    async def get_approval(self, challenge_id: str) -> ApprovalStatus:
-        """Poll the status of an approval request."""
-        resp = await self._http.get(f"/v1/approvals/{challenge_id}")
+    async def get_approval(self, challenge_id: str) -> ApprovalChallenge:
+        """Get the status of an approval challenge."""
+        cid = urllib.parse.quote(challenge_id)
+        resp = await self._http.get(f"/v1/approvals/{cid}")
+        _raise_for_status(resp)
+        return ApprovalChallenge(**resp.json())
+
+    async def deny_approval(self, challenge_id: str) -> None:
+        """Deny an approval challenge."""
+        cid = urllib.parse.quote(challenge_id)
+        resp = await self._http.post(f"/v1/approvals/{cid}/deny", json={})
         _raise_for_status(resp)
         return ApprovalStatus.from_dict(resp.json())
 
-    async def deny_approval(self, challenge_id: str) -> ApprovalStatus:
-        """Deny a pending approval request."""
-        resp = await self._http.post(f"/v1/approvals/{challenge_id}/deny", json={})
-        _raise_for_status(resp)
-        return ApprovalStatus.from_dict(resp.json())
-
-    async def revoke(self, jti: str, revoked_by: str = "sdk") -> None:
-        """Revoke credential *jti* and all its descendants."""
+    async def revoke(self, jti: str, revoked_by: str | None = None) -> None:
+        """Revoke a credential by its JTI."""
+        qjti = urllib.parse.quote(jti)
         resp = await self._http.request(
             "DELETE",
-            f"/v1/credentials/{jti}",
+            f"/v1/credentials/{qjti}",
             json={"revoked_by": revoked_by},
         )
         _raise_for_status(resp)
 
-    async def check_revoked(self, jti: str) -> bool:
-        """Return ``True`` if credential *jti* has been revoked."""
-        resp = await self._http.get(f"/v1/revoked/{jti}")
+    async def is_revoked(self, jti: str) -> bool:
+        """Check if a credential has been revoked."""
+        qjti = urllib.parse.quote(jti)
+        resp = await self._http.get(f"/v1/revoked/{qjti}")
         _raise_for_status(resp)
         return bool(resp.json().get("revoked", False))
 
@@ -550,23 +561,29 @@ class AsyncAttestClient:
         resp = await self._http.post("/v1/audit/status", json=body)
         _raise_for_status(resp)
 
-    async def audit(self, task_id: str) -> AuditChain:
-        """Fetch the full audit chain for task tree *task_id*."""
-        resp = await self._http.get(f"/v1/tasks/{task_id}/audit")
+    async def audit_log(self, task_id: str) -> AuditChain:
+        """Retrieve the cryptographic audit chain for a given task ID."""
+        tid = urllib.parse.quote(task_id)
+        resp = await self._http.get(f"/v1/tasks/{tid}/audit")
         _raise_for_status(resp)
         return _parse_audit_response(task_id, resp.json())
 
-    async def fetch_jwks(self) -> dict:
+    async def fetch_jwks(self, org_id: str) -> dict:
         """Fetch the server's JWKS (public key set) for offline verification."""
-        resp = await self._http.get("/.well-known/jwks.json")
+        qorg_id = urllib.parse.quote(org_id)
+        resp = await self._http.get(f"/orgs/{qorg_id}/jwks.json")
         _raise_for_status(resp)
         return resp.json()
 
-    async def verify(self, token: str, jwks: dict | None = None) -> VerifyResult:
+    async def verify(self, token: str, org_id: str | None = None, jwks: dict | None = None) -> VerifyResult:
         """Verify *token* offline using RS256.
 
-        If *jwks* is ``None``, the JWKS is fetched from the server first.
+        If *jwks* is ``None``, the JWKS is fetched from the server first
+        (requires *org_id*).
         Checks RS256 signature, expiry, chain length, and chain tail.
         """
-        resolved_jwks = jwks if jwks is not None else await self.fetch_jwks()
-        return _verify_token(token, resolved_jwks)
+        if jwks is None:
+            if org_id is None:
+                raise AttestError("org_id is required when jwks is not provided")
+            jwks = await self.fetch_jwks(org_id)
+        return _verify_token(token, jwks)

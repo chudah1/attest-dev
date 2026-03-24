@@ -40,6 +40,8 @@ export interface AttestClaims extends JWTPayload {
   att_hitl_uid?: string;
   /** HITL approver's verified IdP issuer */
   att_hitl_iss?: string;
+  /** Agent checksum */
+  att_ack?: string;
 }
 
 /** A root credential returned by issue(). */
@@ -109,6 +111,7 @@ export interface IssueParams {
   instruction: string;
   ttl_seconds?: number;
   id_token?: string;
+  agent_checksum?: string;
 }
 
 /** Parameters for delegating to a child agent. */
@@ -143,9 +146,11 @@ export interface ApprovalStatus {
 export class AttestClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
+  private readonly timeoutMs: number;
 
-  constructor({ baseUrl = 'http://localhost:8080', apiKey }: { baseUrl?: string; apiKey: string }) {
+  constructor({ baseUrl = 'http://localhost:8080', apiKey, timeoutMs = 30_000 }: { baseUrl?: string; apiKey: string; timeoutMs?: number }) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.timeoutMs = timeoutMs;
     this.headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
@@ -158,6 +163,7 @@ export class AttestClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(params),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<AttestToken>;
@@ -169,6 +175,7 @@ export class AttestClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(params),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<DelegatedToken>;
@@ -194,6 +201,7 @@ export class AttestClient {
       const keySet = createRemoteJWKSet(new URL(dataUrl));
       const { payload: raw } = await jwtVerify(token, keySet, {
         algorithms: ['RS256'],
+        requiredClaims: ['exp', 'jti'],
       });
       payload = raw as unknown as AttestClaims;
     } catch (err) {
@@ -227,6 +235,7 @@ export class AttestClient {
       method: 'DELETE',
       headers: this.headers,
       body: JSON.stringify({ revoked_by: revokedBy }),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok && res.status !== 204) await throwFromResponse(res);
   }
@@ -241,6 +250,7 @@ export class AttestClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(params),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok && res.status !== 204) await throwFromResponse(res);
   }
@@ -256,6 +266,7 @@ export class AttestClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(params),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok && res.status !== 204) await throwFromResponse(res);
   }
@@ -264,7 +275,7 @@ export class AttestClient {
   async audit(taskId: string): Promise<AuditChain> {
     const res = await fetch(
       `${this.baseUrl}/v1/tasks/${encodeURIComponent(taskId)}/audit`,
-      { headers: this.headers },
+      { headers: this.headers, signal: AbortSignal.timeout(this.timeoutMs) },
     );
     if (!res.ok) await throwFromResponse(res);
     const events = (await res.json()) as AuditEvent[];
@@ -273,7 +284,9 @@ export class AttestClient {
 
   /** Fetch the org's public key set for offline signature verification. */
   async fetchJWKS(orgId: string): Promise<JWKSResponse> {
-    const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(orgId)}/jwks.json`);
+    const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(orgId)}/jwks.json`, {
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<JWKSResponse>;
   }
@@ -290,6 +303,7 @@ export class AttestClient {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify(params),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<ApprovalChallenge>;
@@ -299,7 +313,7 @@ export class AttestClient {
   async getApproval(challengeId: string): Promise<ApprovalStatus> {
     const res = await fetch(
       `${this.baseUrl}/v1/approvals/${encodeURIComponent(challengeId)}`,
-      { headers: this.headers },
+      { headers: this.headers, signal: AbortSignal.timeout(this.timeoutMs) },
     );
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<ApprovalStatus>;
@@ -313,6 +327,7 @@ export class AttestClient {
         method: 'POST',
         headers: this.headers,
         body: JSON.stringify({ id_token: idToken }),
+        signal: AbortSignal.timeout(this.timeoutMs),
       },
     );
     if (!res.ok) await throwFromResponse(res);
@@ -327,6 +342,7 @@ export class AttestClient {
         method: 'POST',
         headers: this.headers,
         body: '{}',
+        signal: AbortSignal.timeout(this.timeoutMs),
       },
     );
     if (!res.ok) await throwFromResponse(res);
@@ -348,11 +364,13 @@ export class AttestClient {
 export class AttestVerifier {
   private readonly orgId: string;
   private readonly baseUrl: string;
+  private readonly timeoutMs: number;
   private jwksCache: JWKSResponse | null = null;
 
-  constructor({ orgId, baseUrl = 'https://api.attestdev.com' }: { orgId: string; baseUrl?: string }) {
+  constructor({ orgId, baseUrl = 'https://api.attestdev.com', timeoutMs = 30_000 }: { orgId: string; baseUrl?: string; timeoutMs?: number }) {
     this.orgId = orgId;
     this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.timeoutMs = timeoutMs;
   }
 
   /**
@@ -367,21 +385,41 @@ export class AttestVerifier {
 
     // 1. Fetch JWKS (cached after first call)
     if (!this.jwksCache) {
-      const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(this.orgId)}/jwks.json`);
+      const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(this.orgId)}/jwks.json`, {
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
       if (!res.ok) return { valid: false, warnings: [`failed to fetch JWKS: HTTP ${res.status}`] };
       this.jwksCache = await res.json() as JWKSResponse;
     }
 
-    // 2. Verify signature and expiry
-    const jwksData = JSON.stringify(this.jwksCache);
-    const dataUrl = `data:application/json,${encodeURIComponent(jwksData)}`;
+    // 2. Verify signature and expiry (retry once with fresh JWKS on failure)
     let payload: AttestClaims;
-    try {
-      const keySet = createRemoteJWKSet(new URL(dataUrl));
-      const { payload: raw } = await jwtVerify(token, keySet, { algorithms: ['RS256'] });
-      payload = raw as unknown as AttestClaims;
-    } catch (err) {
-      return { valid: false, warnings: [`signature/expiry check failed: ${String(err)}`] };
+    let retried = false;
+    while (true) {
+      const jwksData = JSON.stringify(this.jwksCache);
+      const dataUrl = `data:application/json,${encodeURIComponent(jwksData)}`;
+      try {
+        const keySet = createRemoteJWKSet(new URL(dataUrl));
+        const { payload: raw } = await jwtVerify(token, keySet, {
+          algorithms: ['RS256'],
+          requiredClaims: ['exp', 'jti'],
+        });
+        payload = raw as unknown as AttestClaims;
+        break;
+      } catch (err) {
+        if (!retried) {
+          // Clear cache and refetch JWKS before retrying
+          this.jwksCache = null;
+          const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(this.orgId)}/jwks.json`, {
+            signal: AbortSignal.timeout(this.timeoutMs),
+          });
+          if (!res.ok) return { valid: false, warnings: [`failed to refresh JWKS: HTTP ${res.status}`] };
+          this.jwksCache = await res.json() as JWKSResponse;
+          retried = true;
+          continue;
+        }
+        return { valid: false, warnings: [`signature/expiry check failed: ${String(err)}`] };
+      }
     }
 
     // 3. Chain integrity
@@ -398,14 +436,20 @@ export class AttestVerifier {
 
     // 4. Revocation check
     if (payload.jti) {
-      const revRes = await fetch(
-        `${this.baseUrl}/v1/revoked/${encodeURIComponent(payload.jti)}`,
-      );
-      if (revRes.ok) {
+      try {
+        const revRes = await fetch(
+          `${this.baseUrl}/v1/revoked/${encodeURIComponent(payload.jti)}`,
+          { signal: AbortSignal.timeout(this.timeoutMs) },
+        );
+        if (!revRes.ok) {
+          return { valid: false, claims: payload, warnings: [...warnings, `revocation check failed: HTTP ${revRes.status}`] };
+        }
         const { revoked } = await revRes.json() as { revoked: boolean };
-        if (revoked) return { valid: false, claims: payload, warnings: ['credential has been revoked'] };
-      } else {
-        warnings.push(`revocation check failed: HTTP ${revRes.status}`);
+        if (revoked) {
+          return { valid: false, claims: payload, warnings: [...warnings, 'credential has been revoked'] };
+        }
+      } catch (err) {
+        return { valid: false, claims: payload, warnings: [...warnings, `revocation server unreachable: ${String(err)}`] };
       }
     }
 
@@ -462,9 +506,9 @@ interface ScopeEntry {
 }
 
 function parseScope(s: string): ScopeEntry | null {
-  const parts = s.split(':');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
-  return { resource: parts[0], action: parts[1] };
+  const idx = s.indexOf(':');
+  if (idx < 1 || idx === s.length - 1) return null;
+  return { resource: s.slice(0, idx), action: s.slice(idx + 1) };
 }
 
 async function throwFromResponse(res: Response): Promise<never> {

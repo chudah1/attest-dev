@@ -30,12 +30,35 @@ func (m *memoryStore) RequestApproval(ctx context.Context, req ApprovalRequest) 
 	return nil
 }
 
-func (m *memoryStore) Get(ctx context.Context, id string) (*ApprovalRequest, error) {
+func (m *memoryStore) Get(ctx context.Context, orgID, id string) (*ApprovalRequest, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	req, ok := m.approvals[id]
-	if !ok {
+	if !ok || req.OrgID != orgID {
+		return nil, ErrNotFound
+	}
+
+	r := *req
+	if r.Status == StatusPending && time.Since(r.CreatedAt) > 15*time.Minute {
+		r.Status = StatusExpired
+	}
+
+	return &r, nil
+}
+
+func (m *memoryStore) GetPending(ctx context.Context, orgID, id string) (*ApprovalRequest, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	req, ok := m.approvals[id]
+	if !ok || req.OrgID != orgID || req.Status != StatusPending {
+		return nil, ErrNotFound
+	}
+
+	if time.Since(req.CreatedAt) > 15*time.Minute {
+		// Lazily expire, though Resolve handles it as well.
+		req.Status = StatusExpired
 		return nil, ErrNotFound
 	}
 
@@ -43,26 +66,17 @@ func (m *memoryStore) Get(ctx context.Context, id string) (*ApprovalRequest, err
 	return &r, nil
 }
 
-func (m *memoryStore) GetPending(ctx context.Context, id string) (*ApprovalRequest, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	req, ok := m.approvals[id]
-	if !ok || req.Status != StatusPending {
-		return nil, ErrNotFound
-	}
-
-	// Copy to prevent external mutation
-	r := *req
-	return &r, nil
-}
-
-func (m *memoryStore) Resolve(ctx context.Context, id string, status Status, approvedBy string) error {
+func (m *memoryStore) Resolve(ctx context.Context, orgID, id string, status Status, approvedBy string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	req, ok := m.approvals[id]
-	if !ok || req.Status != StatusPending {
+	if !ok || req.OrgID != orgID || req.Status != StatusPending {
+		return ErrNotFound
+	}
+
+	if time.Since(req.CreatedAt) > 15*time.Minute {
+		req.Status = StatusExpired
 		return ErrNotFound
 	}
 

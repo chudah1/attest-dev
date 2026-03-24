@@ -17,6 +17,7 @@ Example::
 from __future__ import annotations
 
 import threading
+import urllib.parse
 from typing import Optional
 
 import httpx
@@ -131,10 +132,10 @@ class AttestVerifier:
             revoked = self._check_revoked(claims.jti)
             if revoked:
                 return VerifyResult(valid=False, claims=claims, warnings=["credential has been revoked"])
-        except Exception as exc:
-            warnings.append(f"revocation check failed (treating as not revoked): {exc}")
+        except httpx.HTTPError as exc:
+            return VerifyResult(valid=False, claims=claims, warnings=[f"revocation check failed due to network error: {exc}"])
 
-        valid = len([w for w in warnings if "integrity" in w]) == 0
+        valid = len(warnings) == 0
 
         if not valid:
             return VerifyResult(valid=False, claims=claims, warnings=warnings)
@@ -167,7 +168,8 @@ class AttestVerifier:
             if self._jwks_cache is not None:
                 return self._jwks_cache
 
-        url = f"{self._base_url}/orgs/{self._org_id}/jwks.json"
+        qorg = urllib.parse.quote(self._org_id)
+        url = f"{self._base_url}/orgs/{qorg}/jwks.json"
         response = httpx.get(url, timeout=10)
         response.raise_for_status()
         jwks = response.json()
@@ -177,7 +179,8 @@ class AttestVerifier:
         return jwks
 
     def _check_revoked(self, jti: str) -> bool:
-        url = f"{self._base_url}/v1/revoked/{jti}"
+        qjti = urllib.parse.quote(jti)
+        url = f"{self._base_url}/v1/revoked/{qjti}"
         response = httpx.get(url, timeout=10)
         response.raise_for_status()
         return response.json().get("revoked", False)

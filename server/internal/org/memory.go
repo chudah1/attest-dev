@@ -4,13 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const devOrgID = "dev-org"
@@ -19,11 +20,12 @@ const devAPIKey = "dev"
 
 // apiKeyEntry stores the internal record for a MemoryStore API key.
 type apiKeyEntry struct {
-	orgID     string
-	keyID     string
-	name      string
-	createdAt time.Time
-	revokedAt *time.Time
+	orgID        string
+	keyID        string
+	name         string
+	createdAt    time.Time
+	revokedAt    *time.Time
+	hashedSecret string
 }
 
 // MemoryStore is a thread-safe in-process implementation for dev/test use.
@@ -62,6 +64,8 @@ func NewMemoryStore() (*MemoryStore, error) {
 		CreatedAt: now,
 	}
 
+	hashedDevAPIKeySecret, _ := hashKey("dev-secret")
+
 	s := &MemoryStore{
 		orgs: map[string]*Org{
 			devOrgID: {
@@ -75,11 +79,19 @@ func NewMemoryStore() (*MemoryStore, error) {
 			devOrgID: {devOrgKey},
 		},
 		apiKeys: map[string]*apiKeyEntry{
-			hashKey(devAPIKey): {
-				orgID:     devOrgID,
-				keyID:     devAPIKeyID,
-				name:      "default",
-				createdAt: now,
+			devAPIKey: { // The literal "dev" key for legacy compatibility
+				orgID:        devOrgID,
+				keyID:        "dev-key-id", // A placeholder ID for the literal "dev" key
+				name:         "dev-default",
+				createdAt:    now,
+				hashedSecret: hashedDevAPIKeySecret,
+			},
+			devAPIKeyID: { // The actual dev API key with a secret
+				orgID:        devOrgID,
+				keyID:        devAPIKeyID,
+				name:         "default",
+				createdAt:    now,
+				hashedSecret: hashedDevAPIKeySecret, // Using the same hashed secret for simplicity
 			},
 		},
 		orgAPIKeys: map[string][]*APIKey{
@@ -108,8 +120,15 @@ func (s *MemoryStore) CreateOrg(_ context.Context, name string) (*Org, string, *
 		PrivateKey: privateKey,
 		CreatedAt:  now,
 	}
-	rawKey := generateAPIKey()
+	secret := generateAPIKeySecret()
 	apiKeyID := uuid.NewString()
+	rawKey := "att_live_" + apiKeyID + "." + secret
+
+	hashedSecret, err := hashKey(secret)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("hash key: %w", err)
+	}
+
 	apiKey := &APIKey{
 		ID:        apiKeyID,
 		OrgID:     org.ID,
@@ -120,11 +139,12 @@ func (s *MemoryStore) CreateOrg(_ context.Context, name string) (*Org, string, *
 	s.mu.Lock()
 	s.orgs[org.ID] = org
 	s.keys[org.ID] = []*OrgKey{orgKey}
-	s.apiKeys[hashKey(rawKey)] = &apiKeyEntry{
-		orgID:     org.ID,
-		keyID:     apiKeyID,
-		name:      "default",
-		createdAt: now,
+	s.apiKeys[apiKeyID] = &apiKeyEntry{ // Store by keyID
+		orgID:        org.ID,
+		keyID:        apiKeyID,
+		name:         "default",
+		createdAt:    now,
+		hashedSecret: hashedSecret,
 	}
 	s.orgAPIKeys[org.ID] = []*APIKey{apiKey}
 	s.mu.Unlock()
@@ -133,13 +153,43 @@ func (s *MemoryStore) CreateOrg(_ context.Context, name string) (*Org, string, *
 }
 
 func (s *MemoryStore) ResolveAPIKey(_ context.Context, rawKey string) (*Org, *APIKey, error) {
-	h := hashKey(rawKey)
+	// Dev key bypass for the literal "dev" string.
+	// This is for legacy compatibility and testing convenience.
+	if rawKey == devAPIKey {
+		s.mu.RLock()
+		org := s.orgs[devOrgID]
+		s.mu.RUnlock()
+		if org == nil {
+			return nil, nil, ErrInvalidKey
+		}
+		// For the "dev" key, we return a hardcoded APIKey metadata.
+		// The actual dev API key (att_live_dev-key-id.dev-secret) is handled below.
+		ak := &APIKey{
+			ID:        "dev-key-id",
+			OrgID:     devOrgID,
+			Name:      "dev-default",
+			CreatedAt: org.CreatedAt,
+		}
+		return org, ak, nil
+	}
+
+	parts := strings.Split(rawKey, ".")
+	if len(parts) != 2 || !strings.HasPrefix(parts[0], "att_live_") {
+		return nil, nil, ErrInvalidKey
+	}
+	keyID := strings.TrimPrefix(parts[0], "att_live_")
+	secret := parts[1]
 
 	s.mu.RLock()
-	entry, ok := s.apiKeys[h]
+	entry, ok := s.apiKeys[keyID]
 	s.mu.RUnlock()
 
 	if !ok || entry.revokedAt != nil {
+		return nil, nil, ErrInvalidKey
+	}
+
+	// Compare the provided secret with the stored bcrypt hash.
+	if err := bcrypt.CompareHashAndPassword([]byte(entry.hashedSecret), []byte(secret)); err != nil {
 		return nil, nil, ErrInvalidKey
 	}
 
@@ -186,28 +236,42 @@ func (s *MemoryStore) GetSigningKey(_ context.Context, orgID string) (*OrgKey, e
 }
 
 func (s *MemoryStore) CreateAPIKey(_ context.Context, orgID, name string) (*APIKey, string, error) {
-	rawKey := generateAPIKey()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	org := s.orgs[orgID]
+	if org == nil {
+		return nil, "", ErrNotFound
+	}
+
+	secret := generateAPIKeySecret()
 	now := time.Now().UTC()
 	apiKeyID := uuid.NewString()
 
-	ak := &APIKey{
+	hashedSecret, err := hashKey(secret)
+	if err != nil {
+		return nil, "", fmt.Errorf("hash key: %w", err)
+	}
+
+	s.apiKeys[apiKeyID] = &apiKeyEntry{ // Store by keyID
+		orgID:        orgID,
+		keyID:        apiKeyID,
+		name:         name,
+		createdAt:    now,
+		hashedSecret: hashedSecret,
+	}
+
+	apiKey := &APIKey{
 		ID:        apiKeyID,
 		OrgID:     orgID,
 		Name:      name,
 		CreatedAt: now,
 	}
 
-	s.mu.Lock()
-	s.apiKeys[hashKey(rawKey)] = &apiKeyEntry{
-		orgID:     orgID,
-		keyID:     apiKeyID,
-		name:      name,
-		createdAt: now,
-	}
-	s.orgAPIKeys[orgID] = append([]*APIKey{ak}, s.orgAPIKeys[orgID]...)
-	s.mu.Unlock()
+	s.orgAPIKeys[orgID] = append(s.orgAPIKeys[orgID], apiKey)
 
-	return ak, rawKey, nil
+	rawKey := "att_live_" + apiKeyID + "." + secret
+	return apiKey, rawKey, nil
 }
 
 func (s *MemoryStore) ListAPIKeys(_ context.Context, orgID string) ([]*APIKey, error) {
@@ -268,17 +332,20 @@ func (s *MemoryStore) RotateSigningKey(_ context.Context, orgID string) (*OrgKey
 	return newKey, nil
 }
 
-// generateAPIKey returns a new random API key in the form att_live_<64 hex chars>.
-func generateAPIKey() string {
+// generateAPIKeySecret returns a new random API key secret (32 bytes hex length = 64).
+func generateAPIKeySecret() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic("crypto/rand unavailable: " + err.Error())
 	}
-	return "att_live_" + hex.EncodeToString(b)
+	return hex.EncodeToString(b)
 }
 
-// hashKey returns the SHA-256 hex digest of a raw API key string.
-func hashKey(raw string) string {
-	h := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(h[:])
+// hashKey returns the bcrypt hash of a raw API key secret string.
+func hashKey(secret string) (string, error) {
+	h, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.MinCost)
+	if err != nil {
+		return "", err
+	}
+	return string(h), nil
 }

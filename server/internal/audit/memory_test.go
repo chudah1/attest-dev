@@ -7,6 +7,8 @@ import (
 	"github.com/attest-dev/attest/pkg/attest"
 )
 
+const testOrgID = "org-test-123"
+
 // TestMemoryLog_BasicAppend tests appending a single event.
 func TestMemoryLog_BasicAppend(t *testing.T) {
 	log := NewMemoryLog()
@@ -21,13 +23,13 @@ func TestMemoryLog_BasicAppend(t *testing.T) {
 		Scope:     []string{"read:documents"},
 	}
 
-	err := log.Append(ctx, event)
+	err := log.Append(ctx, testOrgID, event)
 	if err != nil {
 		t.Fatalf("Append failed: %v", err)
 	}
 
 	// Query the log to verify the event was stored correctly
-	events, _ := log.Query(ctx, "tid-456")
+	events, _ := log.Query(ctx, testOrgID, "tid-456")
 	if len(events) != 1 {
 		t.Fatalf("Expected 1 event, got %d", len(events))
 	}
@@ -43,6 +45,10 @@ func TestMemoryLog_BasicAppend(t *testing.T) {
 
 	if stored.EntryHash == "" {
 		t.Error("Expected non-empty EntryHash")
+	}
+
+	if stored.OrgID != testOrgID {
+		t.Errorf("Expected OrgID %s, got %s", testOrgID, stored.OrgID)
 	}
 }
 
@@ -69,18 +75,18 @@ func TestMemoryLog_Chaining(t *testing.T) {
 		Scope:     []string{"read:documents"},
 	}
 
-	err := log.Append(ctx, event1)
+	err := log.Append(ctx, testOrgID, event1)
 	if err != nil {
 		t.Fatalf("Append event1 failed: %v", err)
 	}
 
-	err = log.Append(ctx, event2)
+	err = log.Append(ctx, testOrgID, event2)
 	if err != nil {
 		t.Fatalf("Append event2 failed: %v", err)
 	}
 
 	// Query to verify chaining
-	events, _ := log.Query(ctx, "tid-1")
+	events, _ := log.Query(ctx, testOrgID, "tid-1")
 	if len(events) != 2 {
 		t.Fatalf("Expected 2 events, got %d", len(events))
 	}
@@ -109,11 +115,11 @@ func TestMemoryLog_Query(t *testing.T) {
 			AgentID:   "agent",
 			Scope:     []string{"read:documents"},
 		}
-		_ = log.Append(ctx, event)
+		_ = log.Append(ctx, testOrgID, event)
 	}
 
 	// Query task 1
-	events, err := log.Query(ctx, "tid-1")
+	events, err := log.Query(ctx, testOrgID, "tid-1")
 	if err != nil {
 		t.Fatalf("Query failed: %v", err)
 	}
@@ -123,8 +129,14 @@ func TestMemoryLog_Query(t *testing.T) {
 	}
 
 	// Query non-existent task
-	events2, _ := log.Query(ctx, "non-existent")
+	events2, _ := log.Query(ctx, testOrgID, "non-existent")
 	if len(events2) != 0 {
 		t.Error("Expected empty result for non-existent task")
+	}
+
+	// Query wrong org should return empty
+	events3, _ := log.Query(ctx, "wrong-org", "tid-1")
+	if len(events3) != 0 {
+		t.Error("Expected empty result for wrong org")
 	}
 }

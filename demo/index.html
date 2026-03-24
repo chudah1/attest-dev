@@ -816,7 +816,7 @@ function sceneHITLApprove() {
   hitlCredential = {
     ...childCredential,
     jti: newJti,
-    att_chain: [...childCredential.att_chain.slice(0, -1), newJti],
+    att_chain: [...childCredential.att_chain, newJti],
     att_hitl_req: crypto.randomUUID().slice(0, 8),
     att_hitl_uid: 'usr_demo',
     att_hitl_iss: 'https://login.attestdev.com',
