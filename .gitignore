@@ -90,3 +90,6 @@ phase2.md
 
 # Compiled server binary
 server/attest_server
+
+# IETF build cache
+.refcache/
