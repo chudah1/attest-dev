@@ -27,6 +27,9 @@ import (
 //go:embed schema.sql
 var schemaSQL string
 
+//go:embed migrate.sql
+var migrateSQL string
+
 type config struct {
 	Port        string
 	DatabaseURL string
@@ -154,11 +157,14 @@ func main() {
 		}
 		defer pool.Close()
 
+		if _, err := pool.Exec(ctx, migrateSQL); err != nil {
+			slog.Warn("migration step skipped or failed (ok on fresh db)", "err", err.Error())
+		}
 		if _, err := pool.Exec(ctx, schemaSQL); err != nil {
-			slog.Error("failed to apply schema migrations", "err", err)
+			slog.Error("failed to apply schema", "err", err, "detail", err.Error())
 			os.Exit(1)
 		}
-		slog.Info("schema migrations applied")
+		slog.Info("schema applied")
 
 		slog.Info("storage: postgres")
 		orgStore = org.NewPostgresStore(pool)
