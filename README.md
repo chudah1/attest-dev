@@ -29,7 +29,7 @@ const { token: childToken, claims: child } = await client.delegate({
 });
 
 // 3. Verify offline (no network call after fetching JWKS once)
-const jwks   = await client.fetchJWKS();
+const jwks   = await client.fetchJWKS('org_abc123');
 const result = await client.verify(childToken, jwks);
 console.log(result.valid, result.warnings);
 
@@ -70,11 +70,12 @@ cd attest
 docker compose up
 
 # The server is now running at http://localhost:8080
-# PostgreSQL at localhost:5432, Redis at localhost:6379
+# PostgreSQL at localhost:5432
 
-# Issue your first credential
+# Issue your first credential (replace YOUR_API_KEY with the key from POST /v1/orgs)
 curl -s -X POST http://localhost:8080/v1/credentials \
   -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_API_KEY' \
   -d '{
     "agent_id":    "orchestrator-v1",
     "user_id":     "usr_alice",
@@ -99,19 +100,24 @@ go run ./cmd/attest          # starts on :8080, warns about missing DB
 
 | Method | Path | Description |
 |---|---|---|
+| `POST` | `/v1/orgs` | Create an organization and get an API key |
 | `POST` | `/v1/credentials` | Issue a root credential |
 | `POST` | `/v1/credentials/delegate` | Delegate to a child agent |
 | `DELETE` | `/v1/credentials/{jti}` | Revoke credential and all descendants |
-| `GET` | `/v1/revoked/{jti}` | Check revocation status |
+| `GET` | `/v1/revoked/{jti}` | Check revocation status (public, no auth) |
 | `GET` | `/v1/tasks/{tid}/audit` | Retrieve the audit chain for a task |
-| `GET` | `/.well-known/jwks.json` | Public key set for offline verification |
+| `POST` | `/v1/audit/report` | Report an agent action to the audit log |
+| `POST` | `/v1/audit/status` | Report agent lifecycle event (started/completed/failed) |
+| `POST` | `/v1/approvals` | Request human-in-the-loop approval |
+| `POST` | `/v1/approvals/{id}/grant` | Grant a pending HITL approval |
+| `GET` | `/orgs/{orgId}/jwks.json` | Public key set for offline verification |
 | `GET` | `/health` | Health check |
 
 ---
 
 ## Specification
 
-The credential format is defined in [spec/ACS-01.md](spec/ACS-01.md) (Attest Credential Standard, revision 01).
+The credential format is defined in [spec/WCS-01.md](spec/WCS-01.md) (Attest Credential Standard, revision 01).
 
 ---
 

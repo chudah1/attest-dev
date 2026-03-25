@@ -81,4 +81,12 @@ out/
 # Internal docs (keep local, exclude from repo)
 GTM.md
 context.md
+content/
+phase2.md
 .github/agents/*.agent.md
+
+# Logs
+*.log
+
+# Compiled server binary
+server/attest_server
