@@ -123,3 +123,47 @@ CREATE OR REPLACE RULE audit_log_no_update AS
 
 CREATE OR REPLACE RULE audit_log_no_delete AS
     ON DELETE TO audit_log DO INSTEAD NOTHING;
+
+-- ── migrations ──────────────────────────────────────────────────────────────
+-- Idempotent ALTER statements to upgrade existing databases.
+-- Each uses DO $$ to silently skip if the column/table already exists.
+
+DO $$ BEGIN
+    ALTER TABLE organizations ADD COLUMN require_idp BOOLEAN NOT NULL DEFAULT FALSE;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE organizations ADD COLUMN idp_issuer_url TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE organizations ADD COLUMN idp_client_id TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE credentials ADD COLUMN org_id TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE audit_log ADD COLUMN org_id TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE audit_log ADD COLUMN idp_issuer TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE audit_log ADD COLUMN idp_subject TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE audit_log ADD COLUMN hitl_req TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE audit_log ADD COLUMN hitl_issuer TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE audit_log ADD COLUMN hitl_subject TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
