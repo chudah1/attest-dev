@@ -19,4 +19,8 @@ type Revoker interface {
 	// TrackCredential registers a credential so cascade revocation works.
 	// orgID associates the credential with the issuing org.
 	TrackCredential(ctx context.Context, orgID string, claims *attest.Claims) error
+
+	// ListTaskCredentials returns all credentials for a task tree in
+	// a stable ancestry-friendly order.
+	ListTaskCredentials(ctx context.Context, orgID, taskID string) ([]attest.CredentialRecord, error)
 }

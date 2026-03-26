@@ -14,6 +14,7 @@ import (
 
 	"github.com/attest-dev/attest/internal/approval"
 	"github.com/attest-dev/attest/internal/audit"
+	"github.com/attest-dev/attest/internal/evidence"
 	"github.com/attest-dev/attest/internal/oidcauth"
 	"github.com/attest-dev/attest/internal/org"
 	"github.com/attest-dev/attest/internal/revocation"
@@ -191,6 +192,7 @@ func main() {
 		orgStore:    orgStore,
 		revStore:    revStore,
 		auditLog:    auditLog,
+		evidenceSvc: evidence.NewService(auditLog, revStore),
 		oidcManager: oidcauth.NewManager(),
 		appStore:    appStore,
 	}
@@ -237,6 +239,8 @@ func main() {
 		r.Post("/audit/report", h.reportAction)
 		r.Post("/audit/status", h.reportStatus)
 		r.Get("/tasks/{tid}/audit", h.getAuditLog)
+		r.Get("/tasks/{tid}/evidence", h.getTaskEvidence)
+		r.Get("/tasks/{tid}/report", h.getTaskReport)
 
 		// API key management.
 		r.Get("/org/keys", h.listAPIKeys)

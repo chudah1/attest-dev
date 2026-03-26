@@ -68,10 +68,10 @@ type Claims struct {
 
 // IssueParams carries the inputs needed to issue a root credential.
 type IssueParams struct {
-	AgentID       string   `json:"agent_id"`
-	UserID        string   `json:"user_id"`
-	Scope         []string `json:"scope"`
-	Instruction   string   `json:"instruction"`
+	AgentID            string   `json:"agent_id"`
+	UserID             string   `json:"user_id"`
+	Scope              []string `json:"scope"`
+	Instruction        string   `json:"instruction"`
 	TTLSeconds         int64    `json:"ttl_seconds,omitempty"`
 	AgentChecksum      string   `json:"agent_checksum,omitempty"`
 	IDToken            string   `json:"id_token,omitempty"`
@@ -101,21 +101,120 @@ type VerifyResult struct {
 
 // AuditEvent is a single immutable entry in the audit log.
 type AuditEvent struct {
-	ID        int64             `json:"id,omitempty"`
-	PrevHash  string            `json:"prev_hash"`
-	EntryHash string            `json:"entry_hash"`
-	EventType EventType         `json:"event_type"`
-	JTI       string            `json:"jti"`
-	OrgID     string            `json:"org_id"`
-	TaskID    string            `json:"att_tid"`
-	UserID    string            `json:"att_uid"`
-	AgentID   string            `json:"agent_id"`
-	Scope      []string          `json:"scope"`
-	Meta       map[string]string `json:"meta,omitempty"`
+	ID            int64             `json:"id,omitempty"`
+	PrevHash      string            `json:"prev_hash"`
+	EntryHash     string            `json:"entry_hash"`
+	EventType     EventType         `json:"event_type"`
+	JTI           string            `json:"jti"`
+	OrgID         string            `json:"org_id"`
+	TaskID        string            `json:"att_tid"`
+	UserID        string            `json:"att_uid"`
+	AgentID       string            `json:"agent_id"`
+	Scope         []string          `json:"scope"`
+	Meta          map[string]string `json:"meta,omitempty"`
+	IDPIssuer     *string           `json:"idp_issuer,omitempty"`
+	IDPSubject    *string           `json:"idp_subject,omitempty"`
+	HITLRequestID *string           `json:"hitl_req,omitempty"`
+	HITLSubject   *string           `json:"hitl_subject,omitempty"`
+	HITLIssuer    *string           `json:"hitl_issuer,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
+}
+
+// CredentialRecord is the persisted view of a credential used for
+// evidence/export flows and cascade revocation introspection.
+type CredentialRecord struct {
+	JTI           string    `json:"jti"`
+	OrgID         string    `json:"org_id,omitempty"`
+	TaskID        string    `json:"att_tid"`
+	ParentID      string    `json:"att_pid,omitempty"`
+	UserID        string    `json:"att_uid"`
+	AgentID       string    `json:"agent_id"`
+	Depth         int       `json:"att_depth"`
+	Scope         []string  `json:"att_scope"`
+	Chain         []string  `json:"att_chain"`
+	IssuedAt      time.Time `json:"issued_at"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	IntentHash    string    `json:"att_intent,omitempty"`
+	AgentChecksum string    `json:"att_ack,omitempty"`
+	IDPIssuer     *string   `json:"att_idp_iss,omitempty"`
+	IDPSubject    *string   `json:"att_idp_sub,omitempty"`
+	HITLRequestID *string   `json:"att_hitl_req,omitempty"`
+	HITLSubject   *string   `json:"att_hitl_uid,omitempty"`
+	HITLIssuer    *string   `json:"att_hitl_iss,omitempty"`
+}
+
+type EvidencePacket struct {
+	PacketType    string               `json:"packet_type"`
+	SchemaVersion string               `json:"schema_version"`
+	GeneratedAt   time.Time            `json:"generated_at"`
+	Org           EvidenceOrg          `json:"org"`
+	Task          EvidenceTask         `json:"task"`
+	Identity      EvidenceIdentity     `json:"identity"`
+	Credentials   []EvidenceCredential `json:"credentials"`
+	Events        []AuditEvent         `json:"events"`
+	Integrity     EvidenceIntegrity    `json:"integrity"`
+	Summary       EvidenceSummary      `json:"summary"`
+}
+
+type EvidenceOrg struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type EvidenceTask struct {
+	TaskID          string `json:"att_tid"`
+	RootJTI         string `json:"root_jti"`
+	RootAgentID     string `json:"root_agent_id"`
+	UserID          string `json:"att_uid"`
+	InstructionHash string `json:"instruction_hash,omitempty"`
+	DepthMax        int    `json:"depth_max"`
+	CredentialCount int    `json:"credential_count"`
+	EventCount      int    `json:"event_count"`
+	Revoked         bool   `json:"revoked"`
+}
+
+type EvidenceIdentity struct {
+	UserID     string            `json:"user_id"`
 	IDPIssuer  *string           `json:"idp_issuer,omitempty"`
 	IDPSubject *string           `json:"idp_subject,omitempty"`
-	HITLRequestID *string        `json:"hitl_req,omitempty"`
-	HITLSubject   *string        `json:"hitl_subject,omitempty"`
-	HITLIssuer    *string        `json:"hitl_issuer,omitempty"`
-	CreatedAt  time.Time         `json:"created_at"`
+	Approval   *EvidenceApproval `json:"approval,omitempty"`
+}
+
+type EvidenceApproval struct {
+	Present   bool    `json:"present"`
+	RequestID *string `json:"request_id,omitempty"`
+	Issuer    *string `json:"issuer,omitempty"`
+	Subject   *string `json:"subject,omitempty"`
+}
+
+type EvidenceCredential struct {
+	JTI           string    `json:"jti"`
+	ParentJTI     string    `json:"parent_jti,omitempty"`
+	AgentID       string    `json:"agent_id"`
+	Scope         []string  `json:"scope"`
+	Depth         int       `json:"depth"`
+	IssuedAt      time.Time `json:"issued_at"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	Chain         []string  `json:"chain"`
+	IntentHash    string    `json:"intent_hash,omitempty"`
+	AgentChecksum string    `json:"agent_checksum,omitempty"`
+	IDPIssuer     *string   `json:"idp_issuer,omitempty"`
+	IDPSubject    *string   `json:"idp_subject,omitempty"`
+	HITLRequestID *string   `json:"hitl_request_id,omitempty"`
+	HITLSubject   *string   `json:"hitl_subject,omitempty"`
+	HITLIssuer    *string   `json:"hitl_issuer,omitempty"`
+}
+
+type EvidenceIntegrity struct {
+	AuditChainValid bool     `json:"audit_chain_valid"`
+	HashAlgorithm   string   `json:"hash_algorithm"`
+	PacketHash      string   `json:"packet_hash"`
+	Notes           []string `json:"notes"`
+}
+
+type EvidenceSummary struct {
+	Result          string `json:"result"`
+	ScopeViolations int    `json:"scope_violations"`
+	Approvals       int    `json:"approvals"`
+	Revocations     int    `json:"revocations"`
 }

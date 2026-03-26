@@ -50,6 +50,13 @@ CREATE TABLE IF NOT EXISTS credentials (
     depth       INTEGER     NOT NULL DEFAULT 0,
     scope       TEXT[]      NOT NULL,
     chain       TEXT[]      NOT NULL,
+    intent_hash TEXT        NOT NULL DEFAULT '',
+    agent_checksum TEXT,
+    idp_issuer  TEXT,
+    idp_subject TEXT,
+    hitl_req    TEXT,
+    hitl_issuer TEXT,
+    hitl_subject TEXT,
     issued_at   TIMESTAMPTZ NOT NULL,
     expires_at  TIMESTAMPTZ NOT NULL
 );

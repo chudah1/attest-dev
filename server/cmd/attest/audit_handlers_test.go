@@ -13,6 +13,7 @@ import (
 
 	"github.com/attest-dev/attest/internal/approval"
 	"github.com/attest-dev/attest/internal/audit"
+	"github.com/attest-dev/attest/internal/evidence"
 	"github.com/attest-dev/attest/internal/oidcauth"
 	"github.com/attest-dev/attest/internal/org"
 	"github.com/attest-dev/attest/internal/revocation"
@@ -61,6 +62,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		orgStore:    orgStore,
 		revStore:    revStore,
 		auditLog:    auditLog,
+		evidenceSvc: evidence.NewService(auditLog, revStore),
 		oidcManager: oidcauth.NewManager(),
 		appStore:    approval.NewMemoryStore(),
 	}
@@ -132,6 +134,7 @@ func (e *testEnv) makeRequest(t *testing.T, method, path string, body any) *http
 		r.Post("/audit/status", e.h.reportStatus)
 		r.Delete("/credentials/{jti}", e.h.revokeCredential)
 		r.Get("/revoked/{jti}", e.h.checkRevocation)
+		r.Get("/tasks/{tid}/report", e.h.getTaskReport)
 	})
 
 	r.ServeHTTP(rr, req)
@@ -179,9 +182,9 @@ func TestReportAction_MissingFields(t *testing.T) {
 	tok, _ := e.issueToken(t, []string{"files:read"})
 
 	cases := []map[string]any{
-		{"token": tok, "tool": "read_file"},                  // missing outcome
-		{"token": tok, "outcome": "success"},                  // missing tool
-		{"tool": "read_file", "outcome": "success"},           // missing token
+		{"token": tok, "tool": "read_file"},         // missing outcome
+		{"token": tok, "outcome": "success"},        // missing tool
+		{"tool": "read_file", "outcome": "success"}, // missing token
 	}
 	for _, body := range cases {
 		rr := e.makeRequest(t, http.MethodPost, "/v1/audit/report", body)
@@ -261,6 +264,37 @@ func TestReportAction_AgentIDStrippedOfPrefix(t *testing.T) {
 	}
 }
 
+func TestGetTaskReport_HTML(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read"})
+
+	result, _ := e.issuer.Verify(tok, &e.sigKey.PublicKey)
+	taskID := result.Claims.TaskID
+
+	rrAction := e.makeRequest(t, http.MethodPost, "/v1/audit/report", map[string]any{
+		"token":   tok,
+		"tool":    "read_file",
+		"outcome": "success",
+	})
+	if rrAction.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 from audit report, got %d — %s", rrAction.Code, rrAction.Body.String())
+	}
+
+	rr := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/report", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task report, got %d — %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("expected text/html content type, got %q", rr.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(rr.Body.String(), "Agent Authorization Evidence Report") {
+		t.Fatalf("expected report heading in body")
+	}
+	if !strings.Contains(rr.Body.String(), taskID) {
+		t.Fatalf("expected task id in report body")
+	}
+}
+
 // ─── reportStatus tests ───────────────────────────────────────────────────────
 
 func TestReportStatus_HappyPath(t *testing.T) {
@@ -301,8 +335,8 @@ func TestReportStatus_MissingFields(t *testing.T) {
 	tok, _ := e.issueToken(t, []string{"files:read"})
 
 	cases := []map[string]any{
-		{"token": tok},            // missing status
-		{"status": "started"},     // missing token
+		{"token": tok},        // missing status
+		{"status": "started"}, // missing token
 	}
 	for _, body := range cases {
 		rr := e.makeRequest(t, http.MethodPost, "/v1/audit/status", body)

@@ -73,17 +73,52 @@ func (s *Store) Revoke(ctx context.Context, orgID, jti, revokedBy string) error 
 // cascade revocation can discover descendants via the chain column.
 func (s *Store) TrackCredential(ctx context.Context, orgID string, claims *attest.Claims) error {
 	_, err := s.db.Exec(ctx, `
-		INSERT INTO credentials (jti, org_id, att_tid, att_pid, att_uid, agent_id, depth, scope, chain, issued_at, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO credentials (jti, org_id, att_tid, att_pid, att_uid, agent_id, depth, scope, chain, issued_at, expires_at, intent_hash, agent_checksum, idp_issuer, idp_subject, hitl_req, hitl_issuer, hitl_subject)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NULLIF($13, ''), $14, $15, $16, $17, $18)
 		ON CONFLICT (jti) DO NOTHING
 	`, claims.ID, orgID, claims.TaskID, claims.ParentID, claims.UserID,
 		strings.TrimPrefix(claims.Subject, "agent:"), claims.Depth,
 		claims.Scope, claims.Chain,
-		claims.IssuedAt.Time, claims.ExpiresAt.Time)
+		claims.IssuedAt.Time, claims.ExpiresAt.Time, claims.IntentHash, claims.AgentChecksum,
+		claims.IDPIssuer, claims.IDPSubject, claims.HITLRequestID, claims.HITLIssuer, claims.HITLSubject)
 	if err != nil {
 		return fmt.Errorf("track credential database error: %w", err)
 	}
 	return nil
+}
+
+// ListTaskCredentials returns all credentials for a task tree.
+func (s *Store) ListTaskCredentials(ctx context.Context, orgID, taskID string) ([]attest.CredentialRecord, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT jti, org_id, att_tid, att_pid, att_uid, agent_id, depth, scope, chain, issued_at, expires_at,
+		       intent_hash, agent_checksum, idp_issuer, idp_subject, hitl_req, hitl_issuer, hitl_subject
+		FROM credentials
+		WHERE org_id = $1 AND att_tid = $2
+		ORDER BY depth ASC, issued_at ASC, jti ASC
+	`, orgID, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list task credentials: %w", err)
+	}
+	defer rows.Close()
+
+	var out []attest.CredentialRecord
+	for rows.Next() {
+		var c attest.CredentialRecord
+		if err := rows.Scan(
+			&c.JTI, &c.OrgID, &c.TaskID, &c.ParentID, &c.UserID, &c.AgentID, &c.Depth,
+			&c.Scope, &c.Chain, &c.IssuedAt, &c.ExpiresAt,
+			&c.IntentHash, &c.AgentChecksum, &c.IDPIssuer, &c.IDPSubject,
+			&c.HITLRequestID, &c.HITLIssuer, &c.HITLSubject,
+		); err != nil {
+			return nil, fmt.Errorf("scan task credential: %w", err)
+		}
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task credentials: %w", err)
+	}
+
+	return out, nil
 }
 
 // IsRevoked reports whether jti appears in the revocations table.

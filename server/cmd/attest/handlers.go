@@ -13,6 +13,7 @@ import (
 
 	"github.com/attest-dev/attest/internal/approval"
 	"github.com/attest-dev/attest/internal/audit"
+	"github.com/attest-dev/attest/internal/evidence"
 	"github.com/attest-dev/attest/internal/oidcauth"
 	"github.com/attest-dev/attest/internal/org"
 	"github.com/attest-dev/attest/internal/revocation"
@@ -30,6 +31,7 @@ type handlers struct {
 	orgStore    org.Store
 	revStore    revocation.Revoker
 	auditLog    audit.Logger
+	evidenceSvc *evidence.Service
 	oidcManager *oidcauth.Manager
 	appStore    approval.Store
 }
@@ -75,7 +77,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		} else if allowed != "" && origin == allowed {
 			w.Header().Set("Access-Control-Allow-Origin", allowed)
 		}
-		
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		if r.Method == http.MethodOptions {
@@ -364,6 +366,39 @@ func (h *handlers) getAuditLog(w http.ResponseWriter, r *http.Request) {
 		events = []attest.AuditEvent{}
 	}
 	writeJSON(w, http.StatusOK, events)
+}
+
+// GET /v1/tasks/{tid}/evidence
+func (h *handlers) getTaskEvidence(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	tid := chi.URLParam(r, "tid")
+	packet, err := h.evidenceSvc.BuildTaskEvidence(r.Context(), o.ID, o.Name, tid)
+	if err != nil {
+		writeInternalError(w, "build task evidence", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, packet)
+}
+
+// GET /v1/tasks/{tid}/report
+func (h *handlers) getTaskReport(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	tid := chi.URLParam(r, "tid")
+	packet, err := h.evidenceSvc.BuildTaskEvidence(r.Context(), o.ID, o.Name, tid)
+	if err != nil {
+		writeInternalError(w, "build task evidence", err)
+		return
+	}
+
+	reportHTML, err := evidence.RenderTaskReport(packet)
+	if err != nil {
+		writeInternalError(w, "render task report", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(reportHTML)
 }
 
 // GET /orgs/{orgID}/jwks.json — public, returns the org's active RSA public key as JWKS.
