@@ -107,16 +107,63 @@
       font-weight: 500;
       cursor: pointer;
       border: none;
-      transition: opacity 0.15s;
+      transition: opacity 0.15s, transform 0.15s, border-color 0.15s, background 0.15s;
       font-family: inherit;
     }
 
-    .btn:hover { opacity: 0.85; }
+    .btn:hover { opacity: 0.92; transform: translateY(-1px); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-primary { background: var(--accent); color: #fff; width: 100%; margin-top: 1.25rem; }
     .btn-ghost { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
     .btn-danger { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
     .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+    .btn-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.05rem;
+      line-height: 1.15;
+      text-align: left;
+    }
+    .btn-text small {
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .btn-toolbar-primary {
+      background: linear-gradient(135deg, rgba(125, 211, 252, 0.22), rgba(56, 189, 248, 0.14));
+      border: 1px solid rgba(125, 211, 252, 0.28);
+      color: var(--text);
+      min-width: 168px;
+      min-height: 54px;
+      margin-top: 0;
+    }
+    .btn-toolbar-secondary {
+      background: linear-gradient(135deg, rgba(13, 27, 41, 0.96), rgba(17, 36, 54, 0.82));
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      color: var(--text);
+      min-width: 168px;
+      min-height: 54px;
+    }
+    .btn-toolbar-tertiary {
+      background: rgba(9, 20, 31, 0.9);
+      border: 1px solid rgba(143, 202, 255, 0.14);
+      color: var(--text);
+      min-width: 162px;
+      min-height: 54px;
+    }
+    .btn-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.9rem;
+      height: 1.9rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
 
     .error-msg {
       color: var(--red);
@@ -282,6 +329,7 @@
       gap: 0.75rem;
       margin-bottom: 1rem;
       flex-wrap: wrap;
+      align-items: stretch;
     }
 
     .search-row input { flex: 1; }
@@ -296,6 +344,33 @@
       padding: 0.65rem 0.9rem;
       outline: none;
       font-family: inherit;
+    }
+
+    .toolbar-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      min-width: 180px;
+    }
+
+    .toolbar-label {
+      color: var(--muted);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .quick-actions {
+      display:flex;
+      gap:0.75rem;
+      flex-wrap:wrap;
     }
 
     .audit-table {
@@ -444,7 +519,7 @@
 
         <div class="card">
           <div class="card-title">Quick actions</div>
-          <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+          <div class="quick-actions">
             <button class="btn btn-ghost btn-sm" onclick="showPage('audit', document.querySelectorAll('.sidebar-item')[1])">Inspect task tree</button>
             <button class="btn btn-ghost btn-sm" onclick="showPage('revoke', document.querySelectorAll('.sidebar-item')[2])">Revoke chain</button>
             <a href="./demo.html" class="btn btn-ghost btn-sm">Open demo</a>
@@ -459,14 +534,28 @@
         <div class="card">
           <div class="search-row">
             <input type="search" id="task-id-input" placeholder="Task ID (`att_tid` from a credential)" />
-            <select id="report-template-select" aria-label="Report template">
-              <option value="audit">Audit report</option>
-              <option value="soc2">SOC 2 report</option>
-              <option value="incident">Incident report</option>
-            </select>
-            <button class="btn btn-primary" style="width:auto;" onclick="fetchAudit()">Search</button>
-            <button class="btn btn-ghost" style="width:auto;" onclick="openEvidenceReport()">Open report</button>
-            <button class="btn btn-ghost" style="width:auto;" onclick="downloadEvidence()">Export evidence</button>
+            <div class="toolbar-field">
+              <div class="toolbar-label">Report view</div>
+              <select id="report-template-select" aria-label="Report template">
+                <option value="audit">Audit report</option>
+                <option value="soc2">SOC 2 report</option>
+                <option value="incident">Incident report</option>
+              </select>
+            </div>
+          </div>
+          <div class="toolbar-actions">
+            <button class="btn btn-toolbar-primary" onclick="fetchAudit()">
+              <span class="btn-mark">≡</span>
+              <span class="btn-text"><small>Timeline</small><span>Search events</span></span>
+            </button>
+            <button class="btn btn-toolbar-secondary" onclick="openEvidenceReport()">
+              <span class="btn-mark">↗</span>
+              <span class="btn-text"><small>Readable</small><span>Open report</span></span>
+            </button>
+            <button class="btn btn-toolbar-tertiary" onclick="downloadEvidence()">
+              <span class="btn-mark">↓</span>
+              <span class="btn-text"><small>Canonical</small><span>Export packet</span></span>
+            </button>
           </div>
           <div id="audit-results">
             <div class="empty">Enter a task ID to view its evidence trail.</div>
