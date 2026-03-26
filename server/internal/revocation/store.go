@@ -104,13 +104,17 @@ func (s *Store) ListTaskCredentials(ctx context.Context, orgID, taskID string) (
 	var out []attest.CredentialRecord
 	for rows.Next() {
 		var c attest.CredentialRecord
+		var agentChecksum *string
 		if err := rows.Scan(
 			&c.JTI, &c.OrgID, &c.TaskID, &c.ParentID, &c.UserID, &c.AgentID, &c.Depth,
 			&c.Scope, &c.Chain, &c.IssuedAt, &c.ExpiresAt,
-			&c.IntentHash, &c.AgentChecksum, &c.IDPIssuer, &c.IDPSubject,
+			&c.IntentHash, &agentChecksum, &c.IDPIssuer, &c.IDPSubject,
 			&c.HITLRequestID, &c.HITLIssuer, &c.HITLSubject,
 		); err != nil {
 			return nil, fmt.Errorf("scan task credential: %w", err)
+		}
+		if agentChecksum != nil {
+			c.AgentChecksum = *agentChecksum
 		}
 		out = append(out, c)
 	}
