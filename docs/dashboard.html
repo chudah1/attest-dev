@@ -286,6 +286,18 @@
 
     .search-row input { flex: 1; }
 
+    .search-row select {
+      min-width: 150px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 0.875rem;
+      padding: 0.65rem 0.9rem;
+      outline: none;
+      font-family: inherit;
+    }
+
     .audit-table {
       width: 100%;
       border-collapse: collapse;
@@ -447,6 +459,11 @@
         <div class="card">
           <div class="search-row">
             <input type="search" id="task-id-input" placeholder="Task ID (`att_tid` from a credential)" />
+            <select id="report-template-select" aria-label="Report template">
+              <option value="audit">Audit report</option>
+              <option value="soc2">SOC 2 report</option>
+              <option value="incident">Incident report</option>
+            </select>
             <button class="btn btn-primary" style="width:auto;" onclick="fetchAudit()">Search</button>
             <button class="btn btn-ghost" style="width:auto;" onclick="openEvidenceReport()">Open report</button>
             <button class="btn btn-ghost" style="width:auto;" onclick="downloadEvidence()">Export evidence</button>
@@ -722,13 +739,14 @@
 
   async function openEvidenceReport() {
     const tid = document.getElementById('task-id-input').value.trim();
+    const template = document.getElementById('report-template-select')?.value || 'audit';
     if (!tid) {
       showToast('Enter a task ID first', 'error');
       return;
     }
 
     try {
-      const res = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/report`, {
+      const res = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/report?template=${encodeURIComponent(template)}`, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
 

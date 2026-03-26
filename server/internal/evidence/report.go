@@ -2,6 +2,7 @@ package evidence
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"html/template"
 	"strings"
@@ -9,6 +10,39 @@ import (
 
 	"github.com/attest-dev/attest/pkg/attest"
 )
+
+//go:embed templates/report.html.tmpl
+var reportTemplateSource string
+
+type ReportTemplate string
+
+const (
+	ReportTemplateAudit    ReportTemplate = "audit"
+	ReportTemplateSOC2     ReportTemplate = "soc2"
+	ReportTemplateIncident ReportTemplate = "incident"
+)
+
+type ReportOptions struct {
+	Template ReportTemplate
+}
+
+type reportProfile struct {
+	ID                    ReportTemplate
+	PageTitle             string
+	Eyebrow               string
+	HeroTitle             string
+	Lede                  string
+	ExecutiveSummaryTitle string
+	ExecutiveSummaryBody  string
+	ChainIntro            string
+	TimelineIntro         string
+	Footer                string
+}
+
+type reportViewData struct {
+	Profile reportProfile
+	Packet  *attest.EvidencePacket
+}
 
 var reportTemplate = template.Must(template.New("evidence_report").Funcs(template.FuncMap{
 	"formatTime": func(t time.Time) string {
@@ -48,351 +82,95 @@ var reportTemplate = template.Must(template.New("evidence_report").Funcs(templat
 			return "neutral"
 		}
 	},
-}).Parse(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Attest Evidence Report</title>
-  <style>
-    :root {
-      --bg: #f3f6fb;
-      --paper: #ffffff;
-      --ink: #112031;
-      --muted: #5c6b7b;
-      --line: #d5deea;
-      --accent: #0f5ea8;
-      --green: #177245;
-      --red: #af2335;
-      --amber: #9a6500;
-      --shadow: 0 18px 48px rgba(17, 32, 49, 0.08);
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 32px;
-      background: linear-gradient(180deg, #eef4fa 0%, var(--bg) 100%);
-      color: var(--ink);
-      font-family: Georgia, "Times New Roman", serif;
-      line-height: 1.5;
-    }
-    .report {
-      max-width: 1120px;
-      margin: 0 auto;
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-    .hero {
-      padding: 40px 40px 28px;
-      border-bottom: 1px solid var(--line);
-      background:
-        radial-gradient(circle at top right, rgba(15, 94, 168, 0.12), transparent 30%),
-        linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
-    }
-    .eyebrow {
-      font: 600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--accent);
-      margin-bottom: 14px;
-    }
-    h1 {
-      margin: 0 0 12px;
-      font-size: clamp(2rem, 4vw, 3.3rem);
-      line-height: 0.98;
-      letter-spacing: -0.04em;
-    }
-    .lede {
-      margin: 0;
-      max-width: 72ch;
-      color: var(--muted);
-      font-size: 1rem;
-    }
-    .summary-grid, .meta-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 14px;
-      padding: 24px 40px 0;
-    }
-    .metric, .meta-card {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 16px 18px;
-      background: #fcfdff;
-    }
-    .metric .label, .meta-card .label {
-      display: block;
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 8px;
-    }
-    .metric .value {
-      font-size: 1.75rem;
-      letter-spacing: -0.04em;
-    }
-    .body {
-      padding: 12px 40px 40px;
-    }
-    section {
-      padding-top: 28px;
-      border-top: 1px solid var(--line);
-      margin-top: 28px;
-    }
-    section:first-of-type {
-      border-top: none;
-      margin-top: 0;
-      padding-top: 28px;
-    }
-    h2 {
-      margin: 0 0 12px;
-      font-size: 1.3rem;
-      letter-spacing: -0.02em;
-    }
-    .section-copy {
-      margin: 0 0 16px;
-      color: var(--muted);
-      max-width: 72ch;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      overflow: hidden;
-      font-size: 0.95rem;
-    }
-    th, td {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background: #f7fafe;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-    }
-    tr:last-child td {
-      border-bottom: none;
-    }
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.9em;
-      word-break: break-all;
-    }
-    .pill {
-      display: inline-block;
-      padding: 4px 9px;
-      border-radius: 999px;
-      font: 600 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-    .issued { background: rgba(23, 114, 69, 0.12); color: var(--green); }
-    .delegated { background: rgba(15, 94, 168, 0.12); color: var(--accent); }
-    .revoked { background: rgba(175, 35, 53, 0.12); color: var(--red); }
-    .action, .lifecycle, .neutral { background: rgba(154, 101, 0, 0.12); color: var(--amber); }
-    .status-good { color: var(--green); }
-    .status-bad { color: var(--red); }
-    .notes {
-      margin: 14px 0 0;
-      padding-left: 18px;
-      color: var(--muted);
-    }
-    .footer {
-      padding: 22px 40px 34px;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-    @media (max-width: 720px) {
-      body { padding: 16px; }
-      .hero, .summary-grid, .meta-grid, .body, .footer { padding-left: 18px; padding-right: 18px; }
-      table, thead, tbody, th, td, tr { display: block; }
-      thead { display: none; }
-      td {
-        border-bottom: 1px solid var(--line);
-        padding: 10px 12px;
-      }
-      td::before {
-        content: attr(data-label);
-        display: block;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--muted);
-        margin-bottom: 5px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <article class="report">
-    <header class="hero">
-      <div class="eyebrow">Agent Authorization Evidence Report</div>
-      <h1>Who authorized what, through which chain, and with what outcome.</h1>
-      <p class="lede">This report is rendered directly from an Attest evidence packet. It summarizes the delegated authority chain, runtime events, revocation state, and packet integrity for offline review.</p>
-    </header>
+}).Parse(reportTemplateSource))
 
-    <div class="summary-grid">
-      <div class="metric">
-        <span class="label">Result</span>
-        <div class="value">{{.Summary.Result}}</div>
-      </div>
-      <div class="metric">
-        <span class="label">Credentials</span>
-        <div class="value">{{.Task.CredentialCount}}</div>
-      </div>
-      <div class="metric">
-        <span class="label">Events</span>
-        <div class="value">{{.Task.EventCount}}</div>
-      </div>
-      <div class="metric">
-        <span class="label">Packet Hash</span>
-        <div class="value mono">{{shortHash .Integrity.PacketHash}}</div>
-      </div>
-    </div>
+var reportProfiles = map[ReportTemplate]reportProfile{
+	ReportTemplateAudit: {
+		ID:                    ReportTemplateAudit,
+		PageTitle:             "Attest Evidence Report",
+		Eyebrow:               "Agent Authorization Evidence Report",
+		HeroTitle:             "Who authorized what, through which chain, and with what outcome.",
+		Lede:                  "This report is rendered directly from an Attest evidence packet. It summarizes the delegated authority chain, runtime events, revocation state, and packet integrity for offline review.",
+		ExecutiveSummaryTitle: "Executive Summary",
+		ExecutiveSummaryBody:  "The task tree originated from user %s and reached a maximum delegation depth of %d. Attest recorded %d approval-linked event(s), %d scope violation(s), and %d revocation event(s).",
+		ChainIntro:            "Each row represents a credential in the task tree, including parent linkage, delegated scope, and any approval metadata persisted at issuance time.",
+		TimelineIntro:         "The append-only event log below is the human-readable view of the packet event stream. Reviewers can use it to confirm issuance, delegation, action, lifecycle, and revocation activity.",
+		Footer:                "This report is an Attest rendering of the underlying evidence packet. The JSON packet remains the canonical export artifact for downstream verification and compliance storage.",
+	},
+	ReportTemplateSOC2: {
+		ID:                    ReportTemplateSOC2,
+		PageTitle:             "Attest SOC 2 Evidence Report",
+		Eyebrow:               "SOC 2 Control Evidence",
+		HeroTitle:             "Control-ready evidence for delegated agent authority.",
+		Lede:                  "This rendering packages the Attest evidence packet for audit and SOC 2 review. It emphasizes chain-of-authority, runtime proof, and integrity signals that support control testing.",
+		ExecutiveSummaryTitle: "Control Summary",
+		ExecutiveSummaryBody:  "For control testing, this task was initiated by %s, reached a delegation depth of %d, and produced %d approval-linked event(s), %d scope violation(s), and %d revocation event(s).",
+		ChainIntro:            "Use this credential table to confirm least-privilege delegation, bounded ancestry, and credential lifetime controls.",
+		TimelineIntro:         "Use this timeline to confirm the sequence of issued credentials and runtime actions against the control narrative for the task.",
+		Footer:                "This SOC 2-oriented rendering is derived from the canonical Attest evidence packet and is intended to support auditor review, not replace the source packet.",
+	},
+	ReportTemplateIncident: {
+		ID:                    ReportTemplateIncident,
+		PageTitle:             "Attest Incident Review Report",
+		Eyebrow:               "Incident Review Packet",
+		HeroTitle:             "Reconstruct the delegated chain behind a specific agent action.",
+		Lede:                  "This incident-oriented view packages the Attest evidence packet for fast review. It foregrounds the human origin, authority chain, runtime event order, and integrity result for the task.",
+		ExecutiveSummaryTitle: "Incident Summary",
+		ExecutiveSummaryBody:  "This task traces back to %s, reached delegation depth %d, and currently reflects %d approval-linked event(s), %d scope violation(s), and %d revocation event(s) relevant to incident review.",
+		ChainIntro:            "Review this chain to determine which credential held authority at each step and whether delegation narrowed as expected.",
+		TimelineIntro:         "Review the event order below to reconstruct what happened, when it happened, and which credential was active at the time.",
+		Footer:                "This incident review rendering is generated from the Attest evidence packet. Preserve the packet hash and JSON export alongside any investigative notes.",
+	},
+}
 
-    <div class="meta-grid">
-      <div class="meta-card">
-        <span class="label">Organization</span>
-        <div>{{.Org.Name}}</div>
-        <div class="mono">{{.Org.ID}}</div>
-      </div>
-      <div class="meta-card">
-        <span class="label">Task</span>
-        <div class="mono">{{.Task.TaskID}}</div>
-      </div>
-      <div class="meta-card">
-        <span class="label">Root Credential</span>
-        <div class="mono">{{.Task.RootJTI}}</div>
-      </div>
-      <div class="meta-card">
-        <span class="label">Generated</span>
-        <div>{{formatTime .GeneratedAt}}</div>
-      </div>
-    </div>
+func normalizeReportTemplate(name string) ReportTemplate {
+	switch ReportTemplate(strings.ToLower(strings.TrimSpace(name))) {
+	case ReportTemplateSOC2:
+		return ReportTemplateSOC2
+	case ReportTemplateIncident:
+		return ReportTemplateIncident
+	default:
+		return ReportTemplateAudit
+	}
+}
 
-    <div class="body">
-      <section>
-        <h2>Executive Summary</h2>
-        <p class="section-copy">The task tree originated from user <span class="mono">{{.Identity.UserID}}</span> and reached a maximum delegation depth of {{.Task.DepthMax}}. Attest recorded {{.Summary.Approvals}} approval-linked event(s), {{.Summary.ScopeViolations}} scope violation(s), and {{.Summary.Revocations}} revocation event(s).</p>
-      </section>
+func resolveReportProfile(name string) reportProfile {
+	key := normalizeReportTemplate(name)
+	profile, ok := reportProfiles[key]
+	if !ok {
+		return reportProfiles[ReportTemplateAudit]
+	}
+	return profile
+}
 
-      <section>
-        <h2>Authorization Context</h2>
-        <table>
-          <tbody>
-            <tr><td data-label="Field">Original User</td><td data-label="Value" class="mono">{{.Identity.UserID}}</td></tr>
-            <tr><td data-label="Field">Instruction Hash</td><td data-label="Value" class="mono">{{.Task.InstructionHash}}</td></tr>
-            <tr><td data-label="Field">IdP Issuer</td><td data-label="Value" class="mono">{{if .Identity.IDPIssuer}}{{.Identity.IDPIssuer}}{{else}}—{{end}}</td></tr>
-            <tr><td data-label="Field">IdP Subject</td><td data-label="Value" class="mono">{{if .Identity.IDPSubject}}{{.Identity.IDPSubject}}{{else}}—{{end}}</td></tr>
-            <tr><td data-label="Field">Approval Request</td><td data-label="Value" class="mono">{{if .Identity.Approval}}{{if .Identity.Approval.RequestID}}{{.Identity.Approval.RequestID}}{{else}}present{{end}}{{else}}—{{end}}</td></tr>
-            <tr><td data-label="Field">Approval Subject</td><td data-label="Value" class="mono">{{if and .Identity.Approval .Identity.Approval.Subject}}{{.Identity.Approval.Subject}}{{else}}—{{end}}</td></tr>
-          </tbody>
-        </table>
-      </section>
+func buildReportViewData(packet *attest.EvidencePacket, opts ReportOptions) reportViewData {
+	profile := resolveReportProfile(string(opts.Template))
+	profile.ExecutiveSummaryBody = fmt.Sprintf(
+		profile.ExecutiveSummaryBody,
+		packet.Identity.UserID,
+		packet.Task.DepthMax,
+		packet.Summary.Approvals,
+		packet.Summary.ScopeViolations,
+		packet.Summary.Revocations,
+	)
 
-      <section>
-        <h2>Delegation Chain</h2>
-        <p class="section-copy">Each row represents a credential in the task tree, including parent linkage, delegated scope, and any approval metadata persisted at issuance time.</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Depth</th>
-              <th>Credential</th>
-              <th>Parent</th>
-              <th>Agent</th>
-              <th>Scope</th>
-              <th>Validity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{range .Credentials}}
-            <tr>
-              <td data-label="Depth">{{.Depth}}</td>
-              <td data-label="Credential" class="mono">{{.JTI}}</td>
-              <td data-label="Parent" class="mono">{{if .ParentJTI}}{{.ParentJTI}}{{else}}—{{end}}</td>
-              <td data-label="Agent">{{.AgentID}}</td>
-              <td data-label="Scope" class="mono">{{join .Scope}}</td>
-              <td data-label="Validity">{{formatTime .IssuedAt}} to {{formatTime .ExpiresAt}}</td>
-            </tr>
-            {{end}}
-          </tbody>
-        </table>
-      </section>
-
-      <section>
-        <h2>Runtime Timeline</h2>
-        <p class="section-copy">The append-only event log below is the human-readable view of the packet event stream. Reviewers can use it to confirm issuance, delegation, action, lifecycle, and revocation activity.</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Event</th>
-              <th>Credential</th>
-              <th>Agent</th>
-              <th>Scope</th>
-              <th>When</th>
-              <th>Evidence</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{range .Events}}
-            <tr>
-              <td data-label="Event"><span class="pill {{eventClass .EventType}}">{{.EventType}}</span></td>
-              <td data-label="Credential" class="mono">{{.JTI}}</td>
-              <td data-label="Agent">{{if .AgentID}}{{.AgentID}}{{else}}—{{end}}</td>
-              <td data-label="Scope" class="mono">{{join .Scope}}</td>
-              <td data-label="When">{{formatTime .CreatedAt}}</td>
-              <td data-label="Evidence" class="mono">{{shortHash .EntryHash}}</td>
-            </tr>
-            {{end}}
-          </tbody>
-        </table>
-      </section>
-
-      <section>
-        <h2>Integrity Review</h2>
-        <table>
-          <tbody>
-            <tr><td data-label="Field">Audit Chain</td><td data-label="Value">{{if .Integrity.AuditChainValid}}<span class="status-good">Valid</span>{{else}}<span class="status-bad">Invalid</span>{{end}}</td></tr>
-            <tr><td data-label="Field">Hash Algorithm</td><td data-label="Value" class="mono">{{.Integrity.HashAlgorithm}}</td></tr>
-            <tr><td data-label="Field">Packet Hash</td><td data-label="Value" class="mono">{{.Integrity.PacketHash}}</td></tr>
-          </tbody>
-        </table>
-        {{if .Integrity.Notes}}
-        <ul class="notes">
-          {{range .Integrity.Notes}}
-          <li>{{.}}</li>
-          {{end}}
-        </ul>
-        {{end}}
-      </section>
-    </div>
-
-    <footer class="footer">
-      This report is an Attest rendering of the underlying evidence packet. The JSON packet remains the canonical export artifact for downstream verification and compliance storage.
-    </footer>
-  </article>
-</body>
-</html>
-`))
+	return reportViewData{
+		Profile: profile,
+		Packet:  packet,
+	}
+}
 
 // RenderTaskReport converts a canonical evidence packet into a human-readable
 // HTML report for compliance and audit workflows.
-func RenderTaskReport(packet *attest.EvidencePacket) ([]byte, error) {
+func RenderTaskReport(packet *attest.EvidencePacket, opts ReportOptions) ([]byte, error) {
 	if packet == nil {
 		return nil, fmt.Errorf("nil evidence packet")
 	}
 
+	view := buildReportViewData(packet, opts)
+
 	var out bytes.Buffer
-	if err := reportTemplate.Execute(&out, packet); err != nil {
+	if err := reportTemplate.Execute(&out, view); err != nil {
 		return nil, fmt.Errorf("execute report template: %w", err)
 	}
 	return out.Bytes(), nil

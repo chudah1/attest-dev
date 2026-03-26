@@ -390,7 +390,9 @@ func (h *handlers) getTaskReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reportHTML, err := evidence.RenderTaskReport(packet)
+	reportHTML, err := evidence.RenderTaskReport(packet, evidence.ReportOptions{
+		Template: evidence.ReportTemplate(r.URL.Query().Get("template")),
+	})
 	if err != nil {
 		writeInternalError(w, "render task report", err)
 		return

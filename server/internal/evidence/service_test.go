@@ -154,7 +154,7 @@ func TestRenderTaskReport(t *testing.T) {
 		},
 	}
 
-	reportHTML, err := RenderTaskReport(packet)
+	reportHTML, err := RenderTaskReport(packet, ReportOptions{})
 	if err != nil {
 		t.Fatalf("render report: %v", err)
 	}
@@ -168,5 +168,52 @@ func TestRenderTaskReport(t *testing.T) {
 	}
 	if !strings.Contains(body, "root-jti") {
 		t.Fatalf("expected credential in report")
+	}
+}
+
+func TestRenderTaskReport_SOC2Template(t *testing.T) {
+	packet := &attest.EvidencePacket{
+		PacketType:    "attest.evidence_packet",
+		SchemaVersion: "1.0",
+		GeneratedAt:   time.Now().UTC(),
+		Org:           attest.EvidenceOrg{ID: "org_123", Name: "Acme"},
+		Task: attest.EvidenceTask{
+			TaskID:          "tid_123",
+			RootJTI:         "root-jti",
+			RootAgentID:     "orchestrator-v1",
+			UserID:          "usr_alice",
+			InstructionHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			DepthMax:        2,
+			CredentialCount: 3,
+			EventCount:      4,
+		},
+		Identity: attest.EvidenceIdentity{UserID: "usr_alice"},
+		Integrity: attest.EvidenceIntegrity{
+			AuditChainValid: true,
+			HashAlgorithm:   "sha256",
+			PacketHash:      "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		},
+		Summary: attest.EvidenceSummary{
+			Result:          "active",
+			Approvals:       1,
+			ScopeViolations: 0,
+			Revocations:     0,
+		},
+	}
+
+	reportHTML, err := RenderTaskReport(packet, ReportOptions{Template: ReportTemplateSOC2})
+	if err != nil {
+		t.Fatalf("render soc2 report: %v", err)
+	}
+
+	body := string(reportHTML)
+	if !strings.Contains(body, "SOC 2 Control Evidence") {
+		t.Fatalf("expected soc2 eyebrow")
+	}
+	if !strings.Contains(body, "Control Summary") {
+		t.Fatalf("expected soc2 summary title")
+	}
+	if !strings.Contains(body, "For control testing") {
+		t.Fatalf("expected soc2 copy")
 	}
 }

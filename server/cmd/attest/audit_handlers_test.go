@@ -295,6 +295,22 @@ func TestGetTaskReport_HTML(t *testing.T) {
 	}
 }
 
+func TestGetTaskReport_TemplateQuery(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read"})
+
+	result, _ := e.issuer.Verify(tok, &e.sigKey.PublicKey)
+	taskID := result.Claims.TaskID
+
+	rr := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/report?template=soc2", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task report, got %d — %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "SOC 2 Control Evidence") {
+		t.Fatalf("expected soc2 template content in body")
+	}
+}
+
 // ─── reportStatus tests ───────────────────────────────────────────────────────
 
 func TestReportStatus_HappyPath(t *testing.T) {
