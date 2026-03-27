@@ -2,10 +2,15 @@ package evidence
 
 import (
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"math/big"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +20,74 @@ import (
 	"github.com/attest-dev/attest/pkg/attest"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+type fixtureJWKS struct {
+	Keys []fixtureJWK `json:"keys"`
+}
+
+type fixtureJWK struct {
+	KID string `json:"kid"`
+	N   string `json:"n"`
+	E   string `json:"e"`
+}
+
+func loadFixturePacket(t *testing.T) *attest.EvidencePacket {
+	t.Helper()
+
+	path := filepath.Join("..", "..", "..", "testdata", "evidence", "packet.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read packet fixture: %v", err)
+	}
+
+	var packet attest.EvidencePacket
+	if err := json.Unmarshal(raw, &packet); err != nil {
+		t.Fatalf("unmarshal packet fixture: %v", err)
+	}
+	return &packet
+}
+
+func loadFixtureJWKS(t *testing.T) fixtureJWKS {
+	t.Helper()
+
+	path := filepath.Join("..", "..", "..", "testdata", "evidence", "jwks.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read jwks fixture: %v", err)
+	}
+
+	var jwks fixtureJWKS
+	if err := json.Unmarshal(raw, &jwks); err != nil {
+		t.Fatalf("unmarshal jwks fixture: %v", err)
+	}
+	return jwks
+}
+
+func fixtureRSAPublicKey(t *testing.T, jwks fixtureJWKS, kid string) *rsa.PublicKey {
+	t.Helper()
+
+	for _, key := range jwks.Keys {
+		if key.KID != kid {
+			continue
+		}
+
+		nBytes, err := base64.RawURLEncoding.DecodeString(key.N)
+		if err != nil {
+			t.Fatalf("decode modulus: %v", err)
+		}
+		eBytes, err := base64.RawURLEncoding.DecodeString(key.E)
+		if err != nil {
+			t.Fatalf("decode exponent: %v", err)
+		}
+
+		n := new(big.Int).SetBytes(nBytes)
+		e := int(new(big.Int).SetBytes(eBytes).Int64())
+		return &rsa.PublicKey{N: n, E: e}
+	}
+
+	t.Fatalf("kid %q not found in fixture jwks", kid)
+	return nil
+}
 
 func TestBuildTaskEvidence(t *testing.T) {
 	ctx := context.Background()
@@ -295,6 +368,41 @@ func TestHashPacket_ExcludesSignatureMetadata(t *testing.T) {
 	if hashA != hashB {
 		t.Fatalf("expected signature metadata to be excluded from packet hash")
 	}
+}
+
+func TestHashPacket_MatchesFixturePacketHash(t *testing.T) {
+	packet := loadFixturePacket(t)
+
+	hash, err := hashPacket(packet)
+	if err != nil {
+		t.Fatalf("hash packet: %v", err)
+	}
+	if hash != packet.Integrity.PacketHash {
+		t.Fatalf("expected fixture packet hash %s, got %s", packet.Integrity.PacketHash, hash)
+	}
+}
+
+func TestFixturePacketSignatureVerifies(t *testing.T) {
+	packet := loadFixturePacket(t)
+	jwks := loadFixtureJWKS(t)
+	pub := fixtureRSAPublicKey(t, jwks, packet.Integrity.SignatureKID)
+
+	sig, err := base64.RawURLEncoding.DecodeString(packet.Integrity.PacketSignature)
+	if err != nil {
+		t.Fatalf("decode signature: %v", err)
+	}
+	if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, mustDecodeHex(t, packet.Integrity.PacketHash), sig); err != nil {
+		t.Fatalf("verify signature: %v", err)
+	}
+}
+
+func mustDecodeHex(t *testing.T, value string) []byte {
+	t.Helper()
+	out, err := hex.DecodeString(value)
+	if err != nil {
+		t.Fatalf("decode hex %q: %v", value, err)
+	}
+	return out
 }
 
 func TestRenderTaskReport(t *testing.T) {

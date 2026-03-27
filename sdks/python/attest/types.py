@@ -221,6 +221,7 @@ class AuditEvent:
     entry_hash: str
     event_type: str
     jti: str
+    org_id: str
     att_tid: str
     att_uid: str
     agent_id: str
@@ -242,6 +243,7 @@ class AuditEvent:
             entry_hash=d.get("entry_hash", ""),
             event_type=d.get("event_type", ""),
             jti=d.get("jti", ""),
+            org_id=d.get("org_id", ""),
             att_tid=d.get("att_tid", ""),
             att_uid=d.get("att_uid", ""),
             agent_id=d.get("agent_id", ""),

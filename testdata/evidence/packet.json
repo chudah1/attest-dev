@@ -1,0 +1,107 @@
+{
+  "packet_type": "attest.evidence_packet",
+  "schema_version": "1.0",
+  "generated_at": "2026-03-27T08:00:00Z",
+  "org": {
+    "id": "org_test_fixture",
+    "name": "Fixture Org"
+  },
+  "task": {
+    "att_tid": "tid_fixture_123",
+    "root_jti": "root-fixture-jti",
+    "root_agent_id": "orchestrator-v1",
+    "att_uid": "usr_fixture",
+    "instruction_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "depth_max": 1,
+    "credential_count": 2,
+    "event_count": 2,
+    "revoked": false
+  },
+  "identity": {
+    "user_id": "usr_fixture",
+    "approval": {
+      "present": false
+    }
+  },
+  "credentials": [
+    {
+      "jti": "root-fixture-jti",
+      "agent_id": "orchestrator-v1",
+      "scope": [
+        "files:read",
+        "email:send"
+      ],
+      "depth": 0,
+      "issued_at": "2026-03-27T07:58:00Z",
+      "expires_at": "2026-03-27T09:00:00Z",
+      "chain": [
+        "root-fixture-jti"
+      ],
+      "intent_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "jti": "child-fixture-jti",
+      "parent_jti": "root-fixture-jti",
+      "agent_id": "email-agent-v1",
+      "scope": [
+        "email:send"
+      ],
+      "depth": 1,
+      "issued_at": "2026-03-27T07:59:00Z",
+      "expires_at": "2026-03-27T08:30:00Z",
+      "chain": [
+        "root-fixture-jti",
+        "child-fixture-jti"
+      ],
+      "intent_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "events": [
+    {
+      "id": 1,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entry_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "event_type": "issued",
+      "jti": "root-fixture-jti",
+      "org_id": "org_test_fixture",
+      "att_tid": "tid_fixture_123",
+      "att_uid": "usr_fixture",
+      "agent_id": "orchestrator-v1",
+      "scope": [
+        "files:read",
+        "email:send"
+      ],
+      "created_at": "2026-03-27T07:58:00Z"
+    },
+    {
+      "id": 2,
+      "prev_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "entry_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "event_type": "delegated",
+      "jti": "child-fixture-jti",
+      "org_id": "org_test_fixture",
+      "att_tid": "tid_fixture_123",
+      "att_uid": "usr_fixture",
+      "agent_id": "email-agent-v1",
+      "scope": [
+        "email:send"
+      ],
+      "created_at": "2026-03-27T07:59:00Z"
+    }
+  ],
+  "integrity": {
+    "audit_chain_valid": true,
+    "hash_algorithm": "sha256",
+    "packet_hash": "6769ac439d047e51166369a517854a1a1fe94873ad0e389ec6607a231e2d562e",
+    "notes": [],
+    "signature_algorithm": "RS256",
+    "signature_kid": "fixture-key-1",
+    "packet_signature": "VHRYGAOuOM8gDRbYz_Pb6Im-rJlyVtruEIVJA5lGVXWf4mLt-XiiOM9aiSCgwV9_6KQvmwQD3ZAnAY_o_vpIgJ9FUqFCC7fvhispFv3aIkxW38yWhwmZJ5BJqtV11LZ4xnLMN2V_WvJSw5dsVJWWOtbPGPsZRv2381tC9rHOZON-V9h8WeDpHTnw6AZXOryTBz2zHk7xuHsEUW2LPCTZM4Bz_roa7Qbe-GlDKzN2Gqf6pf5wWO47qmZn6jDNiFE_ygTsH49RJFgzyEXHIqorF7RvGfN65t6zx-jXcjZx82zwmRwvJJonAK51qe_QGBo-DgkS1sKSLR80LUlisDaD1w"
+  },
+  "summary": {
+    "result": "active",
+    "scope_violations": 0,
+    "approvals": 0,
+    "revocations": 0
+  }
+}

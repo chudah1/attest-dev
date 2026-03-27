@@ -50,9 +50,9 @@ def _build_public_key(jwks: dict, kid: str):  # type: ignore[return]
 
 def _canonical_packet_json(packet: EvidencePacket | dict) -> str:
     if isinstance(packet, EvidencePacket):
-        raw = json.loads(json.dumps(packet, default=lambda o: o.__dict__))
+        raw = _packet_to_raw(packet)
     else:
-        raw = json.loads(json.dumps(packet))
+        raw = _drop_none(json.loads(json.dumps(packet)))
 
     integrity = raw.get("integrity") or {}
     integrity["packet_hash"] = ""
@@ -75,6 +75,141 @@ def _validate_audit_chain(events: list[AuditEvent]) -> list[str]:
                 f"audit chain break between event {prev.id or '?'} and {current.id or '?'}"
             )
     return warnings
+
+
+def _drop_none(value):  # type: ignore[no-untyped-def]
+    if isinstance(value, dict):
+        return {
+            key: _drop_none(item)
+            for key, item in value.items()
+            if item is not None
+        }
+    if isinstance(value, list):
+        return [_drop_none(item) for item in value]
+    return value
+
+
+def _packet_to_raw(packet: EvidencePacket) -> dict:
+    raw: dict = {
+        "packet_type": packet.packet_type,
+        "schema_version": packet.schema_version,
+        "generated_at": packet.generated_at,
+        "org": {
+            "id": packet.org.id,
+            "name": packet.org.name,
+        },
+        "task": {
+            "att_tid": packet.task.att_tid,
+            "root_jti": packet.task.root_jti,
+            "root_agent_id": packet.task.root_agent_id,
+            "att_uid": packet.task.att_uid,
+        },
+        "identity": {
+            "user_id": packet.identity.user_id,
+        },
+        "credentials": [_credential_to_raw(item) for item in packet.credentials],
+        "events": [_event_to_raw(item) for item in packet.events],
+        "integrity": {
+            "audit_chain_valid": packet.integrity.audit_chain_valid,
+            "hash_algorithm": packet.integrity.hash_algorithm,
+            "packet_hash": packet.integrity.packet_hash,
+            "notes": list(packet.integrity.notes),
+        },
+        "summary": {
+            "result": packet.summary.result,
+            "scope_violations": packet.summary.scope_violations,
+            "approvals": packet.summary.approvals,
+            "revocations": packet.summary.revocations,
+        },
+    }
+
+    if packet.task.instruction_hash is not None:
+        raw["task"]["instruction_hash"] = packet.task.instruction_hash
+    raw["task"]["depth_max"] = packet.task.depth_max
+    raw["task"]["credential_count"] = packet.task.credential_count
+    raw["task"]["event_count"] = packet.task.event_count
+    raw["task"]["revoked"] = packet.task.revoked
+
+    if packet.identity.idp_issuer is not None:
+        raw["identity"]["idp_issuer"] = packet.identity.idp_issuer
+    if packet.identity.idp_subject is not None:
+        raw["identity"]["idp_subject"] = packet.identity.idp_subject
+    if packet.identity.approval is not None:
+        approval = {"present": packet.identity.approval.present}
+        if packet.identity.approval.request_id is not None:
+            approval["request_id"] = packet.identity.approval.request_id
+        if packet.identity.approval.issuer is not None:
+            approval["issuer"] = packet.identity.approval.issuer
+        if packet.identity.approval.subject is not None:
+            approval["subject"] = packet.identity.approval.subject
+        raw["identity"]["approval"] = approval
+
+    if packet.integrity.signature_algorithm is not None:
+        raw["integrity"]["signature_algorithm"] = packet.integrity.signature_algorithm
+    if packet.integrity.signature_kid is not None:
+        raw["integrity"]["signature_kid"] = packet.integrity.signature_kid
+    if packet.integrity.packet_signature is not None:
+        raw["integrity"]["packet_signature"] = packet.integrity.packet_signature
+
+    return raw
+
+
+def _credential_to_raw(credential):  # type: ignore[no-untyped-def]
+    raw = {
+        "jti": credential.jti,
+    }
+    if credential.parent_jti is not None:
+        raw["parent_jti"] = credential.parent_jti
+    raw["agent_id"] = credential.agent_id
+    raw["scope"] = list(credential.scope)
+    raw["depth"] = credential.depth
+    raw["issued_at"] = credential.issued_at
+    raw["expires_at"] = credential.expires_at
+    raw["chain"] = list(credential.chain)
+    if credential.intent_hash is not None:
+        raw["intent_hash"] = credential.intent_hash
+    if credential.agent_checksum is not None:
+        raw["agent_checksum"] = credential.agent_checksum
+    if credential.idp_issuer is not None:
+        raw["idp_issuer"] = credential.idp_issuer
+    if credential.idp_subject is not None:
+        raw["idp_subject"] = credential.idp_subject
+    if credential.hitl_request_id is not None:
+        raw["hitl_request_id"] = credential.hitl_request_id
+    if credential.hitl_subject is not None:
+        raw["hitl_subject"] = credential.hitl_subject
+    if credential.hitl_issuer is not None:
+        raw["hitl_issuer"] = credential.hitl_issuer
+    return raw
+
+
+def _event_to_raw(event: AuditEvent) -> dict:
+    raw = {
+        "id": event.id,
+        "prev_hash": event.prev_hash,
+        "entry_hash": event.entry_hash,
+        "event_type": event.event_type,
+        "jti": event.jti,
+        "org_id": event.org_id,
+        "att_tid": event.att_tid,
+        "att_uid": event.att_uid,
+        "agent_id": event.agent_id,
+        "scope": list(event.scope),
+    }
+    if event.meta is not None:
+        raw["meta"] = dict(event.meta)
+    if event.idp_issuer is not None:
+        raw["idp_issuer"] = event.idp_issuer
+    if event.idp_subject is not None:
+        raw["idp_subject"] = event.idp_subject
+    if event.hitl_req is not None:
+        raw["hitl_req"] = event.hitl_req
+    if event.hitl_subject is not None:
+        raw["hitl_subject"] = event.hitl_subject
+    if event.hitl_issuer is not None:
+        raw["hitl_issuer"] = event.hitl_issuer
+    raw["created_at"] = event.created_at
+    return raw
 
 
 class AttestVerifier:
