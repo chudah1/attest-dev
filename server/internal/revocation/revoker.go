@@ -23,4 +23,7 @@ type Revoker interface {
 	// ListTaskCredentials returns all credentials for a task tree in
 	// a stable ancestry-friendly order.
 	ListTaskCredentials(ctx context.Context, orgID, taskID string) ([]attest.CredentialRecord, error)
+
+	// GetCredential returns the persisted credential snapshot for a JTI.
+	GetCredential(ctx context.Context, orgID, jti string) (*attest.CredentialRecord, error)
 }

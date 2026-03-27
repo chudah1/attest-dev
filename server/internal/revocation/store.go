@@ -125,6 +125,30 @@ func (s *Store) ListTaskCredentials(ctx context.Context, orgID, taskID string) (
 	return out, nil
 }
 
+func (s *Store) GetCredential(ctx context.Context, orgID, jti string) (*attest.CredentialRecord, error) {
+	row := s.db.QueryRow(ctx, `
+		SELECT jti, org_id, att_tid, att_pid, att_uid, agent_id, depth, scope, chain, issued_at, expires_at,
+		       intent_hash, agent_checksum, idp_issuer, idp_subject, hitl_req, hitl_issuer, hitl_subject
+		FROM credentials
+		WHERE org_id = $1 AND jti = $2
+	`, orgID, jti)
+
+	var c attest.CredentialRecord
+	var agentChecksum *string
+	if err := row.Scan(
+		&c.JTI, &c.OrgID, &c.TaskID, &c.ParentID, &c.UserID, &c.AgentID, &c.Depth,
+		&c.Scope, &c.Chain, &c.IssuedAt, &c.ExpiresAt,
+		&c.IntentHash, &agentChecksum, &c.IDPIssuer, &c.IDPSubject,
+		&c.HITLRequestID, &c.HITLIssuer, &c.HITLSubject,
+	); err != nil {
+		return nil, fmt.Errorf("get credential: %w", err)
+	}
+	if agentChecksum != nil {
+		c.AgentChecksum = *agentChecksum
+	}
+	return &c, nil
+}
+
 // IsRevoked reports whether jti appears in the revocations table.
 // If orgID is non-empty, enforce tenant isolation via a JOIN on credentials.
 // If orgID is empty (public verifier endpoint), do a global lookup.

@@ -2,6 +2,7 @@ package revocation
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -149,6 +150,21 @@ func (m *MemoryStore) ListTaskCredentials(_ context.Context, orgID, taskID strin
 		return out[i].JTI < out[j].JTI
 	})
 	return out, nil
+}
+
+func (m *MemoryStore) GetCredential(_ context.Context, orgID, jti string) (*attest.CredentialRecord, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	cred, ok := m.creds[jti]
+	if !ok || cred.OrgID != orgID {
+		return nil, fmt.Errorf("credential not found")
+	}
+
+	out := cred
+	out.Scope = append([]string(nil), cred.Scope...)
+	out.Chain = append([]string(nil), cred.Chain...)
+	return &out, nil
 }
 
 func cloneStringPtr(in *string) *string {

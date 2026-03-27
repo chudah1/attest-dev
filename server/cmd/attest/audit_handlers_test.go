@@ -574,6 +574,135 @@ func TestGetTaskReport_MatchesEvidencePacket(t *testing.T) {
 	}
 }
 
+func TestTaskEvidence_TrustLoopReflectsDelegationRuntimeAndRevocation(t *testing.T) {
+	e := newTestEnv(t)
+	rootToken, rootJTI := e.issueToken(t, []string{"files:read", "email:send"})
+
+	rootResult, _ := e.issuer.Verify(rootToken, &e.sigKey.PublicKey)
+	taskID := rootResult.Claims.TaskID
+
+	if err := e.h.auditLog.Append(context.Background(), e.orgID, attest.AuditEvent{
+		EventType: attest.EventIssued,
+		JTI:       rootJTI,
+		TaskID:    taskID,
+		UserID:    rootResult.Claims.UserID,
+		AgentID:   "test-agent",
+		Scope:     append([]string(nil), rootResult.Claims.Scope...),
+	}); err != nil {
+		t.Fatalf("append issued event: %v", err)
+	}
+
+	rrDelegate := e.makeRequest(t, http.MethodPost, "/v1/credentials/delegate", map[string]any{
+		"parent_token": rootToken,
+		"child_agent":  "email-agent-v1",
+		"child_scope":  []string{"email:send"},
+	})
+	if rrDelegate.Code != http.StatusCreated {
+		t.Fatalf("expected 201 from delegate, got %d — %s", rrDelegate.Code, rrDelegate.Body.String())
+	}
+
+	var delegated struct {
+		Token  string        `json:"token"`
+		Claims attest.Claims `json:"claims"`
+	}
+	if err := json.Unmarshal(rrDelegate.Body.Bytes(), &delegated); err != nil {
+		t.Fatalf("decode delegate response: %v", err)
+	}
+	if delegated.Token == "" {
+		t.Fatalf("expected delegated token")
+	}
+
+	rrStatus := e.makeRequest(t, http.MethodPost, "/v1/audit/status", map[string]any{
+		"token":  delegated.Token,
+		"status": "started",
+	})
+	if rrStatus.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 from audit status, got %d — %s", rrStatus.Code, rrStatus.Body.String())
+	}
+
+	rrAction := e.makeRequest(t, http.MethodPost, "/v1/audit/report", map[string]any{
+		"token":   delegated.Token,
+		"tool":    "send_email",
+		"outcome": "success",
+		"meta": map[string]string{
+			"channel": "customer",
+		},
+	})
+	if rrAction.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 from audit report, got %d — %s", rrAction.Code, rrAction.Body.String())
+	}
+
+	rrRevoke := e.makeRequest(t, http.MethodDelete, "/v1/credentials/"+rootJTI, map[string]string{
+		"revoked_by": "security-review",
+	})
+	if rrRevoke.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 from revoke, got %d — %s", rrRevoke.Code, rrRevoke.Body.String())
+	}
+
+	rrEvidence := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/evidence", nil)
+	if rrEvidence.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task evidence, got %d — %s", rrEvidence.Code, rrEvidence.Body.String())
+	}
+
+	var packet attest.EvidencePacket
+	if err := json.Unmarshal(rrEvidence.Body.Bytes(), &packet); err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+
+	if packet.Task.CredentialCount != 2 {
+		t.Fatalf("expected 2 credentials, got %d", packet.Task.CredentialCount)
+	}
+	if packet.Task.EventCount != 5 {
+		t.Fatalf("expected 5 task events, got %d", packet.Task.EventCount)
+	}
+	if !packet.Task.Revoked {
+		t.Fatalf("expected task to be marked revoked")
+	}
+	if packet.Summary.Result != "revoked" {
+		t.Fatalf("expected revoked summary result, got %q", packet.Summary.Result)
+	}
+	if packet.Summary.Revocations != 1 {
+		t.Fatalf("expected 1 revocation, got %d", packet.Summary.Revocations)
+	}
+	if !packet.Integrity.AuditChainValid {
+		t.Fatalf("expected valid audit chain")
+	}
+
+	eventTypes := make([]attest.EventType, 0, len(packet.Events))
+	sawRevokedEvent := false
+	for _, event := range packet.Events {
+		eventTypes = append(eventTypes, event.EventType)
+		if event.EventType == attest.EventRevoked {
+			sawRevokedEvent = true
+			if event.TaskID != taskID {
+				t.Fatalf("expected revoked event task id %q, got %q", taskID, event.TaskID)
+			}
+			if event.Meta["revoked_by"] != "security-review" {
+				t.Fatalf("expected revoked_by metadata to be preserved")
+			}
+		}
+	}
+	if !sawRevokedEvent {
+		t.Fatalf("expected revoked event in evidence packet")
+	}
+
+	expectedOrder := []attest.EventType{
+		attest.EventIssued,
+		attest.EventDelegated,
+		attest.EventLifecycle,
+		attest.EventAction,
+		attest.EventRevoked,
+	}
+	if len(eventTypes) != len(expectedOrder) {
+		t.Fatalf("unexpected event count in task evidence: %v", eventTypes)
+	}
+	for i, want := range expectedOrder {
+		if eventTypes[i] != want {
+			t.Fatalf("unexpected event order at %d: got %q want %q", i, eventTypes[i], want)
+		}
+	}
+}
+
 // ─── reportStatus tests ───────────────────────────────────────────────────────
 
 func TestReportStatus_HappyPath(t *testing.T) {

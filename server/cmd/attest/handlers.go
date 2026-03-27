@@ -375,6 +375,12 @@ func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
 		body.RevokedBy = "unknown"
 	}
 
+	cred, err := h.revStore.GetCredential(r.Context(), o.ID, jti)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "credential not found")
+		return
+	}
+
 	if err := h.revStore.Revoke(r.Context(), o.ID, jti, body.RevokedBy); err != nil {
 		writeInternalError(w, "revocation failed", err)
 		return
@@ -383,6 +389,10 @@ func (h *handlers) revokeCredential(w http.ResponseWriter, r *http.Request) {
 	if err := h.auditLog.Append(r.Context(), o.ID, attest.AuditEvent{
 		EventType: attest.EventRevoked,
 		JTI:       jti,
+		TaskID:    cred.TaskID,
+		UserID:    cred.UserID,
+		AgentID:   cred.AgentID,
+		Scope:     append([]string(nil), cred.Scope...),
 		Meta:      map[string]string{"revoked_by": body.RevokedBy},
 	}); err != nil {
 		http.Error(w, `{"error":"audit log unavailable"}`, http.StatusInternalServerError)
