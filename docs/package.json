@@ -1,0 +1,11 @@
+{
+  "name": "attest-docs-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:smoke": "node --test tests/*.smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.54.0"
+  }
+}
