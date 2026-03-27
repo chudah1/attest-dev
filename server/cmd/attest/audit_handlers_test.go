@@ -3,13 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/rsa"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/attest-dev/attest/internal/approval"
 	"github.com/attest-dev/attest/internal/audit"
@@ -153,6 +158,54 @@ func (e *testEnv) makePublicRequest(t *testing.T, method, path string) *httptest
 	r.Get("/orgs/{orgID}/jwks.json", e.h.jwks)
 	r.ServeHTTP(rr, req)
 	return rr
+}
+
+func jwksPublicKeyForKID(t *testing.T, body []byte, kid string) *rsa.PublicKey {
+	t.Helper()
+
+	var payload struct {
+		Keys []struct {
+			KID string `json:"kid"`
+			N   string `json:"n"`
+			E   string `json:"e"`
+		} `json:"keys"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("decode jwks: %v", err)
+	}
+
+	for _, key := range payload.Keys {
+		if key.KID != kid {
+			continue
+		}
+
+		nBytes, err := base64.RawURLEncoding.DecodeString(key.N)
+		if err != nil {
+			t.Fatalf("decode jwks modulus: %v", err)
+		}
+		eBytes, err := base64.RawURLEncoding.DecodeString(key.E)
+		if err != nil {
+			t.Fatalf("decode jwks exponent: %v", err)
+		}
+
+		return &rsa.PublicKey{
+			N: new(big.Int).SetBytes(nBytes),
+			E: int(new(big.Int).SetBytes(eBytes).Int64()),
+		}
+	}
+
+	t.Fatalf("jwks missing kid %q", kid)
+	return nil
+}
+
+func mustDecodeHex(t *testing.T, value string) []byte {
+	t.Helper()
+
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		t.Fatalf("decode hex %q: %v", value, err)
+	}
+	return decoded
 }
 
 // ─── reportAction tests ───────────────────────────────────────────────────────
@@ -374,6 +427,38 @@ func TestGetTaskEvidence_SignedPacket(t *testing.T) {
 	}
 }
 
+func TestGetTaskEvidence_VerifiesAgainstPublicJWKS(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read"})
+
+	result, _ := e.issuer.Verify(tok, &e.sigKey.PublicKey)
+	taskID := result.Claims.TaskID
+
+	rrEvidence := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/evidence", nil)
+	if rrEvidence.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task evidence, got %d — %s", rrEvidence.Code, rrEvidence.Body.String())
+	}
+
+	var packet attest.EvidencePacket
+	if err := json.Unmarshal(rrEvidence.Body.Bytes(), &packet); err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+
+	rrJWKS := e.makePublicRequest(t, http.MethodGet, "/orgs/"+e.orgID+"/jwks.json")
+	if rrJWKS.Code != http.StatusOK {
+		t.Fatalf("expected 200 from jwks, got %d — %s", rrJWKS.Code, rrJWKS.Body.String())
+	}
+
+	pub := jwksPublicKeyForKID(t, rrJWKS.Body.Bytes(), packet.Integrity.SignatureKID)
+	sig, err := base64.RawURLEncoding.DecodeString(packet.Integrity.PacketSignature)
+	if err != nil {
+		t.Fatalf("decode packet signature: %v", err)
+	}
+	if err := rsa.VerifyPKCS1v15(pub, crypto.SHA256, mustDecodeHex(t, packet.Integrity.PacketHash), sig); err != nil {
+		t.Fatalf("verify packet signature: %v", err)
+	}
+}
+
 func TestJWKS_IncludesHistoricalKeysAfterRotation(t *testing.T) {
 	e := newTestEnv(t)
 
@@ -428,6 +513,64 @@ func TestGetTaskReport_TemplateQuery(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "SOC 2 Control Evidence") {
 		t.Fatalf("expected soc2 template content in body")
+	}
+}
+
+func TestGetTaskReport_MatchesEvidencePacket(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read"})
+
+	result, _ := e.issuer.Verify(tok, &e.sigKey.PublicKey)
+	taskID := result.Claims.TaskID
+
+	rrAction := e.makeRequest(t, http.MethodPost, "/v1/audit/report", map[string]any{
+		"token":   tok,
+		"tool":    "read_file",
+		"outcome": "success",
+	})
+	if rrAction.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 from audit report, got %d — %s", rrAction.Code, rrAction.Body.String())
+	}
+
+	rrEvidenceA := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/evidence", nil)
+	if rrEvidenceA.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task evidence A, got %d — %s", rrEvidenceA.Code, rrEvidenceA.Body.String())
+	}
+	rrEvidenceB := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/evidence", nil)
+	if rrEvidenceB.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task evidence B, got %d — %s", rrEvidenceB.Code, rrEvidenceB.Body.String())
+	}
+
+	var packetA attest.EvidencePacket
+	if err := json.Unmarshal(rrEvidenceA.Body.Bytes(), &packetA); err != nil {
+		t.Fatalf("decode packet A: %v", err)
+	}
+	var packetB attest.EvidencePacket
+	if err := json.Unmarshal(rrEvidenceB.Body.Bytes(), &packetB); err != nil {
+		t.Fatalf("decode packet B: %v", err)
+	}
+
+	if packetA.Integrity.PacketHash != packetB.Integrity.PacketHash {
+		t.Fatalf("expected stable packet hash across repeated evidence requests")
+	}
+	if !packetA.GeneratedAt.Equal(packetB.GeneratedAt) {
+		t.Fatalf("expected stable generated_at across repeated evidence requests")
+	}
+	if packetA.Integrity.PacketSignature != packetB.Integrity.PacketSignature {
+		t.Fatalf("expected stable packet signature across repeated evidence requests")
+	}
+
+	rrReport := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/report", nil)
+	if rrReport.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task report, got %d — %s", rrReport.Code, rrReport.Body.String())
+	}
+
+	reportBody := rrReport.Body.String()
+	if !strings.Contains(reportBody, packetA.Integrity.PacketHash) {
+		t.Fatalf("expected report to contain evidence packet hash")
+	}
+	if !strings.Contains(reportBody, packetA.GeneratedAt.UTC().Format(time.RFC3339)) {
+		t.Fatalf("expected report to contain evidence generated_at timestamp")
 	}
 }
 
