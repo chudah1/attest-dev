@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify evidence packet — Attest</title>
+  <meta name="description" content="Verify an Attest evidence packet in the browser using the packet hash, signature metadata, and org JWKS." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #081019;
+      --surface: #0f1b2a;
+      --surface-2: #122335;
+      --border: rgba(143, 202, 255, 0.12);
+      --text: #edf6ff;
+      --muted: #93a7bb;
+      --accent: #7dd3fc;
+      --accent-strong: #22c7ff;
+      --green: #34d399;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --radius: 18px;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(34, 199, 255, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 22%),
+        linear-gradient(180deg, #06111b 0%, var(--bg) 100%);
+      color: var(--text);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.55;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(6, 17, 27, 0.82);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .logo span { color: var(--accent-strong); }
+
+    nav ul {
+      display: flex;
+      gap: 1.6rem;
+      list-style: none;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    nav ul a {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    nav ul a.active,
+    nav ul a:hover {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.48rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(125, 211, 252, 0.22);
+      background: rgba(125, 211, 252, 0.1);
+      color: var(--text) !important;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 3.5rem 2rem 4rem;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+      gap: 1.5rem;
+      align-items: stretch;
+      margin-bottom: 1.8rem;
+    }
+
+    .hero-card,
+    .proof-card,
+    .workspace-card {
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      background:
+        linear-gradient(180deg, rgba(18, 35, 53, 0.92), rgba(9, 21, 33, 0.96));
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    }
+
+    .hero-card {
+      padding: 2.1rem 2.2rem;
+    }
+
+    .proof-card {
+      padding: 1.5rem 1.6rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font: 600 0.82rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.9rem;
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4.6rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .hero-copy {
+      max-width: 56ch;
+      color: var(--muted);
+      font-size: 1.02rem;
+      margin-bottom: 1.35rem;
+    }
+
+    .hero-bullets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
+    .hero-pill {
+      padding: 0.42rem 0.82rem;
+      border-radius: 999px;
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+
+    .proof-title {
+      font-size: 1.55rem;
+      letter-spacing: -0.03em;
+    }
+
+    .proof-copy {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .proof-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .proof-item {
+      border: 1px solid rgba(143, 202, 255, 0.1);
+      border-radius: 16px;
+      padding: 0.9rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .proof-item strong {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .proof-item span {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 1.4rem;
+      align-items: start;
+    }
+
+    .workspace-card {
+      padding: 1.4rem;
+      display: grid;
+      gap: 1.1rem;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: baseline;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .card-kicker {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.42rem;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    input[type="url"],
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(143, 202, 255, 0.12);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--text);
+      padding: 0.9rem 0.95rem;
+      font: 0.92rem/1.6 "SF Mono", "Fira Code", monospace;
+    }
+
+    textarea {
+      min-height: 220px;
+      resize: vertical;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #688199;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .helper {
+      color: var(--muted);
+      font-size: 0.83rem;
+      line-height: 1.55;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.72rem 1rem;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(34, 199, 255, 0.18), rgba(125, 211, 252, 0.22));
+      border-color: rgba(125, 211, 252, 0.28);
+      color: var(--text);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(143, 202, 255, 0.12);
+      color: var(--text);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: rgba(143, 202, 255, 0.1);
+      color: var(--muted);
+    }
+
+    .summary-panel {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .summary-status {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 1rem 1.05rem;
+      border-radius: 18px;
+      border: 1px solid rgba(143, 202, 255, 0.12);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      border-radius: 999px;
+      padding: 0.34rem 0.7rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid transparent;
+    }
+
+    .status-chip::before {
+      content: '';
+      width: 0.46rem;
+      height: 0.46rem;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .status-idle { color: var(--muted); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.06); }
+    .status-pass { color: var(--green); background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.22); }
+    .status-fail { color: var(--red); background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.22); }
+
+    .result-grid {
+      display: grid;
+      gap: 0.8rem;
+    }
+
+    .result-item {
+      border: 1px solid rgba(143, 202, 255, 0.1);
+      border-radius: 16px;
+      padding: 0.9rem 1rem;
+      background: rgba(255, 255, 255, 0.03);
+      display: grid;
+      gap: 0.24rem;
+    }
+
+    .result-item .label {
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .result-item .value {
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+
+    .mono {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.82rem;
+    }
+
+    .pass { color: var(--green); }
+    .fail { color: var(--red); }
+    .warn { color: var(--amber); }
+
+    .warning-list {
+      display: grid;
+      gap: 0.55rem;
+      padding-left: 1rem;
+      color: #ffd89b;
+      font-size: 0.86rem;
+    }
+
+    .notes {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.6;
+    }
+
+    .toast {
+      position: fixed;
+      right: 1.2rem;
+      bottom: 1.2rem;
+      z-index: 30;
+      display: none;
+      max-width: 340px;
+      padding: 0.85rem 1rem;
+      border-radius: 14px;
+      border: 1px solid rgba(143, 202, 255, 0.12);
+      background: rgba(10, 18, 29, 0.96);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .toast.show { display: block; }
+    .toast.success { color: var(--green); }
+    .toast.error { color: var(--red); }
+
+    @media (max-width: 980px) {
+      .hero,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      nav {
+        padding: 1rem 1.1rem;
+        align-items: flex-start;
+      }
+      nav ul {
+        gap: 1rem;
+        justify-content: flex-end;
+      }
+      .page {
+        padding: 2rem 1rem 3rem;
+      }
+      .hero-card,
+      .proof-card,
+      .workspace-card {
+        border-radius: 22px;
+      }
+      .hero-card {
+        padding: 1.35rem;
+      }
+      .proof-card,
+      .workspace-card {
+        padding: 1.15rem;
+      }
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="./index.html" class="logo">Attest<span>.</span></a>
+    <ul>
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./docs.html">Docs</a></li>
+      <li><a href="./verify.html" class="active">Verify</a></li>
+      <li><a href="./demo.html" class="nav-cta">Demo</a></li>
+    </ul>
+  </nav>
+
+  <main class="page">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Public verification</div>
+        <h1>Drop in a packet. Verify it on site.</h1>
+        <p class="hero-copy">This page checks the canonical packet hash, RS256 signature, and append-only audit chain in your browser. If the packet includes org metadata, Attest can load the JWKS automatically.</p>
+        <div class="hero-bullets">
+          <span class="hero-pill">No dashboard required</span>
+          <span class="hero-pill">Web Crypto in-browser</span>
+          <span class="hero-pill">Works with exported JSON</span>
+          <span class="hero-pill">Optional custom JWKS</span>
+        </div>
+      </div>
+
+      <aside class="proof-card">
+        <div>
+          <div class="eyebrow" style="margin-bottom:0.55rem;">What this checks</div>
+          <div class="proof-title">Independent verification, not server trust.</div>
+        </div>
+        <p class="proof-copy">The verifier recomputes the packet hash locally, selects the signing key by <span class="mono">kid</span>, validates the signature, and checks the audit chain linkage in the event stream.</p>
+        <div class="proof-list">
+          <div class="proof-item">
+            <strong>Canonical packet hash</strong>
+            <span>Detects any mutation to the signed export artifact.</span>
+          </div>
+          <div class="proof-item">
+            <strong>JWKS-backed signature</strong>
+            <span>Uses the org public key set and the packet <span class="mono">signature_kid</span>.</span>
+          </div>
+          <div class="proof-item">
+            <strong>Append-only audit chain</strong>
+            <span>Checks that each event links to the previous event hash.</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="workspace">
+      <div class="workspace-card">
+        <div class="card-head">
+          <div>
+            <div class="card-kicker">Inputs</div>
+            <div class="card-title">Packet and verification material</div>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <div>
+            <label for="packet-file">Packet file</label>
+            <input type="file" id="packet-file" accept=".json,application/json" />
+            <div class="helper">Choose an exported evidence packet, or paste the JSON below.</div>
+          </div>
+
+          <div>
+            <label for="packet-input">Evidence packet JSON</label>
+            <textarea id="packet-input" placeholder='{"packet_type":"attest.evidence_packet", ...}'></textarea>
+          </div>
+
+          <div class="field-row">
+            <div>
+              <label for="jwks-url">JWKS URL</label>
+              <input type="url" id="jwks-url" placeholder="https://api.attestdev.com/orgs/org_xxx/jwks.json" />
+              <div class="helper">Leave blank to derive from <span class="mono">packet.org.id</span>.</div>
+            </div>
+            <div>
+              <label for="jwks-file">JWKS file</label>
+              <input type="file" id="jwks-file" accept=".json,application/json" />
+              <div class="helper">Optional override if you want to avoid a network fetch.</div>
+            </div>
+          </div>
+
+          <div>
+            <label for="jwks-input">JWKS JSON override</label>
+            <textarea id="jwks-input" placeholder='{"keys":[...]}' style="min-height: 150px;"></textarea>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="verify-btn">Verify packet</button>
+          <button class="btn btn-secondary" id="load-sample-btn">Load sample</button>
+          <button class="btn btn-ghost" id="clear-btn">Clear</button>
+        </div>
+      </div>
+
+      <aside class="workspace-card summary-panel">
+        <div class="card-head">
+          <div>
+            <div class="card-kicker">Results</div>
+            <div class="card-title">Verification status</div>
+          </div>
+        </div>
+
+        <div class="summary-status">
+          <div>
+            <div class="card-kicker" style="margin-bottom:0.3rem;">Current state</div>
+            <div id="status-line">Ready to verify</div>
+          </div>
+          <div class="status-chip status-idle" id="status-chip">Idle</div>
+        </div>
+
+        <div class="result-grid" id="result-grid">
+          <div class="result-item">
+            <div class="label">Packet hash</div>
+            <div class="value">Not checked yet</div>
+          </div>
+          <div class="result-item">
+            <div class="label">Signature</div>
+            <div class="value">Not checked yet</div>
+          </div>
+          <div class="result-item">
+            <div class="label">Audit chain</div>
+            <div class="value">Not checked yet</div>
+          </div>
+        </div>
+
+        <div class="result-item">
+          <div class="label">Packet metadata</div>
+          <div class="value mono" id="meta-block">Load a packet to inspect its task ID, org, signature key, and JWKS source.</div>
+        </div>
+
+        <div class="result-item">
+          <div class="label">Warnings</div>
+          <div class="value" id="warning-block">No warnings yet.</div>
+        </div>
+
+        <p class="notes">This verifier runs entirely in your browser. Private keys never touch this page. If a packet contains org metadata, the verifier will default to <span class="mono">https://api.attestdev.com/orgs/&lt;org_id&gt;/jwks.json</span> unless you override it.</p>
+      </aside>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const DEFAULT_API = 'https://api.attestdev.com';
+
+    document.getElementById('verify-btn').addEventListener('click', verifyFromPage);
+    document.getElementById('load-sample-btn').addEventListener('click', loadSamplePacket);
+    document.getElementById('clear-btn').addEventListener('click', clearPage);
+    document.getElementById('packet-file').addEventListener('change', event => loadFileIntoField(event, 'packet-input'));
+    document.getElementById('jwks-file').addEventListener('change', event => loadFileIntoField(event, 'jwks-input'));
+
+    async function loadFileIntoField(event, fieldId) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      document.getElementById(fieldId).value = text;
+    }
+
+    async function loadSamplePacket() {
+      try {
+        const [packetRes, jwksRes] = await Promise.all([
+          fetch('../testdata/evidence/packet.json'),
+          fetch('../testdata/evidence/jwks.json'),
+        ]);
+        document.getElementById('packet-input').value = await packetRes.text();
+        document.getElementById('jwks-input').value = await jwksRes.text();
+        document.getElementById('jwks-url').value = '';
+        showToast('Sample packet loaded', 'success');
+      } catch {
+        showToast('Could not load sample packet', 'error');
+      }
+    }
+
+    function clearPage() {
+      document.getElementById('packet-file').value = '';
+      document.getElementById('packet-input').value = '';
+      document.getElementById('jwks-file').value = '';
+      document.getElementById('jwks-input').value = '';
+      document.getElementById('jwks-url').value = '';
+      renderResult(null, null, []);
+      showToast('Verifier cleared', 'success');
+    }
+
+    async function verifyFromPage() {
+      const packetText = document.getElementById('packet-input').value.trim();
+      if (!packetText) {
+        showToast('Paste or load an evidence packet first', 'error');
+        return;
+      }
+
+      if (!window.crypto?.subtle) {
+        showToast('This browser does not support Web Crypto verification', 'error');
+        return;
+      }
+
+      let packet;
+      try {
+        packet = JSON.parse(packetText);
+      } catch {
+        showToast('Packet JSON is invalid', 'error');
+        return;
+      }
+
+      let jwks;
+      try {
+        jwks = await resolveJWKS(packet);
+      } catch (error) {
+        showToast(String(error) || 'Failed to load JWKS', 'error');
+        return;
+      }
+
+      const result = await verifyEvidencePacketInBrowser(packet, jwks);
+      renderResult(packet, result, result.warnings || []);
+      showToast(result.valid ? 'Packet verified' : 'Verification found issues', result.valid ? 'success' : 'error');
+    }
+
+    async function resolveJWKS(packet) {
+      const overrideText = document.getElementById('jwks-input').value.trim();
+      if (overrideText) {
+        return JSON.parse(overrideText);
+      }
+
+      const explicitURL = document.getElementById('jwks-url').value.trim();
+      const derivedOrgID = packet?.org?.id;
+      const url = explicitURL || (derivedOrgID ? `${DEFAULT_API}/orgs/${encodeURIComponent(derivedOrgID)}/jwks.json` : '');
+      if (!url) {
+        throw new Error('No JWKS URL available. Provide packet org metadata, a JWKS URL, or JWKS JSON.');
+      }
+
+      document.getElementById('jwks-url').value = url;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to load JWKS: HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function renderResult(packet, verification, warnings) {
+      const statusChip = document.getElementById('status-chip');
+      const statusLine = document.getElementById('status-line');
+      const resultGrid = document.getElementById('result-grid');
+      const metaBlock = document.getElementById('meta-block');
+      const warningBlock = document.getElementById('warning-block');
+
+      if (!packet || !verification) {
+        statusChip.className = 'status-chip status-idle';
+        statusChip.textContent = 'Idle';
+        statusLine.textContent = 'Ready to verify';
+        resultGrid.innerHTML = `
+          <div class="result-item"><div class="label">Packet hash</div><div class="value">Not checked yet</div></div>
+          <div class="result-item"><div class="label">Signature</div><div class="value">Not checked yet</div></div>
+          <div class="result-item"><div class="label">Audit chain</div><div class="value">Not checked yet</div></div>
+        `;
+        metaBlock.textContent = 'Load a packet to inspect its task ID, org, signature key, and JWKS source.';
+        warningBlock.textContent = 'No warnings yet.';
+        return;
+      }
+
+      const statusClass = verification.valid ? 'status-pass' : 'status-fail';
+      statusChip.className = `status-chip ${statusClass}`;
+      statusChip.textContent = verification.valid ? 'Verified' : 'Issues';
+      statusLine.textContent = verification.valid
+        ? 'This packet passed hash, signature, and audit-chain checks.'
+        : 'One or more verification checks failed.';
+
+      resultGrid.innerHTML = `
+        <div class="result-item">
+          <div class="label">Packet hash</div>
+          <div class="value ${verification.hashValid ? 'pass' : 'fail'}">${verification.hashValid ? 'Matches canonical packet' : 'Hash mismatch detected'}</div>
+        </div>
+        <div class="result-item">
+          <div class="label">Signature</div>
+          <div class="value ${verification.signatureValid ? 'pass' : 'fail'}">${verification.signatureValid ? 'RS256 signature valid' : 'Signature invalid or missing'}</div>
+        </div>
+        <div class="result-item">
+          <div class="label">Audit chain</div>
+          <div class="value ${verification.auditChainValid ? 'pass' : 'fail'}">${verification.auditChainValid ? 'Append-only chain intact' : 'Audit chain inconsistency found'}</div>
+        </div>
+      `;
+
+      const jwksSource = document.getElementById('jwks-url').value.trim() || 'JWKS JSON override';
+      metaBlock.innerHTML = [
+        `task: ${escapeHtml(packet.task?.att_tid || '—')}`,
+        `org: ${escapeHtml(packet.org?.id || '—')}`,
+        `kid: ${escapeHtml(packet.integrity?.signature_kid || '—')}`,
+        `jwks: ${escapeHtml(jwksSource)}`
+      ].join('<br/>');
+
+      warningBlock.innerHTML = warnings.length
+        ? `<ul class="warning-list">${warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>`
+        : '<span class="pass">No warnings. The packet is consistent with the JWKS and audit chain.</span>';
+    }
+
+    async function verifyEvidencePacketInBrowser(packet, jwks) {
+      const canonicalJson = canonicalizeEvidencePacket(packet);
+      const encoded = new TextEncoder().encode(canonicalJson);
+      const computedHash = await sha256Hex(encoded);
+      const hashValid = computedHash === (packet.integrity?.packet_hash || '');
+
+      const warnings = [];
+      if (!hashValid) {
+        warnings.push(`packet hash mismatch: expected ${packet.integrity?.packet_hash || '—'}, computed ${computedHash}`);
+      }
+
+      let signatureValid = false;
+      const signatureAlgorithm = packet.integrity?.signature_algorithm;
+      const signatureKid = packet.integrity?.signature_kid;
+      const packetSignature = packet.integrity?.packet_signature;
+
+      if (!signatureAlgorithm || !signatureKid || !packetSignature) {
+        warnings.push('packet signature metadata missing');
+      } else if (signatureAlgorithm !== 'RS256') {
+        warnings.push(`unsupported signature algorithm: ${signatureAlgorithm}`);
+      } else {
+        const jwk = (jwks.keys || []).find(key => key.kid === signatureKid) || (jwks.keys || [])[0];
+        if (!jwk) {
+          warnings.push('no verification key found in JWKS');
+        } else {
+          try {
+            const key = await window.crypto.subtle.importKey(
+              'jwk',
+              jwk,
+              { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+              false,
+              ['verify'],
+            );
+            signatureValid = await window.crypto.subtle.verify(
+              { name: 'RSASSA-PKCS1-v1_5' },
+              key,
+              decodeBase64Url(packetSignature),
+              encoded,
+            );
+            if (!signatureValid) warnings.push('packet signature verification failed');
+          } catch (error) {
+            warnings.push(`packet signature verification failed: ${String(error)}`);
+          }
+        }
+      }
+
+      const auditWarnings = validateAuditEvents(packet.events || []);
+      warnings.push(...auditWarnings);
+      const auditChainValid = Boolean(packet.integrity?.audit_chain_valid) && auditWarnings.length === 0;
+      if (!packet.integrity?.audit_chain_valid && auditWarnings.length === 0) {
+        warnings.push('packet reports invalid audit chain');
+      }
+
+      return {
+        status: hashValid && signatureValid && auditChainValid ? 'success' : 'error',
+        valid: hashValid && signatureValid && auditChainValid,
+        hashValid,
+        signatureValid,
+        auditChainValid,
+        warnings,
+      };
+    }
+
+    function canonicalizeEvidencePacket(packet) {
+      const clone = JSON.parse(JSON.stringify(packet || {}));
+      const integrity = clone.integrity || {};
+      clone.integrity = integrity;
+      integrity.packet_hash = '';
+      delete integrity.signature_algorithm;
+      delete integrity.signature_kid;
+      delete integrity.packet_signature;
+      return JSON.stringify(clone);
+    }
+
+    async function sha256Hex(bytes) {
+      const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    function decodeBase64Url(value) {
+      const normalized = String(value).replaceAll('-', '+').replaceAll('_', '/');
+      const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+      const raw = atob(padded);
+      return Uint8Array.from(raw, char => char.charCodeAt(0));
+    }
+
+    function validateAuditEvents(events) {
+      const warnings = [];
+      if (!Array.isArray(events) || events.length === 0) return warnings;
+      const genesisHash = '0000000000000000000000000000000000000000000000000000000000000000';
+      if ((events[0]?.prev_hash || '') !== genesisHash) {
+        warnings.push('first audit event does not use the genesis previous hash');
+      }
+      for (let i = 1; i < events.length; i += 1) {
+        const prev = events[i - 1];
+        const current = events[i];
+        if (prev && current && current.prev_hash !== prev.entry_hash) {
+          warnings.push(`audit chain break between event ${prev.id ?? i} and ${current.id ?? i + 1}`);
+        }
+      }
+      return warnings;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function showToast(msg, type = 'success') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = `toast show ${type}`;
+      setTimeout(() => el.classList.remove('show'), 2600);
+    }
+  </script>
+</body>
+</html>
