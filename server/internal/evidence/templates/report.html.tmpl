@@ -161,6 +161,47 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
+    .verification-shell {
+      display: grid;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .verification-note {
+      color: var(--muted);
+      max-width: 74ch;
+      margin: 0;
+    }
+    .verification-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+    }
+    .verification-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fcfdff;
+      padding: 16px 18px;
+    }
+    .verification-card .label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    pre {
+      margin: 0;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f7fafe;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--ink);
+    }
     @media (max-width: 720px) {
       body { padding: 16px; }
       .hero, .summary-grid, .meta-grid, .body, .footer { padding-left: 18px; padding-right: 18px; }
@@ -326,6 +367,24 @@
           {{end}}
         </ul>
         {{end}}
+
+        <div class="verification-shell">
+          <p class="verification-note">Use the packet hash, signature key ID, and org JWKS below to verify this artifact independently of the Attest UI.</p>
+          <div class="verification-grid">
+            <div class="verification-card">
+              <span class="label">JWKS URL</span>
+              <div class="mono">{{.Verification.JWKSURL}}</div>
+            </div>
+            <div class="verification-card">
+              <span class="label">TypeScript</span>
+              <pre>{{.Verification.TypeScriptCLI}}</pre>
+            </div>
+            <div class="verification-card">
+              <span class="label">Python</span>
+              <pre>{{.Verification.PythonCLI}}</pre>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
 

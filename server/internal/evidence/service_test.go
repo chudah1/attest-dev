@@ -461,7 +461,7 @@ func TestRenderTaskReport(t *testing.T) {
 		},
 	}
 
-	reportHTML, err := RenderTaskReport(packet, ReportOptions{})
+	reportHTML, err := RenderTaskReport(packet, ReportOptions{BaseURL: "https://api.attestdev.com"})
 	if err != nil {
 		t.Fatalf("render report: %v", err)
 	}
@@ -475,6 +475,12 @@ func TestRenderTaskReport(t *testing.T) {
 	}
 	if !strings.Contains(body, "root-jti") {
 		t.Fatalf("expected credential in report")
+	}
+	if !strings.Contains(body, "https://api.attestdev.com/orgs/org_123/jwks.json") {
+		t.Fatalf("expected jwks url in report")
+	}
+	if !strings.Contains(body, "verifyEvidencePacket") {
+		t.Fatalf("expected verification snippet in report")
 	}
 }
 

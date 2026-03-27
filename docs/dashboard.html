@@ -712,6 +712,87 @@
       max-width: 60ch;
     }
 
+    .verification-actions {
+      display: grid;
+      gap: 0.7rem;
+    }
+
+    .verification-action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+    }
+
+    .verification-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      border-radius: 999px;
+      border: 1px solid rgba(143, 202, 255, 0.14);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 0.42rem 0.72rem;
+      font-size: 0.76rem;
+      cursor: pointer;
+      transition: border-color 180ms ease, transform 180ms ease, background 180ms ease;
+    }
+
+    .verification-action-btn:hover {
+      border-color: rgba(125, 211, 252, 0.3);
+      background: rgba(125, 211, 252, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .verification-action-btn code {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.72rem;
+    }
+
+    .verification-snippet {
+      border: 1px solid rgba(143, 202, 255, 0.1);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+      overflow: hidden;
+    }
+
+    .verification-snippet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.68rem 0.85rem;
+      border-bottom: 1px solid rgba(143, 202, 255, 0.08);
+    }
+
+    .verification-snippet-label {
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .verification-copy-btn {
+      border: 1px solid rgba(143, 202, 255, 0.12);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 0.28rem 0.6rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+
+    .verification-snippet pre {
+      margin: 0;
+      padding: 0.85rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.74rem;
+      line-height: 1.55;
+      color: #d7e8f5;
+    }
+
     .timeline-shell {
       border: 1px solid rgba(143, 202, 255, 0.1);
       border-radius: 18px;
@@ -1255,6 +1336,7 @@
   function renderVerificationPanel(packet) {
     const integrity = packet.integrity || {};
     const orgId = packet.org?.id || '—';
+    const jwksUrl = `${API}/orgs/${orgId}/jwks.json`;
     const status = currentEvidenceVerification?.status || 'idle';
     const warnings = currentEvidenceVerification?.warnings || [];
     const statusLabel = status === 'success'
@@ -1267,6 +1349,7 @@
       : status === 'success'
         ? 'This packet passed hash, signature, and audit-chain checks in the browser against the org JWKS.'
         : 'The packet did not pass one or more verification checks. Review the warnings below before sharing it externally.';
+    const snippets = buildVerificationSnippets(packet);
 
     return `
       <div class="verification-panel">
@@ -1299,18 +1382,87 @@
             <div class="label">Algorithm</div>
             <div class="value">${escapeHtml(integrity.signature_algorithm || '—')}</div>
           </div>
-          <div class="detail-item hash-item" title="${escapeAttr(`${API}/orgs/${orgId}/jwks.json`)}">
+          <div class="detail-item hash-item" title="${escapeAttr(jwksUrl)}">
             <div class="label">JWKS URL</div>
-            <div class="value">${formatMono(shortValue(`${API}/orgs/${orgId}/jwks.json`, 22, 18))}</div>
+            <div class="value">${formatMono(shortValue(jwksUrl, 22, 18))}</div>
           </div>
         </div>
 
         <div class="verification-copy">${verificationCopy}</div>
+        <div class="verification-actions">
+          <div class="verification-action-row">
+            <button class="verification-action-btn" onclick="copyVerificationValue('jwks')">Copy <code>JWKS URL</code></button>
+            <button class="verification-action-btn" onclick="copyVerificationValue('typescript')">Copy <code>TypeScript</code> snippet</button>
+            <button class="verification-action-btn" onclick="copyVerificationValue('python')">Copy <code>Python</code> snippet</button>
+          </div>
+          <div class="verification-snippet">
+            <div class="verification-snippet-head">
+              <div class="verification-snippet-label">TypeScript verify snippet</div>
+              <button class="verification-copy-btn" onclick="copyVerificationValue('typescript')">Copy</button>
+            </div>
+            <pre>${escapeHtml(snippets.typescript)}</pre>
+          </div>
+          <div class="verification-snippet">
+            <div class="verification-snippet-head">
+              <div class="verification-snippet-label">Python verify snippet</div>
+              <button class="verification-copy-btn" onclick="copyVerificationValue('python')">Copy</button>
+            </div>
+            <pre>${escapeHtml(snippets.python)}</pre>
+          </div>
+        </div>
         ${warnings.length
           ? `<ul class="verification-warning-list">${warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>`
           : ''}
       </div>
     `;
+  }
+
+  function buildVerificationSnippets(packet) {
+    const orgId = packet.org?.id || 'org_id';
+    const jwksUrl = `${API}/orgs/${orgId}/jwks.json`;
+    return {
+      jwksUrl,
+      typescript: [
+        "import { verifyEvidencePacket, loadJWKS } from '@attest-dev/sdk';",
+        '',
+        "const packet = JSON.parse(await Bun.file('packet.json').text());",
+        `const jwks = await loadJWKS('${jwksUrl}');`,
+        'const result = await verifyEvidencePacket(packet, jwks);',
+        'console.log(result.valid);',
+      ].join('\n'),
+      python: [
+        'from attest import verify_evidence_packet, load_jwks',
+        'import json',
+        '',
+        "with open('packet.json') as f:",
+        '    packet = json.load(f)',
+        '',
+        `jwks = load_jwks('${jwksUrl}')`,
+        'result = verify_evidence_packet(packet, jwks)',
+        'print(result.valid)',
+      ].join('\n'),
+    };
+  }
+
+  function copyVerificationValue(kind) {
+    if (!currentEvidencePacket) {
+      showToast('Load an evidence packet first', 'error');
+      return;
+    }
+
+    const snippets = buildVerificationSnippets(currentEvidencePacket);
+    const value = kind === 'typescript'
+      ? snippets.typescript
+      : kind === 'python'
+        ? snippets.python
+        : snippets.jwksUrl;
+    const label = kind === 'typescript'
+      ? 'TypeScript verify snippet copied'
+      : kind === 'python'
+        ? 'Python verify snippet copied'
+        : 'JWKS URL copied';
+
+    navigator.clipboard.writeText(value).then(() => showToast(label, 'success'));
   }
 
   function renderAuditTable(events) {

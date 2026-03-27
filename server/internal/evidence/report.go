@@ -24,6 +24,7 @@ const (
 
 type ReportOptions struct {
 	Template ReportTemplate
+	BaseURL  string
 }
 
 type reportProfile struct {
@@ -40,8 +41,15 @@ type reportProfile struct {
 }
 
 type reportViewData struct {
-	Profile reportProfile
-	Packet  *attest.EvidencePacket
+	Profile      reportProfile
+	Packet       *attest.EvidencePacket
+	Verification reportVerification
+}
+
+type reportVerification struct {
+	JWKSURL       string
+	TypeScriptCLI string
+	PythonCLI     string
 }
 
 var reportTemplate = template.Must(template.New("evidence_report").Funcs(template.FuncMap{
@@ -154,9 +162,22 @@ func buildReportViewData(packet *attest.EvidencePacket, opts ReportOptions) repo
 		packet.Summary.Revocations,
 	)
 
+	baseURL := strings.TrimRight(strings.TrimSpace(opts.BaseURL), "/")
+	if baseURL == "" {
+		baseURL = "https://api.attestdev.com"
+	}
+
+	jwksURL := fmt.Sprintf("%s/orgs/%s/jwks.json", baseURL, packet.Org.ID)
+	packetRef := "packet.json"
+
 	return reportViewData{
 		Profile: profile,
 		Packet:  packet,
+		Verification: reportVerification{
+			JWKSURL:       jwksURL,
+			TypeScriptCLI: fmt.Sprintf("import { verifyEvidencePacket, loadJWKS } from '@attest-dev/sdk';\n\nconst packet = JSON.parse(await Bun.file('%s').text());\nconst jwks = await loadJWKS('%s');\nconst result = await verifyEvidencePacket(packet, jwks);\nconsole.log(result.valid);", packetRef, jwksURL),
+			PythonCLI:     fmt.Sprintf("from attest import verify_evidence_packet, load_jwks\nimport json\n\nwith open('%s') as f:\n    packet = json.load(f)\n\njwks = load_jwks('%s')\nresult = verify_evidence_packet(packet, jwks)\nprint(result.valid)", packetRef, jwksURL),
+		},
 	}
 }
 

@@ -114,6 +114,27 @@ func apiKeyIDFromCtx(ctx context.Context) string {
 	return id
 }
 
+func requestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if forwardedProto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwardedProto != "" {
+		scheme = strings.Split(forwardedProto, ",")[0]
+	}
+
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+	host = strings.Split(host, ",")[0]
+	if host == "" {
+		host = "api.attestdev.com"
+	}
+
+	return scheme + "://" + host
+}
+
 // corsMiddleware allows browser requests from the dashboard.
 func corsMiddleware(next http.Handler) http.Handler {
 	allowed := os.Getenv("CORS_ORIGIN")
@@ -472,6 +493,7 @@ func (h *handlers) getTaskReport(w http.ResponseWriter, r *http.Request) {
 
 	reportHTML, err := evidence.RenderTaskReport(packet, evidence.ReportOptions{
 		Template: evidence.ReportTemplate(r.URL.Query().Get("template")),
+		BaseURL:  requestBaseURL(r),
 	})
 	if err != nil {
 		writeInternalError(w, "render task report", err)
