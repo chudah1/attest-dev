@@ -983,6 +983,10 @@
               <span class="btn-mark">↗</span>
               <span class="btn-text"><small>Readable</small><span>Open report</span></span>
             </button>
+            <button class="btn btn-toolbar-secondary" onclick="printEvidenceReport()">
+              <span class="btn-mark">⎙</span>
+              <span class="btn-text"><small>PDF-ready</small><span>Print report</span></span>
+            </button>
             <button class="btn btn-toolbar-tertiary" onclick="downloadEvidence()">
               <span class="btn-mark">↓</span>
               <span class="btn-text"><small>Canonical</small><span>Export packet</span></span>
@@ -1654,7 +1658,7 @@
     }
   }
 
-  async function openEvidenceReport() {
+  async function openEvidenceReport(mode = 'view') {
     const tid = document.getElementById('task-id-input').value.trim();
     const template = document.getElementById('report-template-select')?.value || 'audit';
     if (!tid) {
@@ -1663,7 +1667,8 @@
     }
 
     try {
-      const res = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/report?template=${encodeURIComponent(template)}`, {
+      const reportUrl = `${API}/v1/tasks/${encodeURIComponent(tid)}/report?template=${encodeURIComponent(template)}${mode === 'print' ? '&mode=print' : ''}`;
+      const res = await fetch(reportUrl, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
 
@@ -1678,10 +1683,14 @@
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      showToast('Evidence report opened', 'success');
+      showToast(mode === 'print' ? 'Print-friendly report opened' : 'Evidence report opened', 'success');
     } catch {
       showToast('Network error', 'error');
     }
+  }
+
+  function printEvidenceReport() {
+    return openEvidenceReport('print');
   }
 
   document.addEventListener('DOMContentLoaded', () => {

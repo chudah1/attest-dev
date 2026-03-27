@@ -35,6 +35,14 @@
       box-shadow: var(--shadow);
       overflow: hidden;
     }
+    .print-banner {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(15, 94, 168, 0.07);
+      color: var(--muted);
+      font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: 0.03em;
+    }
     .hero {
       padding: 40px 40px 28px;
       border-bottom: 1px solid var(--line);
@@ -181,6 +189,7 @@
       border-radius: 16px;
       background: #fcfdff;
       padding: 16px 18px;
+      break-inside: avoid;
     }
     .verification-card .label {
       display: block;
@@ -201,6 +210,42 @@
       word-break: break-word;
       font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
       color: var(--ink);
+    }
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+    @media print {
+      body {
+        padding: 0;
+        background: #ffffff;
+      }
+      .report {
+        max-width: none;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        overflow: visible;
+      }
+      .print-banner {
+        display: none;
+      }
+      .hero {
+        background: #ffffff;
+      }
+      .metric,
+      .meta-card,
+      .verification-card {
+        background: #ffffff;
+      }
+      section,
+      .metric,
+      .meta-card,
+      table,
+      .verification-shell {
+        break-inside: avoid;
+      }
     }
     @media (max-width: 720px) {
       body { padding: 16px; }
@@ -223,8 +268,9 @@
     }
   </style>
 </head>
-<body>
+<body class="{{if .PrintMode}}print-mode{{end}}">
   <article class="report">
+    <div class="print-banner">{{if .PrintMode}}Print-friendly report. Use your browser print dialog to save this artifact as PDF.{{else}}Open the print-friendly version when you need a clean PDF-ready export.{{end}}</div>
     <header class="hero">
       <div class="eyebrow">{{.Profile.Eyebrow}}</div>
       <h1>{{.Profile.HeroTitle}}</h1>
@@ -392,5 +438,12 @@
       {{.Profile.Footer}}
     </footer>
   </article>
+  {{if .PrintMode}}
+  <script>
+    window.addEventListener('load', () => {
+      window.print();
+    });
+  </script>
+  {{end}}
 </body>
 </html>

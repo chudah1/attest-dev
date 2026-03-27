@@ -516,6 +516,26 @@ func TestGetTaskReport_TemplateQuery(t *testing.T) {
 	}
 }
 
+func TestGetTaskReport_PrintMode(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read"})
+
+	result, _ := e.issuer.Verify(tok, &e.sigKey.PublicKey)
+	taskID := result.Claims.TaskID
+
+	rr := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/report?mode=print", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 from print task report, got %d — %s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "Print-friendly report") {
+		t.Fatalf("expected print banner content in report body")
+	}
+	if !strings.Contains(body, "window.print()") {
+		t.Fatalf("expected print script in report body")
+	}
+}
+
 func TestGetTaskReport_MatchesEvidencePacket(t *testing.T) {
 	e := newTestEnv(t)
 	tok, _ := e.issueToken(t, []string{"files:read"})

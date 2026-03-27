@@ -23,8 +23,9 @@ const (
 )
 
 type ReportOptions struct {
-	Template ReportTemplate
-	BaseURL  string
+	Template  ReportTemplate
+	BaseURL   string
+	PrintMode bool
 }
 
 type reportProfile struct {
@@ -44,6 +45,7 @@ type reportViewData struct {
 	Profile      reportProfile
 	Packet       *attest.EvidencePacket
 	Verification reportVerification
+	PrintMode    bool
 }
 
 type reportVerification struct {
@@ -171,8 +173,9 @@ func buildReportViewData(packet *attest.EvidencePacket, opts ReportOptions) repo
 	packetRef := "packet.json"
 
 	return reportViewData{
-		Profile: profile,
-		Packet:  packet,
+		Profile:   profile,
+		Packet:    packet,
+		PrintMode: opts.PrintMode,
 		Verification: reportVerification{
 			JWKSURL:       jwksURL,
 			TypeScriptCLI: fmt.Sprintf("import { verifyEvidencePacket, loadJWKS } from '@attest-dev/sdk';\n\nconst packet = JSON.parse(await Bun.file('%s').text());\nconst jwks = await loadJWKS('%s');\nconst result = await verifyEvidencePacket(packet, jwks);\nconsole.log(result.valid);", packetRef, jwksURL),

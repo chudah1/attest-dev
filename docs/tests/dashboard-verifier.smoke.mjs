@@ -66,7 +66,7 @@ function makeOrg(packet) {
   };
 }
 
-function makeReportHTML(packet, template) {
+function makeReportHTML(packet, template, mode = 'view') {
   const templates = {
     audit: {
       title: 'Attest Evidence Report',
@@ -89,6 +89,7 @@ function makeReportHTML(packet, template) {
       <title>${selected.title}</title>
     </head>
     <body>
+      ${mode === 'print' ? '<div>Print-friendly report</div><script>window.print()</script>' : ''}
       <h1>${selected.eyebrow}</h1>
       <p>${packet.task.att_tid}</p>
       <p>${packet.integrity.packet_hash}</p>
@@ -190,7 +191,8 @@ async function withDashboard(t, packetMutator, fn) {
     }
     if (url.pathname.endsWith('/report')) {
       const template = url.searchParams.get('template') || 'audit';
-      await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: makeReportHTML(packet, template) });
+      const mode = url.searchParams.get('mode') || 'view';
+      await route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: makeReportHTML(packet, template, mode) });
       return;
     }
     if (url.pathname === `/orgs/${packet.org.id}/jwks.json`) {
@@ -268,5 +270,24 @@ test('dashboard export packet downloads canonical evidence JSON', async (t) => {
     assert.equal(exportedPacket.task.att_tid, packet.task.att_tid);
     assert.equal(exportedPacket.integrity.packet_hash, packet.integrity.packet_hash);
     assert.equal(exportedPacket.integrity.signature_algorithm, 'RS256');
+  });
+});
+
+test('dashboard print report opens print-friendly HTML', async (t) => {
+  await withDashboard(t, null, async (page, packet) => {
+    await page.locator('#report-template-select').selectOption('incident');
+    await page.getByRole('button', { name: /print report/i }).click();
+
+    await page.getByText('Print-friendly report opened').waitFor();
+
+    const openedURL = await page.waitForFunction(() => window.__lastOpenedURL);
+    const blobEntry = await page.evaluate(async (url) => window.__readBlobText(url), await openedURL.jsonValue());
+
+    assert.ok(blobEntry, 'expected a captured print report blob');
+    assert.equal(blobEntry.type, 'text/html');
+    assert.match(blobEntry.text, /Print-friendly report/);
+    assert.match(blobEntry.text, /window\.print\(\)/);
+    assert.match(blobEntry.text, /Incident Review Packet/);
+    assert.match(blobEntry.text, new RegExp(packet.task.att_tid));
   });
 });
