@@ -117,6 +117,15 @@ func (is *Issuer) Delegate(key *rsa.PrivateKey, kid string, p attest.DelegatePar
 		return "", nil, fmt.Errorf("invalid parent token: %w", err)
 	}
 
+	return is.DelegateVerified(key, kid, parentClaims, p)
+}
+
+// DelegateVerified issues a child credential from already-verified parent claims.
+func (is *Issuer) DelegateVerified(key *rsa.PrivateKey, kid string, parentClaims *attest.Claims, p attest.DelegateParams) (string, *attest.Claims, error) {
+	if parentClaims == nil {
+		return "", nil, errors.New("parent claims are required")
+	}
+
 	childScope := attest.NormaliseScope(p.ChildScope)
 	if !attest.IsSubset(parentClaims.Scope, childScope) {
 		return "", nil, errors.New("child scope is not a subset of parent scope")

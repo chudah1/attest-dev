@@ -2,7 +2,11 @@ package evidence
 
 import (
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -49,7 +53,7 @@ func (s *Service) BuildTaskEvidence(ctx context.Context, orgID, orgName, taskID 
 	packet := &attest.EvidencePacket{
 		PacketType:    "attest.evidence_packet",
 		SchemaVersion: "1.0",
-		GeneratedAt:   time.Now().UTC(),
+		GeneratedAt:   packetGeneratedAt(creds, events),
 		Org: attest.EvidenceOrg{
 			ID:   orgID,
 			Name: orgName,
@@ -237,6 +241,21 @@ func buildSummary(events []attest.AuditEvent, creds []attest.CredentialRecord) a
 	return summary
 }
 
+func packetGeneratedAt(creds []attest.CredentialRecord, events []attest.AuditEvent) time.Time {
+	var ts time.Time
+	for _, cred := range creds {
+		if cred.IssuedAt.After(ts) {
+			ts = cred.IssuedAt
+		}
+	}
+	for _, event := range events {
+		if event.CreatedAt.After(ts) {
+			ts = event.CreatedAt
+		}
+	}
+	return ts.UTC()
+}
+
 func isScopeViolation(event attest.AuditEvent) bool {
 	if strings.EqualFold(event.Meta["reason"], "scope_violation") {
 		return true
@@ -252,8 +271,10 @@ func isScopeViolation(event attest.AuditEvent) bool {
 
 func hashPacket(packet *attest.EvidencePacket) (string, error) {
 	clone := *packet
-	clone.GeneratedAt = time.Time{}
 	clone.Integrity.PacketHash = ""
+	clone.Integrity.SignatureAlgorithm = ""
+	clone.Integrity.SignatureKID = ""
+	clone.Integrity.PacketSignature = ""
 
 	b, err := json.Marshal(clone)
 	if err != nil {
@@ -261,6 +282,34 @@ func hashPacket(packet *attest.EvidencePacket) (string, error) {
 	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// SignPacket signs the canonical packet hash with the org's active RSA key.
+func SignPacket(packet *attest.EvidencePacket, key *rsa.PrivateKey, kid string) error {
+	if packet == nil {
+		return fmt.Errorf("nil evidence packet")
+	}
+	if key == nil {
+		return fmt.Errorf("nil signing key")
+	}
+	if packet.Integrity.PacketHash == "" {
+		return fmt.Errorf("missing packet hash")
+	}
+
+	hashBytes, err := hex.DecodeString(packet.Integrity.PacketHash)
+	if err != nil {
+		return fmt.Errorf("decode packet hash: %w", err)
+	}
+
+	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, hashBytes)
+	if err != nil {
+		return fmt.Errorf("sign packet hash: %w", err)
+	}
+
+	packet.Integrity.SignatureAlgorithm = "RS256"
+	packet.Integrity.SignatureKID = kid
+	packet.Integrity.PacketSignature = base64.RawURLEncoding.EncodeToString(sig)
+	return nil
 }
 
 func cloneStringPtr(in *string) *string {

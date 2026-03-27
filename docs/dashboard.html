@@ -83,18 +83,31 @@
 
     input[type="text"], input[type="password"], input[type="search"] {
       width: 100%;
-      background: var(--surface2);
-      border: 1px solid var(--border);
+      background: rgba(13, 27, 41, 0.96);
+      border: 1px solid rgba(125, 211, 252, 0.14);
       border-radius: var(--radius);
       color: var(--text);
       font-size: 0.875rem;
-      padding: 0.65rem 0.9rem;
+      padding: 0.8rem 0.95rem;
       outline: none;
       font-family: "SF Mono", "Fira Code", monospace;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     }
 
-    input:focus { border-color: var(--accent); }
+    input:focus {
+      border-color: rgba(125, 211, 252, 0.3);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.08);
+      background: rgba(17, 36, 54, 0.92);
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+      -webkit-text-fill-color: var(--text);
+      -webkit-box-shadow: 0 0 0 1000px rgba(17, 36, 54, 0.92) inset;
+      transition: background-color 9999s ease-in-out 0s;
+      border: 1px solid rgba(125, 211, 252, 0.2);
+    }
 
     .btn {
       display: inline-flex;
@@ -135,23 +148,23 @@
       background: linear-gradient(135deg, rgba(125, 211, 252, 0.22), rgba(56, 189, 248, 0.14));
       border: 1px solid rgba(125, 211, 252, 0.28);
       color: var(--text);
-      min-width: 168px;
-      min-height: 54px;
+      min-width: 172px;
+      min-height: 56px;
       margin-top: 0;
     }
     .btn-toolbar-secondary {
       background: linear-gradient(135deg, rgba(13, 27, 41, 0.96), rgba(17, 36, 54, 0.82));
       border: 1px solid rgba(125, 211, 252, 0.18);
       color: var(--text);
-      min-width: 168px;
-      min-height: 54px;
+      min-width: 172px;
+      min-height: 56px;
     }
     .btn-toolbar-tertiary {
       background: rgba(9, 20, 31, 0.9);
       border: 1px solid rgba(143, 202, 255, 0.14);
       color: var(--text);
-      min-width: 162px;
-      min-height: 54px;
+      min-width: 166px;
+      min-height: 56px;
     }
     .btn-mark {
       display: inline-flex;
@@ -327,30 +340,44 @@
     .search-row {
       display: flex;
       gap: 0.75rem;
-      margin-bottom: 1rem;
+      margin-bottom: 1.1rem;
       flex-wrap: wrap;
       align-items: stretch;
     }
 
-    .search-row input { flex: 1; }
+    .search-row input { flex: 1; min-width: 320px; }
 
     .search-row select {
-      min-width: 150px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
+      min-width: 100%;
+      background: rgba(13, 27, 41, 0.96);
+      border: 1px solid rgba(125, 211, 252, 0.14);
       border-radius: var(--radius);
       color: var(--text);
       font-size: 0.875rem;
-      padding: 0.65rem 0.9rem;
+      padding: 0.8rem 0.95rem;
       outline: none;
       font-family: inherit;
+    }
+
+    .search-input-shell {
+      flex: 1.35;
+      min-width: 380px;
+    }
+
+    .search-input-label {
+      color: var(--muted);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.45rem;
     }
 
     .toolbar-field {
       display: flex;
       flex-direction: column;
-      gap: 0.45rem;
-      min-width: 180px;
+      gap: 0.4rem;
+      min-width: 230px;
+      max-width: 260px;
     }
 
     .toolbar-label {
@@ -364,7 +391,25 @@
       display: flex;
       flex-wrap: wrap;
       gap: 0.75rem;
-      margin-top: 0.25rem;
+      margin-top: 0.15rem;
+    }
+
+    .results-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.1rem 0 0.9rem;
+      color: var(--muted);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .results-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(143, 202, 255, 0.14);
     }
 
     .quick-actions {
@@ -412,8 +457,189 @@
     .badge-issued { background: rgba(34,197,94,0.15); color: var(--green); }
     .badge-delegated { background: rgba(99,102,241,0.15); color: var(--accent); }
     .badge-revoked { background: rgba(239,68,68,0.15); color: var(--red); }
+    .badge-action { background: rgba(125, 211, 252, 0.1); color: var(--accent); }
+    .badge-lifecycle { background: rgba(251, 191, 36, 0.12); color: var(--yellow); }
 
     .mono { font-family: "SF Mono", "Fira Code", monospace; color: var(--muted); font-size: 0.77rem; }
+
+    .audit-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .evidence-preview {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .evidence-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.8rem;
+    }
+
+    .evidence-summary-card {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 0.8rem 1rem;
+      min-height: 96px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .evidence-summary-card .label {
+      color: var(--muted);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0;
+      line-height: 1.1;
+    }
+
+    .evidence-summary-card .value {
+      font-size: 0.98rem;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    .result-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.24rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+
+    .result-pill::before {
+      content: '';
+      width: 0.42rem;
+      height: 0.42rem;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .result-active { color: var(--green); background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.2); }
+    .result-revoked { color: var(--red); background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.2); }
+    .result-expired { color: var(--yellow); background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.2); }
+
+    .evidence-detail-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+      gap: 1rem;
+      background: linear-gradient(135deg, rgba(13, 27, 41, 0.96), rgba(17, 36, 54, 0.82));
+      border: 1px solid rgba(125, 211, 252, 0.16);
+      border-radius: 18px;
+      padding: 1rem 1rem 1.05rem;
+    }
+
+    .detail-section-title {
+      color: var(--muted);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.7rem;
+    }
+
+    .detail-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(143, 202, 255, 0.1);
+      border-radius: 14px;
+      padding: 0.78rem 0.88rem;
+    }
+
+    .detail-item .label {
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+    }
+
+    .detail-item .value {
+      font-size: 0.9rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .detail-item.hash-item .value {
+      font-size: 0.8rem;
+      color: #c4d6e7;
+    }
+
+    .scope-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+
+    .scope-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.28rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(125, 211, 252, 0.08);
+      border: 1px solid rgba(125, 211, 252, 0.14);
+      font-size: 0.74rem;
+      color: var(--text);
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+
+    .preview-note {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 0.75rem;
+      max-width: 46ch;
+      line-height: 1.55;
+    }
+
+    .side-detail-grid {
+      display: grid;
+      gap: 0.7rem;
+      margin-top: 0.8rem;
+    }
+
+    .timeline-shell {
+      border: 1px solid rgba(143, 202, 255, 0.1);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.95rem 1rem;
+      border-bottom: 1px solid rgba(143, 202, 255, 0.1);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .timeline-title {
+      font-size: 0.95rem;
+      letter-spacing: -0.02em;
+    }
+
+    .timeline-meta {
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
 
     /* REVOKE */
     .revoke-form { display: flex; gap: 0.75rem; align-items: flex-end; }
@@ -445,6 +671,23 @@
     .toast.show { display: block; }
     .toast.success { border-color: rgba(34,197,94,0.4); color: var(--green); }
     .toast.error { border-color: rgba(239,68,68,0.4); color: var(--red); }
+
+    @media (max-width: 880px) {
+      .search-input-shell,
+      .toolbar-field {
+        min-width: 100%;
+        max-width: none;
+      }
+
+      .toolbar-actions .btn {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+      }
+
+      .evidence-detail-card {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -533,7 +776,10 @@
         <div class="page-subtitle">Look up a task tree by `att_tid` and review the sequence of issued, delegated, and revoked events that prove authority.</div>
         <div class="card">
           <div class="search-row">
-            <input type="search" id="task-id-input" placeholder="Task ID (`att_tid` from a credential)" />
+            <div class="search-input-shell">
+              <div class="search-input-label">Task tree</div>
+              <input type="search" id="task-id-input" placeholder="Paste `att_tid` from a credential or evidence packet" />
+            </div>
             <div class="toolbar-field">
               <div class="toolbar-label">Report view</div>
               <select id="report-template-select" aria-label="Report template">
@@ -743,25 +989,165 @@
 
   // ── Audit log ─────────────────────────────────────────────────────────────
 
-  async function fetchAudit() {
-    const tid = document.getElementById('task-id-input').value.trim();
-    if (!tid) return;
+  function formatMono(value, fallback = '—') {
+    return value ? `<span class="mono">${escapeHtml(value)}</span>` : fallback;
+  }
 
-    const el = document.getElementById('audit-results');
-    el.innerHTML = '<div class="empty">Loading…</div>';
+  function shortValue(value, prefix = 14, suffix = 10) {
+    if (!value) return '—';
+    if (value.length <= prefix + suffix + 3) return value;
+    return `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+  }
 
-    try {
-      const res = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/audit`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` }
-      });
-      const events = await res.json();
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
 
-      if (!Array.isArray(events) || events.length === 0) {
-        el.innerHTML = '<div class="empty">No events found for this task tree.</div>';
-        return;
+  function escapeAttr(value) {
+    return escapeHtml(value);
+  }
+
+  function knownEventBadgeClass(eventType) {
+    switch ((eventType || '').toLowerCase()) {
+      case 'issued': return 'badge-issued';
+      case 'delegated': return 'badge-delegated';
+      case 'revoked': return 'badge-revoked';
+      case 'action': return 'badge-action';
+      case 'lifecycle': return 'badge-lifecycle';
+      default: return 'badge-lifecycle';
+    }
+  }
+
+  function collectObservedScopes(credentials) {
+    const scopes = [];
+    const seen = new Set();
+    for (const credential of credentials || []) {
+      for (const scope of Array.isArray(credential.scope) ? credential.scope : []) {
+        if (!seen.has(scope)) {
+          seen.add(scope);
+          scopes.push(scope);
+        }
       }
+    }
+    return scopes;
+  }
 
-      el.innerHTML = `
+  function resultClass(result) {
+    switch ((result || '').toLowerCase()) {
+      case 'revoked': return 'result-revoked';
+      case 'expired': return 'result-expired';
+      default: return 'result-active';
+    }
+  }
+
+  function renderEvidencePreview(packet, events) {
+    const summary = packet.summary || {};
+    const task = packet.task || {};
+    const integrity = packet.integrity || {};
+    const credentials = packet.credentials || [];
+    const identity = packet.identity || {};
+    const observedScopes = collectObservedScopes(credentials);
+    const lastEvent = events[events.length - 1];
+    const eventCount = task.event_count || events.length || 0;
+    const packetHash = integrity.packet_hash || '—';
+    const instructionHash = task.instruction_hash || '—';
+    const scopeMarkup = observedScopes.length
+      ? observedScopes.map(scope => `<span class="scope-chip">${escapeHtml(scope)}</span>`).join('')
+      : '<span class="scope-chip">No scope captured</span>';
+    const reportTemplate = escapeHtml(document.getElementById('report-template-select')?.selectedOptions?.[0]?.textContent || 'Audit report');
+    const statusLabel = escapeHtml(summary.result || 'active');
+    const userValue = identity.user_id || task.att_uid;
+    const rootAgent = task.root_agent_id || '—';
+
+    return `
+      <div class="evidence-preview">
+        <div class="results-divider">Task summary</div>
+        <div class="evidence-summary-grid">
+          <div class="evidence-summary-card">
+            <div class="label">Task status</div>
+            <div class="value"><span class="result-pill ${resultClass(summary.result)}">${statusLabel}</span></div>
+          </div>
+          <div class="evidence-summary-card">
+            <div class="label">Authority tree</div>
+            <div class="value">${task.credential_count || credentials.length} credential${(task.credential_count || credentials.length) === 1 ? '' : 's'}</div>
+          </div>
+          <div class="evidence-summary-card">
+            <div class="label">Runtime events</div>
+            <div class="value">${eventCount} event${eventCount === 1 ? '' : 's'}</div>
+          </div>
+          <div class="evidence-summary-card">
+            <div class="label">Integrity</div>
+            <div class="value">${integrity.audit_chain_valid ? 'Audit chain valid' : 'Audit chain invalid'}</div>
+          </div>
+        </div>
+
+        <div class="evidence-detail-card">
+          <div>
+            <div class="detail-section-title">Evidence packet</div>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="label">Task ID</div>
+                <div class="value">${formatMono(task.att_tid)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="label">Root credential</div>
+                <div class="value">${formatMono(task.root_jti)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="label">Original user</div>
+                <div class="value">${formatMono(userValue)}</div>
+              </div>
+              <div class="detail-item hash-item" title="${escapeAttr(packetHash)}">
+                <div class="label">Packet hash</div>
+                <div class="value">${formatMono(shortValue(packetHash))}</div>
+              </div>
+              <div class="detail-item hash-item" title="${escapeAttr(instructionHash)}">
+                <div class="label">Instruction hash</div>
+                <div class="value">${formatMono(shortValue(instructionHash))}</div>
+              </div>
+              <div class="detail-item">
+                <div class="label">Last activity</div>
+                <div class="value">${lastEvent && lastEvent.created_at ? new Date(lastEvent.created_at).toLocaleString() : '—'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="detail-section-title">Observed scopes</div>
+            <div class="scope-list">${scopeMarkup}</div>
+            <div class="side-detail-grid">
+              <div class="detail-item">
+                <div class="label">Root agent</div>
+                <div class="value">${escapeHtml(rootAgent)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="label">Report view</div>
+                <div class="value">${reportTemplate}</div>
+              </div>
+            </div>
+            <div class="preview-note">
+              ${summary.scope_violations || summary.revocations || summary.approvals
+                ? `${summary.scope_violations || 0} scope violation(s), ${summary.approvals || 0} approval-linked event(s), and ${summary.revocations || 0} revocation event(s) are present in this packet.`
+                : 'This task is clean so far: no scope violations, approval interruptions, or revocations are present in the current packet.'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAuditTable(events) {
+    return `
+      <div class="timeline-shell">
+        <div class="timeline-header">
+          <div class="timeline-title">Authority timeline</div>
+          <div class="timeline-meta">${events.length} recorded event${events.length === 1 ? '' : 's'}</div>
+        </div>
         <table class="audit-table">
           <thead>
             <tr>
@@ -776,18 +1162,59 @@
           <tbody>
             ${events.map(e => `
               <tr>
-                <td><span class="event-badge badge-${e.event_type}">${e.event_type}</span></td>
-                <td class="mono">${(e.jti || '').slice(0, 8)}…</td>
-                <td>${e.agent_id || '—'}</td>
-                <td>${e.user_id || '—'}</td>
-                <td class="mono">${(e.scope || []).join(', ') || '—'}</td>
+                <td><span class="event-badge ${knownEventBadgeClass(e.event_type)}">${escapeHtml(e.event_type || 'event')}</span></td>
+                <td class="mono">${escapeHtml((e.jti || '').slice(0, 8))}…</td>
+                <td>${escapeHtml(e.agent_id || '—')}</td>
+                <td>${escapeHtml(e.user_id || '—')}</td>
+                <td class="mono">${escapeHtml((e.scope || []).join(', ') || '—')}</td>
                 <td style="color:var(--muted)">${e.created_at ? new Date(e.created_at).toLocaleTimeString() : '—'}</td>
               </tr>
             `).join('')}
           </tbody>
-        </table>`;
+        </table>
+      </div>
+    `;
+  }
+
+  async function fetchAudit() {
+    const tid = document.getElementById('task-id-input').value.trim();
+    if (!tid) return;
+
+    const el = document.getElementById('audit-results');
+    el.innerHTML = '<div class="empty">Loading…</div>';
+
+    try {
+      const auditRes = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/audit`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+
+      if (!auditRes.ok) {
+        throw new Error('audit fetch failed');
+      }
+
+      const events = await auditRes.json();
+
+      if (!Array.isArray(events) || events.length === 0) {
+        el.innerHTML = '<div class="empty">No events found for this task tree.</div>';
+        return;
+      }
+
+      let previewMarkup = '';
+      try {
+        const evidenceRes = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/evidence`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        if (evidenceRes.ok) {
+          const packet = await evidenceRes.json();
+          previewMarkup = renderEvidencePreview(packet, events);
+        }
+      } catch {
+        // Keep the audit timeline usable even if the packet preview cannot load.
+      }
+
+      el.innerHTML = `<div class="audit-stack">${previewMarkup}${renderAuditTable(events)}</div>`;
     } catch {
-          el.innerHTML = '<div class="empty">Failed to load evidence events.</div>';
+      el.innerHTML = '<div class="empty">Failed to load evidence events.</div>';
     }
   }
 

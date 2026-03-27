@@ -206,10 +206,13 @@ type EvidenceCredential struct {
 }
 
 type EvidenceIntegrity struct {
-	AuditChainValid bool     `json:"audit_chain_valid"`
-	HashAlgorithm   string   `json:"hash_algorithm"`
-	PacketHash      string   `json:"packet_hash"`
-	Notes           []string `json:"notes"`
+	AuditChainValid    bool     `json:"audit_chain_valid"`
+	HashAlgorithm      string   `json:"hash_algorithm"`
+	PacketHash         string   `json:"packet_hash"`
+	SignatureAlgorithm string   `json:"signature_algorithm,omitempty"`
+	SignatureKID       string   `json:"signature_kid,omitempty"`
+	PacketSignature    string   `json:"packet_signature,omitempty"`
+	Notes              []string `json:"notes"`
 }
 
 type EvidenceSummary struct {

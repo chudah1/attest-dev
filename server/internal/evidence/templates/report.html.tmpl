@@ -314,6 +314,9 @@
             <tr><td data-label="Field">Audit Chain</td><td data-label="Value">{{if .Packet.Integrity.AuditChainValid}}<span class="status-good">Valid</span>{{else}}<span class="status-bad">Invalid</span>{{end}}</td></tr>
             <tr><td data-label="Field">Hash Algorithm</td><td data-label="Value" class="mono">{{.Packet.Integrity.HashAlgorithm}}</td></tr>
             <tr><td data-label="Field">Packet Hash</td><td data-label="Value" class="mono">{{.Packet.Integrity.PacketHash}}</td></tr>
+            <tr><td data-label="Field">Signature Algorithm</td><td data-label="Value" class="mono">{{if .Packet.Integrity.SignatureAlgorithm}}{{.Packet.Integrity.SignatureAlgorithm}}{{else}}—{{end}}</td></tr>
+            <tr><td data-label="Field">Signature KID</td><td data-label="Value" class="mono">{{if .Packet.Integrity.SignatureKID}}{{.Packet.Integrity.SignatureKID}}{{else}}—{{end}}</td></tr>
+            <tr><td data-label="Field">Packet Signature</td><td data-label="Value" class="mono">{{if .Packet.Integrity.PacketSignature}}{{.Packet.Integrity.PacketSignature}}{{else}}—{{end}}</td></tr>
           </tbody>
         </table>
         {{if .Packet.Integrity.Notes}}

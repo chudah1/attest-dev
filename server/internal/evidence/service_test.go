@@ -2,6 +2,10 @@ package evidence
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -101,6 +105,198 @@ func TestBuildTaskEvidence(t *testing.T) {
 	}
 }
 
+func TestBuildTaskEvidence_HashStableAcrossRepeatedBuilds(t *testing.T) {
+	ctx := context.Background()
+	revStore := revocation.NewMemoryStore()
+	auditLog := audit.NewMemoryLog()
+	svc := NewService(auditLog, revStore)
+
+	issuedAt := time.Unix(100, 0).UTC()
+	root := &attest.Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        "root-jti",
+			Subject:   "agent:orchestrator-v1",
+			IssuedAt:  jwt.NewNumericDate(issuedAt),
+			ExpiresAt: jwt.NewNumericDate(issuedAt.Add(time.Hour)),
+		},
+		TaskID:     "tid_stable",
+		Depth:      0,
+		Scope:      []string{"files:read"},
+		IntentHash: strings.Repeat("a", 64),
+		Chain:      []string{"root-jti"},
+		UserID:     "usr_alice",
+	}
+
+	if err := revStore.TrackCredential(ctx, "org_123", root); err != nil {
+		t.Fatalf("track root: %v", err)
+	}
+	if err := auditLog.Append(ctx, "org_123", attest.AuditEvent{
+		EventType: attest.EventIssued,
+		JTI:       "root-jti",
+		TaskID:    "tid_stable",
+		UserID:    "usr_alice",
+		AgentID:   "orchestrator-v1",
+		Scope:     []string{"files:read"},
+	}); err != nil {
+		t.Fatalf("append issued event: %v", err)
+	}
+
+	packetA, err := svc.BuildTaskEvidence(ctx, "org_123", "Acme", "tid_stable")
+	if err != nil {
+		t.Fatalf("build evidence A: %v", err)
+	}
+	packetB, err := svc.BuildTaskEvidence(ctx, "org_123", "Acme", "tid_stable")
+	if err != nil {
+		t.Fatalf("build evidence B: %v", err)
+	}
+
+	if packetA.Integrity.PacketHash != packetB.Integrity.PacketHash {
+		t.Fatalf("expected stable packet hash across repeated builds")
+	}
+	if !packetA.GeneratedAt.Equal(packetB.GeneratedAt) {
+		t.Fatalf("expected stable generated_at across repeated builds")
+	}
+}
+
+func TestSignPacket(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	packet := &attest.EvidencePacket{
+		PacketType:    "attest.evidence_packet",
+		SchemaVersion: "1.0",
+		GeneratedAt:   time.Now().UTC(),
+		Integrity: attest.EvidenceIntegrity{
+			HashAlgorithm: "sha256",
+			PacketHash:    "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		},
+	}
+
+	if err := SignPacket(packet, key, "kid-123"); err != nil {
+		t.Fatalf("sign packet: %v", err)
+	}
+	if packet.Integrity.SignatureAlgorithm != "RS256" {
+		t.Fatalf("unexpected signature algorithm: %s", packet.Integrity.SignatureAlgorithm)
+	}
+	if packet.Integrity.SignatureKID != "kid-123" {
+		t.Fatalf("unexpected signature kid: %s", packet.Integrity.SignatureKID)
+	}
+	if packet.Integrity.PacketSignature == "" {
+		t.Fatalf("expected packet signature")
+	}
+	if _, err := base64.RawURLEncoding.DecodeString(packet.Integrity.PacketSignature); err != nil {
+		t.Fatalf("expected base64url signature: %v", err)
+	}
+}
+
+func TestHashPacket_IncludesGeneratedAt(t *testing.T) {
+	packetA := &attest.EvidencePacket{
+		PacketType:    "attest.evidence_packet",
+		SchemaVersion: "1.0",
+		GeneratedAt:   time.Unix(100, 0).UTC(),
+		Integrity: attest.EvidenceIntegrity{
+			HashAlgorithm: "sha256",
+		},
+	}
+	packetB := &attest.EvidencePacket{
+		PacketType:    packetA.PacketType,
+		SchemaVersion: packetA.SchemaVersion,
+		GeneratedAt:   time.Unix(101, 0).UTC(),
+		Integrity: attest.EvidenceIntegrity{
+			HashAlgorithm: "sha256",
+		},
+	}
+
+	hashA, err := hashPacket(packetA)
+	if err != nil {
+		t.Fatalf("hash packet A: %v", err)
+	}
+	hashB, err := hashPacket(packetB)
+	if err != nil {
+		t.Fatalf("hash packet B: %v", err)
+	}
+	if hashA == hashB {
+		t.Fatalf("expected generated_at to affect packet hash")
+	}
+}
+
+func TestSignPacket_CoversGeneratedAt(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	packet := &attest.EvidencePacket{
+		PacketType:    "attest.evidence_packet",
+		SchemaVersion: "1.0",
+		GeneratedAt:   time.Unix(100, 0).UTC(),
+		Integrity: attest.EvidenceIntegrity{
+			HashAlgorithm: "sha256",
+		},
+	}
+
+	hash, err := hashPacket(packet)
+	if err != nil {
+		t.Fatalf("hash packet: %v", err)
+	}
+	packet.Integrity.PacketHash = hash
+	if err := SignPacket(packet, key, "kid-123"); err != nil {
+		t.Fatalf("sign packet: %v", err)
+	}
+
+	originalSignature := packet.Integrity.PacketSignature
+	packet.GeneratedAt = time.Unix(101, 0).UTC()
+	nextHash, err := hashPacket(packet)
+	if err != nil {
+		t.Fatalf("rehash packet: %v", err)
+	}
+	if nextHash == packet.Integrity.PacketHash {
+		t.Fatalf("expected packet hash to change after generated_at changes")
+	}
+	if packet.Integrity.PacketSignature != originalSignature {
+		t.Fatalf("expected signature field to remain unchanged until explicitly re-signed")
+	}
+}
+
+func TestHashPacket_ExcludesSignatureMetadata(t *testing.T) {
+	packetA := &attest.EvidencePacket{
+		PacketType:    "attest.evidence_packet",
+		SchemaVersion: "1.0",
+		GeneratedAt:   time.Unix(100, 0).UTC(),
+		Integrity: attest.EvidenceIntegrity{
+			HashAlgorithm:      "sha256",
+			SignatureAlgorithm: "RS256",
+			SignatureKID:       "kid-a",
+			PacketSignature:    "aaa",
+		},
+	}
+	packetB := &attest.EvidencePacket{}
+	raw, err := json.Marshal(packetA)
+	if err != nil {
+		t.Fatalf("marshal packet: %v", err)
+	}
+	if err := json.Unmarshal(raw, packetB); err != nil {
+		t.Fatalf("unmarshal packet: %v", err)
+	}
+	packetB.Integrity.SignatureAlgorithm = "RS256"
+	packetB.Integrity.SignatureKID = "kid-b"
+	packetB.Integrity.PacketSignature = "bbb"
+
+	hashA, err := hashPacket(packetA)
+	if err != nil {
+		t.Fatalf("hash packet A: %v", err)
+	}
+	hashB, err := hashPacket(packetB)
+	if err != nil {
+		t.Fatalf("hash packet B: %v", err)
+	}
+	if hashA != hashB {
+		t.Fatalf("expected signature metadata to be excluded from packet hash")
+	}
+}
+
 func TestRenderTaskReport(t *testing.T) {
 	packet := &attest.EvidencePacket{
 		PacketType:    "attest.evidence_packet",
@@ -145,9 +341,12 @@ func TestRenderTaskReport(t *testing.T) {
 			},
 		},
 		Integrity: attest.EvidenceIntegrity{
-			AuditChainValid: true,
-			HashAlgorithm:   "sha256",
-			PacketHash:      "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+			AuditChainValid:    true,
+			HashAlgorithm:      "sha256",
+			PacketHash:         "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+			SignatureAlgorithm: "RS256",
+			SignatureKID:       "kid-123",
+			PacketSignature:    "c2lnbmVkLXBheWxvYWQ",
 		},
 		Summary: attest.EvidenceSummary{
 			Result: "active",
@@ -189,9 +388,12 @@ func TestRenderTaskReport_SOC2Template(t *testing.T) {
 		},
 		Identity: attest.EvidenceIdentity{UserID: "usr_alice"},
 		Integrity: attest.EvidenceIntegrity{
-			AuditChainValid: true,
-			HashAlgorithm:   "sha256",
-			PacketHash:      "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+			AuditChainValid:    true,
+			HashAlgorithm:      "sha256",
+			PacketHash:         "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+			SignatureAlgorithm: "RS256",
+			SignatureKID:       "kid-123",
+			PacketSignature:    "c2lnbmVkLXBheWxvYWQ",
 		},
 		Summary: attest.EvidenceSummary{
 			Result:          "active",

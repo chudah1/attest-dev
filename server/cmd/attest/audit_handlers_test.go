@@ -130,13 +130,27 @@ func (e *testEnv) makeRequest(t *testing.T, method, path string, body any) *http
 	r := chi.NewRouter()
 	r.Use(e.h.authMiddleware)
 	r.Route("/v1", func(r chi.Router) {
+		r.Post("/credentials/delegate", e.h.delegateCredential)
 		r.Post("/audit/report", e.h.reportAction)
 		r.Post("/audit/status", e.h.reportStatus)
 		r.Delete("/credentials/{jti}", e.h.revokeCredential)
 		r.Get("/revoked/{jti}", e.h.checkRevocation)
+		r.Get("/tasks/{tid}/evidence", e.h.getTaskEvidence)
 		r.Get("/tasks/{tid}/report", e.h.getTaskReport)
 	})
 
+	r.ServeHTTP(rr, req)
+	return rr
+}
+
+func (e *testEnv) makePublicRequest(t *testing.T, method, path string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req := httptest.NewRequest(method, path, nil)
+	rr := httptest.NewRecorder()
+
+	r := chi.NewRouter()
+	r.Get("/orgs/{orgID}/jwks.json", e.h.jwks)
 	r.ServeHTTP(rr, req)
 	return rr
 }
@@ -219,6 +233,44 @@ func TestReportAction_RevokedCredential(t *testing.T) {
 	}
 }
 
+func TestReportAction_HistoricalSigningKeyStillAccepted(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read"})
+
+	if _, err := e.h.orgStore.RotateSigningKey(context.Background(), e.orgID); err != nil {
+		t.Fatalf("rotate signing key: %v", err)
+	}
+
+	rr := e.makeRequest(t, http.MethodPost, "/v1/audit/report", map[string]any{
+		"token":   tok,
+		"tool":    "read_file",
+		"outcome": "success",
+	})
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 with historical signing key, got %d — %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestDelegateCredential_HistoricalParentKeyStillAccepted(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read", "email:send"})
+
+	if _, err := e.h.orgStore.RotateSigningKey(context.Background(), e.orgID); err != nil {
+		t.Fatalf("rotate signing key: %v", err)
+	}
+
+	rr := e.makeRequest(t, http.MethodPost, "/v1/credentials/delegate", map[string]any{
+		"parent_token": tok,
+		"child_agent":  "email-agent-v1",
+		"child_scope":  []string{"email:send"},
+	})
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected 201 with historical parent token, got %d — %s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestReportAction_InvalidToken(t *testing.T) {
 	e := newTestEnv(t)
 
@@ -292,6 +344,74 @@ func TestGetTaskReport_HTML(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), taskID) {
 		t.Fatalf("expected task id in report body")
+	}
+}
+
+func TestGetTaskEvidence_SignedPacket(t *testing.T) {
+	e := newTestEnv(t)
+	tok, _ := e.issueToken(t, []string{"files:read"})
+
+	result, _ := e.issuer.Verify(tok, &e.sigKey.PublicKey)
+	taskID := result.Claims.TaskID
+
+	rr := e.makeRequest(t, http.MethodGet, "/v1/tasks/"+taskID+"/evidence", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 from task evidence, got %d — %s", rr.Code, rr.Body.String())
+	}
+
+	var packet attest.EvidencePacket
+	if err := json.Unmarshal(rr.Body.Bytes(), &packet); err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+	if packet.Integrity.SignatureAlgorithm != "RS256" {
+		t.Fatalf("expected RS256 signature algorithm, got %q", packet.Integrity.SignatureAlgorithm)
+	}
+	if packet.Integrity.SignatureKID == "" {
+		t.Fatalf("expected signature kid")
+	}
+	if packet.Integrity.PacketSignature == "" {
+		t.Fatalf("expected packet signature")
+	}
+}
+
+func TestJWKS_IncludesHistoricalKeysAfterRotation(t *testing.T) {
+	e := newTestEnv(t)
+
+	initialKey, err := e.h.orgStore.GetSigningKey(context.Background(), e.orgID)
+	if err != nil {
+		t.Fatalf("get initial signing key: %v", err)
+	}
+	rotatedKey, err := e.h.orgStore.RotateSigningKey(context.Background(), e.orgID)
+	if err != nil {
+		t.Fatalf("rotate signing key: %v", err)
+	}
+
+	rr := e.makePublicRequest(t, http.MethodGet, "/orgs/"+e.orgID+"/jwks.json")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 from jwks, got %d — %s", rr.Code, rr.Body.String())
+	}
+
+	var payload struct {
+		Keys []struct {
+			KID string `json:"kid"`
+		} `json:"keys"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode jwks: %v", err)
+	}
+	if len(payload.Keys) != 2 {
+		t.Fatalf("expected 2 jwks keys after rotation, got %d", len(payload.Keys))
+	}
+
+	found := map[string]bool{}
+	for _, key := range payload.Keys {
+		found[key.KID] = true
+	}
+	if !found[initialKey.KeyID] {
+		t.Fatalf("expected jwks to include original key id %q", initialKey.KeyID)
+	}
+	if !found[rotatedKey.KeyID] {
+		t.Fatalf("expected jwks to include rotated key id %q", rotatedKey.KeyID)
 	}
 }
 

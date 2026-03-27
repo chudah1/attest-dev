@@ -34,7 +34,7 @@ type APIKey struct {
 	RevokedAt *time.Time
 }
 
-// OrgKey holds the active RSA key pair for an org.
+// OrgKey holds an RSA key pair for an org.
 // The KeyID is used as the JWT `kid` header and in the JWKS response.
 type OrgKey struct {
 	KeyID      string
@@ -58,6 +58,11 @@ type Store interface {
 
 	// GetSigningKey returns the active RSA key pair for the given org.
 	GetSigningKey(ctx context.Context, orgID string) (*OrgKey, error)
+
+	// ListSigningKeys returns every signing key for the given org, newest first.
+	// Historical keys are included so previously issued artifacts remain
+	// verifiable after rotation.
+	ListSigningKeys(ctx context.Context, orgID string) ([]*OrgKey, error)
 
 	// UpdateOrg updates the organisation's configuration (IdP settings).
 	UpdateOrg(ctx context.Context, orgID string, requireIDP bool, issuerURL, clientID *string) error

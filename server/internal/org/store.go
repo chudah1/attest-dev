@@ -168,6 +168,45 @@ func (s *PostgresStore) GetSigningKey(ctx context.Context, orgID string) (*OrgKe
 	}, nil
 }
 
+func (s *PostgresStore) ListSigningKeys(ctx context.Context, orgID string) ([]*OrgKey, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, private_key, created_at
+		FROM org_keys
+		WHERE org_id = $1
+		ORDER BY created_at DESC, id DESC
+	`, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("list signing keys: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*OrgKey
+	for rows.Next() {
+		var keyID string
+		var keyDER []byte
+		var createdAt time.Time
+		if err := rows.Scan(&keyID, &keyDER, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan signing key: %w", err)
+		}
+
+		privateKey, err := x509.ParsePKCS1PrivateKey(keyDER)
+		if err != nil {
+			return nil, fmt.Errorf("parse signing key: %w", err)
+		}
+
+		out = append(out, &OrgKey{
+			KeyID:      keyID,
+			OrgID:      orgID,
+			PrivateKey: privateKey,
+			CreatedAt:  createdAt,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate signing keys: %w", err)
+	}
+	return out, nil
+}
+
 func (s *PostgresStore) CreateAPIKey(ctx context.Context, orgID, name string) (*APIKey, string, error) {
 	secret := generateAPIKeySecret()
 	now := time.Now().UTC()

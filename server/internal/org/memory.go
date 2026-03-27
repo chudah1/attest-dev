@@ -33,10 +33,10 @@ type apiKeyEntry struct {
 // literal string "dev", matching the existing single-tenant behaviour.
 type MemoryStore struct {
 	mu         sync.RWMutex
-	orgs       map[string]*Org           // org id → org
-	keys       map[string][]*OrgKey      // org id → signing keys (last is active)
-	apiKeys    map[string]*apiKeyEntry   // SHA-256(raw key) → entry
-	orgAPIKeys map[string][]*APIKey      // org id → api key metadata list
+	orgs       map[string]*Org         // org id → org
+	keys       map[string][]*OrgKey    // org id → signing keys (last is active)
+	apiKeys    map[string]*apiKeyEntry // SHA-256(raw key) → entry
+	orgAPIKeys map[string][]*APIKey    // org id → api key metadata list
 }
 
 // NewMemoryStore returns a MemoryStore pre-seeded with the "dev" organisation.
@@ -233,6 +233,21 @@ func (s *MemoryStore) GetSigningKey(_ context.Context, orgID string) (*OrgKey, e
 		return nil, fmt.Errorf("no signing key for org %q", orgID)
 	}
 	return ks[len(ks)-1], nil
+}
+
+func (s *MemoryStore) ListSigningKeys(_ context.Context, orgID string) ([]*OrgKey, error) {
+	s.mu.RLock()
+	ks := s.keys[orgID]
+	s.mu.RUnlock()
+	if len(ks) == 0 {
+		return nil, fmt.Errorf("no signing key for org %q", orgID)
+	}
+
+	out := make([]*OrgKey, 0, len(ks))
+	for i := len(ks) - 1; i >= 0; i-- {
+		out = append(out, ks[i])
+	}
+	return out, nil
 }
 
 func (s *MemoryStore) CreateAPIKey(_ context.Context, orgID, name string) (*APIKey, string, error) {

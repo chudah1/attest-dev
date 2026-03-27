@@ -20,6 +20,7 @@ import (
 	"github.com/attest-dev/attest/internal/token"
 	"github.com/attest-dev/attest/pkg/attest"
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -34,6 +35,52 @@ type handlers struct {
 	evidenceSvc *evidence.Service
 	oidcManager *oidcauth.Manager
 	appStore    approval.Store
+}
+
+func keyIDFromToken(token string) string {
+	parser := new(jwt.Parser)
+	parsed, _, err := parser.ParseUnverified(token, &attest.Claims{})
+	if err != nil || parsed == nil {
+		return ""
+	}
+	kid, _ := parsed.Header["kid"].(string)
+	return kid
+}
+
+func reorderOrgKeysByKID(keys []*org.OrgKey, kid string) []*org.OrgKey {
+	if kid == "" || len(keys) < 2 {
+		return keys
+	}
+
+	out := make([]*org.OrgKey, 0, len(keys))
+	for _, key := range keys {
+		if key.KeyID == kid {
+			out = append(out, key)
+		}
+	}
+	for _, key := range keys {
+		if key.KeyID != kid {
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+func (h *handlers) verifyTokenForOrg(ctx context.Context, orgID, rawToken string) (*attest.VerifyResult, error) {
+	orgKeys, err := h.orgStore.ListSigningKeys(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	kid := keyIDFromToken(rawToken)
+	for _, orgKey := range reorderOrgKeysByKID(orgKeys, kid) {
+		result, err := h.issuer.Verify(rawToken, &orgKey.PrivateKey.PublicKey)
+		if err == nil && result != nil && result.Valid {
+			return result, nil
+		}
+	}
+
+	return nil, errors.New("token verification failed")
 }
 
 // authMiddleware resolves the Bearer API key to an org and injects both the
@@ -265,13 +312,19 @@ func (h *handlers) delegateCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	parentResult, err := h.verifyTokenForOrg(r.Context(), o.ID, p.ParentToken)
+	if err != nil || parentResult == nil || !parentResult.Valid {
+		writeError(w, http.StatusUnprocessableEntity, "invalid parent token")
+		return
+	}
+
 	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
 	if err != nil {
 		writeInternalError(w, "get signing key", err)
 		return
 	}
 
-	tok, claims, err := h.issuer.Delegate(orgKey.PrivateKey, orgKey.KeyID, p)
+	tok, claims, err := h.issuer.DelegateVerified(orgKey.PrivateKey, orgKey.KeyID, parentResult.Claims, p)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, err.Error())
 		return
@@ -368,11 +421,28 @@ func (h *handlers) getAuditLog(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, events)
 }
 
+func (h *handlers) buildSignedTaskEvidence(ctx context.Context, o *org.Org, tid string) (*attest.EvidencePacket, error) {
+	packet, err := h.evidenceSvc.BuildTaskEvidence(ctx, o.ID, o.Name, tid)
+	if err != nil {
+		return nil, err
+	}
+
+	orgKey, err := h.orgStore.GetSigningKey(ctx, o.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := evidence.SignPacket(packet, orgKey.PrivateKey, orgKey.KeyID); err != nil {
+		return nil, err
+	}
+
+	return packet, nil
+}
+
 // GET /v1/tasks/{tid}/evidence
 func (h *handlers) getTaskEvidence(w http.ResponseWriter, r *http.Request) {
 	o := orgFromCtx(r.Context())
 	tid := chi.URLParam(r, "tid")
-	packet, err := h.evidenceSvc.BuildTaskEvidence(r.Context(), o.ID, o.Name, tid)
+	packet, err := h.buildSignedTaskEvidence(r.Context(), o, tid)
 	if err != nil {
 		writeInternalError(w, "build task evidence", err)
 		return
@@ -384,7 +454,7 @@ func (h *handlers) getTaskEvidence(w http.ResponseWriter, r *http.Request) {
 func (h *handlers) getTaskReport(w http.ResponseWriter, r *http.Request) {
 	o := orgFromCtx(r.Context())
 	tid := chi.URLParam(r, "tid")
-	packet, err := h.evidenceSvc.BuildTaskEvidence(r.Context(), o.ID, o.Name, tid)
+	packet, err := h.buildSignedTaskEvidence(r.Context(), o, tid)
 	if err != nil {
 		writeInternalError(w, "build task evidence", err)
 		return
@@ -403,30 +473,33 @@ func (h *handlers) getTaskReport(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(reportHTML)
 }
 
-// GET /orgs/{orgID}/jwks.json — public, returns the org's active RSA public key as JWKS.
+// GET /orgs/{orgID}/jwks.json — public, returns the org's current and historical
+// RSA public keys as JWKS so previously signed artifacts remain verifiable.
 func (h *handlers) jwks(w http.ResponseWriter, r *http.Request) {
 	orgID := chi.URLParam(r, "orgID")
-	orgKey, err := h.orgStore.GetSigningKey(r.Context(), orgID)
+	orgKeys, err := h.orgStore.ListSigningKeys(r.Context(), orgID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "org not found")
 		return
 	}
 
-	pub := &orgKey.PrivateKey.PublicKey
-	nBytes := pub.N.Bytes()
-	eBytes := big.NewInt(int64(pub.E)).Bytes()
+	keys := make([]map[string]any, 0, len(orgKeys))
+	for _, orgKey := range orgKeys {
+		pub := &orgKey.PrivateKey.PublicKey
+		nBytes := pub.N.Bytes()
+		eBytes := big.NewInt(int64(pub.E)).Bytes()
+		keys = append(keys, map[string]any{
+			"kty": "RSA",
+			"use": "sig",
+			"alg": "RS256",
+			"kid": orgKey.KeyID,
+			"n":   encodeBase64URL(nBytes),
+			"e":   encodeBase64URL(eBytes),
+		})
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"keys": []map[string]any{
-			{
-				"kty": "RSA",
-				"use": "sig",
-				"alg": "RS256",
-				"kid": orgKey.KeyID,
-				"n":   encodeBase64URL(nBytes),
-				"e":   encodeBase64URL(eBytes),
-			},
-		},
+		"keys": keys,
 	})
 }
 
@@ -718,7 +791,7 @@ func (h *handlers) grantApproval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parentResult, err := h.issuer.Verify(pending.ParentToken, &orgKey.PrivateKey.PublicKey)
+	parentResult, err := h.verifyTokenForOrg(r.Context(), o.ID, pending.ParentToken)
 	if err != nil || !parentResult.Valid {
 		// Parent token expired or invalid — reject the approval automatically.
 		_ = h.appStore.Resolve(r.Context(), o.ID, challengeID, approval.StatusRejected, "system:parent_expired")
@@ -750,7 +823,7 @@ func (h *handlers) grantApproval(w http.ResponseWriter, r *http.Request) {
 	dp.VerifiedHITLSubject = &verifiedSubject
 	dp.VerifiedHITLIssuer = &verifiedIssuer
 
-	tok, claims, err := h.issuer.Delegate(orgKey.PrivateKey, orgKey.KeyID, dp)
+	tok, claims, err := h.issuer.DelegateVerified(orgKey.PrivateKey, orgKey.KeyID, parentResult.Claims, dp)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "failed to issue hitl credential: "+err.Error())
 		return
@@ -789,13 +862,8 @@ func (h *handlers) grantApproval(w http.ResponseWriter, r *http.Request) {
 // Returns the verified claims, or nil if the response was already written.
 func (h *handlers) verifyCred(w http.ResponseWriter, r *http.Request, token string) *attest.Claims {
 	o := orgFromCtx(r.Context())
-	orgKey, err := h.orgStore.GetSigningKey(r.Context(), o.ID)
-	if err != nil {
-		writeInternalError(w, "get signing key", err)
-		return nil
-	}
-	result, err := h.issuer.Verify(token, &orgKey.PrivateKey.PublicKey)
-	if err != nil || !result.Valid {
+	result, err := h.verifyTokenForOrg(r.Context(), o.ID, token)
+	if err != nil || result == nil || !result.Valid {
 		writeError(w, http.StatusUnauthorized, "invalid or expired credential")
 		return nil
 	}
