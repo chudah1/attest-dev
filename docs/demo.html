@@ -3,306 +3,1129 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Get started — Attest</title>
+  <title>Interactive demo — Attest</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0a0a0f;
-      --surface: #111118;
-      --surface2: #16161f;
-      --border: #1e1e2e;
-      --accent: #6366f1;
-      --accent-dim: #4f51c4;
-      --text: #e2e2f0;
-      --muted: #7b7b9a;
-      --green: #22c55e;
-      --red: #ef4444;
-      --radius: 10px;
+      --bg: #07111a;
+      --bg-accent: #102231;
+      --surface: rgba(9, 20, 31, 0.84);
+      --surface-strong: rgba(13, 27, 41, 0.95);
+      --surface-soft: rgba(17, 36, 54, 0.72);
+      --border: rgba(143, 202, 255, 0.14);
+      --border-strong: rgba(143, 202, 255, 0.26);
+      --text: #ebf5ff;
+      --muted: #9fb4c8;
+      --accent: #7dd3fc;
+      --accent-strong: #38bdf8;
+      --accent-warm: #f59e0b;
+      --green: #34d399;
+      --red: #f87171;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+      --radius-xl: 28px;
+      --radius-lg: 18px;
+      --radius-md: 12px;
     }
 
     body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
-      line-height: 1.6;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 30%),
+        radial-gradient(circle at top right, rgba(245, 158, 11, 0.14), transparent 28%),
+        linear-gradient(180deg, var(--bg) 0%, #061019 100%);
+      color: var(--text);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.55;
+      padding: 32px 20px 56px;
     }
 
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
 
-    .card {
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      max-width: 1220px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 28px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .panel {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 2.5rem;
-      width: 100%;
-      max-width: 460px;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
     }
 
-    .logo {
-      font-size: 1.3rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.25rem;
-    }
-    .logo span { color: var(--accent); }
-
-    .subtitle {
-      color: var(--muted);
-      font-size: 0.875rem;
-      margin-bottom: 2rem;
+    .hero-copy {
+      padding: 28px;
     }
 
-    label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: var(--muted);
-      margin-bottom: 0.4rem;
-      letter-spacing: 0.02em;
-    }
-
-    input[type="text"] {
-      width: 100%;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-size: 0.875rem;
-      padding: 0.65rem 0.9rem;
-      outline: none;
-      font-family: inherit;
-      transition: border-color 0.15s;
-    }
-    input:focus { border-color: var(--accent); }
-
-    .btn {
+    .eyebrow {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-      padding: 0.65rem 1.2rem;
-      border-radius: var(--radius);
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      border: none;
-      transition: opacity 0.15s;
-      font-family: inherit;
-    }
-    .btn:hover { opacity: 0.85; }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-primary { background: var(--accent); color: #fff; width: 100%; margin-top: 1.25rem; }
-    .btn-ghost {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text);
-      width: 100%;
-      margin-top: 0.75rem;
+      gap: 10px;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+      margin-bottom: 12px;
     }
 
-    .error-msg {
-      color: var(--red);
-      font-size: 0.8rem;
-      margin-top: 0.75rem;
-      display: none;
+    .eyebrow::before {
+      content: "";
+      width: 34px;
+      height: 1px;
+      background: rgba(125, 211, 252, 0.5);
     }
 
-    /* SUCCESS STATE */
-    #success { display: none; }
-
-    .key-box {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 0.75rem 1rem;
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.8rem;
-      word-break: break-all;
-      color: var(--text);
-      margin: 0.75rem 0;
-      position: relative;
+    h1 {
+      font-size: clamp(1.8rem, 3.4vw, 3.2rem);
+      line-height: 0.94;
+      letter-spacing: -0.04em;
+      margin-bottom: 10px;
     }
 
-    .warning-box {
-      background: rgba(251,191,36,0.08);
-      border: 1px solid rgba(251,191,36,0.25);
-      border-radius: var(--radius);
-      padding: 0.75rem 1rem;
-      font-size: 0.8rem;
-      color: #fbbf24;
-      margin-bottom: 1.5rem;
-    }
-
-    .divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 1.5rem 0;
-    }
-
-    .footer-link {
-      text-align: center;
-      font-size: 0.8rem;
+    .hero-copy p {
+      max-width: 50ch;
+      font-size: 0.93rem;
       color: var(--muted);
-      margin-top: 1.5rem;
+      margin-bottom: 10px;
     }
 
-    .key-header {
+    .hero-points {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      color: var(--text);
+      background: rgba(125, 211, 252, 0.06);
+    }
+
+    .hero-side {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .proof-card {
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+    }
+
+    .proof-card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+
+    .proof-card p {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat {
+      background: rgba(125, 211, 252, 0.05);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 12px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.35rem;
+      margin-bottom: 4px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.06fr) minmax(320px, 0.94fr);
+      gap: 28px;
+    }
+
+    .controls,
+    .timeline {
+      padding: 28px;
+    }
+
+    .section-title {
+      font-size: 1.35rem;
+      margin-bottom: 8px;
+    }
+
+    .section-copy {
+      color: var(--muted);
+      margin-bottom: 22px;
+      max-width: 58ch;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    textarea,
+    input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text);
+      padding: 14px 16px;
+      font: inherit;
+      outline: none;
+      transition: border-color 0.16s ease, transform 0.16s ease;
+    }
+
+    textarea {
+      min-height: 112px;
+      resize: vertical;
+    }
+
+    textarea:focus,
+    input:focus {
+      border-color: var(--accent-strong);
+      transform: translateY(-1px);
+    }
+
+    .scope-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .scope-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.16s ease;
+      font-size: 0.86rem;
+    }
+
+    .scope-chip input {
+      width: auto;
+      padding: 0;
+      accent-color: var(--accent-strong);
+    }
+
+    .scope-chip.active {
+      border-color: rgba(125, 211, 252, 0.42);
+      background: rgba(125, 211, 252, 0.12);
+      color: var(--text);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      color: #03131c;
+      box-shadow: 0 12px 28px rgba(56, 189, 248, 0.22);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .mini-caption {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    .credential-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .credential {
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      min-height: 168px;
+    }
+
+    .credential h3 {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 0.25rem;
+      gap: 12px;
+      font-size: 1rem;
+      margin-bottom: 12px;
     }
-    .key-label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-    .copy-btn {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--muted);
-      font-size: 0.75rem;
-      padding: 0.2rem 0.5rem;
-      cursor: pointer;
-      font-family: inherit;
-      transition: color 0.15s;
-    }
-    .copy-btn:hover { color: var(--text); }
 
-    .org-badge {
-      display: inline-block;
-      background: rgba(99,102,241,0.12);
-      border: 1px solid rgba(99,102,241,0.25);
+    .badge {
+      font-size: 0.72rem;
+      padding: 5px 8px;
       border-radius: 999px;
-      padding: 0.15rem 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid transparent;
+    }
+
+    .badge-ok {
+      color: var(--green);
+      background: rgba(52, 211, 153, 0.12);
+      border-color: rgba(52, 211, 153, 0.25);
+    }
+
+    .badge-off {
+      color: var(--red);
+      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(248, 113, 113, 0.25);
+    }
+
+    .meta {
+      display: grid;
+      gap: 9px;
+      font-size: 0.84rem;
+    }
+
+    .meta strong {
+      color: var(--muted);
+      font-weight: 600;
+      display: inline-block;
+      min-width: 86px;
+    }
+
+    .mono {
+      font-family: "SF Mono", "Monaco", "Consolas", monospace;
+      font-size: 0.8rem;
+      word-break: break-all;
+    }
+
+    .timeline-list {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .event {
+      position: relative;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 16px 16px 18px;
+      overflow: hidden;
+    }
+
+    .event::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 4px;
+      background: rgba(125, 211, 252, 0.48);
+    }
+
+    .event-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+
+    .event-title {
+      font-size: 0.97rem;
+      font-weight: 700;
+    }
+
+    .event-time {
+      color: var(--muted);
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .event p {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 6px;
+    }
+
+    .event .mono {
+      color: var(--text);
+    }
+
+    .event.allowed::before {
+      background: rgba(52, 211, 153, 0.78);
+    }
+
+    .event.blocked::before,
+    .event.revoked::before {
+      background: rgba(248, 113, 113, 0.78);
+    }
+
+    .verify-panel {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.24);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+
+    .verify-panel h3 {
+      margin-bottom: 8px;
+    }
+
+    .verify-panel p {
+      color: #f7d7a2;
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+    }
+
+    .evidence-panel {
+      margin-top: 14px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+
+    .evidence-panel h3 {
+      margin-bottom: 8px;
+    }
+
+    .evidence-panel p {
+      color: #c8eaff;
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+    }
+
+    .evidence-grid {
+      display: grid;
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .evidence-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 0.84rem;
+    }
+
+    .evidence-row strong {
+      color: var(--muted);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .evidence-row span {
+      text-align: right;
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    .packet-box {
+      background: rgba(3, 10, 16, 0.6);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-top: 12px;
+      max-height: 220px;
+      overflow: auto;
+      font-family: "SF Mono", "Monaco", "Consolas", monospace;
       font-size: 0.75rem;
-      color: var(--accent);
-      margin-bottom: 1rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #d8f1ff;
+    }
+
+    .evidence-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .note {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      text-align: center;
+    }
+
+    @media (max-width: 1024px) {
+      .hero,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 16px 14px 32px;
+      }
+
+      .hero-copy,
+      .hero-side,
+      .controls,
+      .timeline {
+        padding: 22px;
+      }
+
+      .stats,
+      .credential-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 1.95rem;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="page">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <div class="eyebrow">Interactive Demo</div>
+        <h1>Authorize every handoff. Prove every tool call.</h1>
+        <p>
+          This demo shows the product moment Attest is built for: a human authorizes a task,
+          an orchestrator delegates narrower authority to a sub-agent, the tool call is enforced,
+          and the full chain can still be verified later.
+        </p>
+        <p>
+          No mock dashboard theatre. Just the chain of authority, visible end to end.
+        </p>
+        <div class="hero-points">
+          <span class="pill">Intent hash preserved</span>
+          <span class="pill">Scope narrows on delegation</span>
+          <span class="pill">Blocked calls are explicit</span>
+          <span class="pill">Revocation cascades</span>
+        </div>
+      </div>
 
-<div class="card">
-  <!-- SIGNUP FORM -->
-  <div id="signup">
-    <div class="logo">Attest<span>.</span></div>
-    <p class="subtitle">Create a free account to start issuing cryptographic credentials for your AI agents.</p>
+      <aside class="panel hero-side">
+        <div class="proof-card">
+          <h2>What this proves</h2>
+          <p>
+            Attest is not just an audit log. It is evidence that a specific tool action
+            came from a bounded chain of delegated authority rooted in a human instruction.
+          </p>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <strong>1</strong>
+            <span>root credential</span>
+          </div>
+          <div class="stat">
+            <strong>1</strong>
+            <span>delegated child</span>
+          </div>
+          <div class="stat">
+            <strong>3</strong>
+            <span>runtime outcomes</span>
+          </div>
+        </div>
+      </aside>
+    </section>
 
-    <label for="org-name">Organisation name</label>
-    <input type="text" id="org-name" placeholder="Acme Corp" autocomplete="off" />
+    <section class="workspace">
+      <div class="panel controls">
+        <h2 class="section-title">Run the authority chain</h2>
+        <p class="section-copy">
+          Start with a human instruction and choose the scopes the orchestrator is allowed to hold.
+          The child agent will receive only the minimum it needs.
+        </p>
 
-    <div class="error-msg" id="signup-error">Something went wrong. Please try again.</div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="instruction">Human instruction</label>
+            <textarea id="instruction">Research the top 3 AI agent security competitors, draft a summary, and send it to the leadership team.</textarea>
+          </div>
 
-    <button class="btn btn-primary" id="signup-btn" onclick="doSignup()">Create account →</button>
+          <div class="field">
+            <label for="user-id">Human principal</label>
+            <input id="user-id" type="text" value="usr_compliance_lead" />
+          </div>
 
-    <div class="footer-link">
-      Already have an API key? <a href="/dashboard">Sign in to dashboard</a>
-    </div>
+          <div class="field">
+            <label>Root scopes</label>
+            <div class="scope-row" id="scope-row">
+              <label class="scope-chip active"><input type="checkbox" value="research:read" checked /> research:read</label>
+              <label class="scope-chip active"><input type="checkbox" value="email:send" checked /> email:send</label>
+              <label class="scope-chip"><input type="checkbox" value="crm:write" /> crm:write</label>
+              <label class="scope-chip"><input type="checkbox" value="trades:execute" /> trades:execute</label>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button class="btn-primary" id="run-btn">Issue root + delegate child</button>
+            <button class="btn-secondary" id="allowed-btn" disabled>Run allowed tool</button>
+            <button class="btn-secondary" id="blocked-btn" disabled>Attempt blocked tool</button>
+            <button class="btn-secondary" id="revoke-btn" disabled>Revoke task tree</button>
+            <button class="btn-secondary" id="verify-btn" disabled>Verify intent hash</button>
+          </div>
+        </div>
+
+        <p class="mini-caption">
+          The child agent in this demo receives only <span class="mono">email:send</span>.
+          If the root lacks that scope, delegation fails.
+        </p>
+
+        <div class="credential-grid">
+          <article class="credential">
+            <h3>
+              Root credential
+              <span class="badge badge-off" id="root-status">Not issued</span>
+            </h3>
+            <div class="meta" id="root-meta">
+              <div><strong>Agent</strong><span>orchestrator-v1</span></div>
+              <div><strong>Scope</strong><span>Pick scopes, then run the flow.</span></div>
+              <div><strong>JTI</strong><span class="mono">-</span></div>
+              <div><strong>Intent</strong><span class="mono">-</span></div>
+            </div>
+          </article>
+
+          <article class="credential">
+            <h3>
+              Child credential
+              <span class="badge badge-off" id="child-status">Not delegated</span>
+            </h3>
+            <div class="meta" id="child-meta">
+              <div><strong>Agent</strong><span>email-agent-v1</span></div>
+              <div><strong>Scope</strong><span>Delegation has not happened yet.</span></div>
+              <div><strong>JTI</strong><span class="mono">-</span></div>
+              <div><strong>Chain</strong><span class="mono">-</span></div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <aside class="panel timeline">
+        <h2 class="section-title">Audit timeline</h2>
+        <p class="section-copy">
+          Each step adds an event to the task timeline. The important moments are not only what succeeds,
+          but also what gets blocked and when revocation changes the runtime state.
+        </p>
+
+        <div class="timeline-list" id="timeline-list"></div>
+
+        <div class="verify-panel" id="verify-panel">
+          <h3>Verification state</h3>
+          <p id="verify-text">
+            Issue a credential first, then recompute the instruction hash to show that the original human intent is still bound to the chain.
+          </p>
+          <div class="mono" id="verify-hash">intent_hash: -</div>
+        </div>
+
+        <div class="evidence-panel">
+          <h3>Evidence packet</h3>
+          <p>
+            Generate an exportable artifact that bundles the instruction hash, delegation chain, runtime events, and verification result into one audit-ready packet.
+          </p>
+          <div class="evidence-grid" id="evidence-grid">
+            <div class="evidence-row"><strong>Status</strong><span>Not generated</span></div>
+            <div class="evidence-row"><strong>Packet hash</strong><span class="mono">-</span></div>
+            <div class="evidence-row"><strong>Tree summary</strong><span>Root, child, events, and verification state will appear here.</span></div>
+          </div>
+          <div class="packet-box" id="packet-box">Generate the packet to view the JSON evidence export.</div>
+          <div class="evidence-actions">
+            <button class="btn-primary" id="packet-btn" disabled>Generate evidence packet</button>
+            <button class="btn-secondary" id="copy-packet-btn" disabled>Copy packet JSON</button>
+            <button class="btn-secondary" id="download-packet-btn" disabled>Download packet</button>
+          </div>
+        </div>
+
+        <div class="footer-actions">
+          <a class="pill" href="./dashboard.html">Open dashboard</a>
+          <a class="pill" href="https://github.com/chudah1/attest-dev">View repo</a>
+        </div>
+      </aside>
+    </section>
+
+    <p class="note">
+      Demo note: this page simulates Attest's product flow in the browser so the proof is visible immediately.
+      The production implementation lives in the server and SDKs.
+    </p>
   </div>
 
-  <!-- SUCCESS -->
-  <div id="success">
-    <div class="logo">Attest<span>.</span></div>
-    <p class="subtitle">Your account is ready. Save your API key now.</p>
+  <script>
+    const state = {
+      root: null,
+      child: null,
+      revoked: false,
+      issuedAt: null,
+      events: [],
+      verifyText: "",
+      packet: null,
+    };
 
-    <div class="org-badge" id="org-badge">org</div>
+    const timelineList = document.getElementById("timeline-list");
+    const verifyText = document.getElementById("verify-text");
+    const verifyHash = document.getElementById("verify-hash");
+    const evidenceGrid = document.getElementById("evidence-grid");
+    const packetBox = document.getElementById("packet-box");
+    const packetBtn = document.getElementById("packet-btn");
+    const copyPacketBtn = document.getElementById("copy-packet-btn");
+    const downloadPacketBtn = document.getElementById("download-packet-btn");
 
-    <div class="key-header">
-      <span class="key-label">API Key</span>
-      <button class="copy-btn" onclick="copyKey()">Copy</button>
-    </div>
-    <div class="key-box" id="key-display">—</div>
-
-    <div class="warning-box">
-      Save this key — it won't be shown again. Store it in your secrets manager or environment variables.
-    </div>
-
-    <button class="btn btn-primary" onclick="openDashboard()">Open Dashboard →</button>
-    <button class="btn btn-ghost" onclick="copyKey()">Copy key to clipboard</button>
-
-    <div class="footer-link" style="margin-top:1.25rem;">
-      Use this key as <code style="font-size:0.8rem; color:var(--muted);">Authorization: Bearer &lt;key&gt;</code>
-    </div>
-  </div>
-</div>
-
-<script>
-  const API = 'https://api.attestdev.com';
-  let generatedKey = '';
-
-  document.getElementById('org-name').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSignup();
-  });
-
-  async function doSignup() {
-    const name = document.getElementById('org-name').value.trim();
-    if (!name) {
-      document.getElementById('org-name').focus();
-      return;
-    }
-
-    const btn = document.getElementById('signup-btn');
-    btn.disabled = true;
-    btn.textContent = 'Creating account…';
-    document.getElementById('signup-error').style.display = 'none';
-
-    try {
-      const res = await fetch(`${API}/v1/orgs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+    document.querySelectorAll(".scope-chip input").forEach((input) => {
+      input.addEventListener("change", () => {
+        input.parentElement.classList.toggle("active", input.checked);
       });
+    });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'server error');
+    document.getElementById("run-btn").addEventListener("click", runFlow);
+    document.getElementById("allowed-btn").addEventListener("click", runAllowedTool);
+    document.getElementById("blocked-btn").addEventListener("click", runBlockedTool);
+    document.getElementById("revoke-btn").addEventListener("click", revokeTree);
+    document.getElementById("verify-btn").addEventListener("click", verifyIntent);
+    packetBtn.addEventListener("click", generatePacket);
+    copyPacketBtn.addEventListener("click", copyPacket);
+    downloadPacketBtn.addEventListener("click", downloadPacket);
+
+    render();
+
+    async function runFlow() {
+      const instruction = document.getElementById("instruction").value.trim();
+      const userId = document.getElementById("user-id").value.trim() || "usr_unknown";
+      const rootScopes = getSelectedScopes();
+
+      if (!instruction || rootScopes.length === 0) {
+        addEvent("blocked", "Issuance blocked", "A root credential needs an instruction and at least one scope.");
+        render();
+        return;
       }
 
-      const data = await res.json();
-      generatedKey = data.api_key;
-      const orgName = data.org?.Name || data.org?.name || name;
+      resetRuntime();
 
-      // Store in localStorage so dashboard auto-logs in
-      localStorage.setItem('attest_key', generatedKey);
+      const intentHash = await sha256(instruction);
+      const rootJti = makeId("root");
+      const rootTid = makeId("tid");
 
-      // Show success
-      document.getElementById('signup').style.display = 'none';
-      document.getElementById('success').style.display = 'block';
-      document.getElementById('key-display').textContent = generatedKey;
-      document.getElementById('org-badge').textContent = orgName;
+      state.root = {
+        jti: rootJti,
+        tid: rootTid,
+        userId,
+        agentId: "orchestrator-v1",
+        scope: rootScopes,
+        intentHash,
+        chain: [rootJti],
+      };
 
-    } catch (err) {
-      const errEl = document.getElementById('signup-error');
-      errEl.textContent = err.message || 'Something went wrong. Please try again.';
-      errEl.style.display = 'block';
-      btn.disabled = false;
-      btn.textContent = 'Create account →';
+      state.issuedAt = new Date();
+      addEvent(
+        "issued",
+        "Root credential issued",
+        `Attest bound the instruction to ${shortHash(intentHash)} and issued a root credential to orchestrator-v1.`,
+        `scope=${rootScopes.join(", ")}`
+      );
+
+      if (!rootScopes.includes("email:send")) {
+        state.child = null;
+        addEvent(
+          "blocked",
+          "Delegation blocked",
+          "The child agent requires email:send, but the root credential does not include it. Scope cannot expand during delegation."
+        );
+        render();
+        return;
+      }
+
+      const childJti = makeId("child");
+      state.child = {
+        jti: childJti,
+        agentId: "email-agent-v1",
+        scope: ["email:send"],
+        chain: [rootJti, childJti],
+        parent: rootJti,
+      };
+
+      addEvent(
+        "delegated",
+        "Child credential delegated",
+        "The orchestrator delegated a narrower credential to email-agent-v1.",
+        `child_scope=email:send`
+      );
+
+      setEnabled(["allowed-btn", "blocked-btn", "revoke-btn", "verify-btn", "packet-btn"], true);
+      render();
     }
-  }
 
-  function copyKey() {
-    navigator.clipboard.writeText(generatedKey).then(() => {
-      const btn = document.querySelector('.copy-btn');
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 2000);
-    });
-  }
+    function runAllowedTool() {
+      if (!state.child || state.revoked) return;
 
-  function openDashboard() {
-    window.location.href = '/dashboard';
-  }
-</script>
+      addEvent(
+        "allowed",
+        "Allowed tool call",
+        'email-agent-v1 called "send_email" with email:send. The tool executed because the delegated scope covered it.',
+        `jti=${state.child.jti}`
+      );
+      render();
+    }
+
+    function runBlockedTool() {
+      if (!state.child || state.revoked) return;
+
+      addEvent(
+        "blocked",
+        "Blocked tool call",
+        'email-agent-v1 attempted "crm_update_record". The call was denied because the child credential only grants email:send.',
+        `required_scope=crm:write`
+      );
+      render();
+    }
+
+    function revokeTree() {
+      if (!state.root || state.revoked) return;
+
+      state.revoked = true;
+      addEvent(
+        "revoked",
+        "Task tree revoked",
+        "Revoking the root invalidated the full descendant chain immediately, including the child credential.",
+        `root_jti=${state.root.jti}`
+      );
+
+      setEnabled(["allowed-btn", "blocked-btn", "revoke-btn"], false);
+      render();
+    }
+
+    async function verifyIntent() {
+      if (!state.root) return;
+
+      const instruction = document.getElementById("instruction").value.trim();
+      const recomputed = await sha256(instruction);
+      const matches = recomputed === state.root.intentHash;
+
+      state.verifyText = matches
+        ? "The recomputed hash matches the value embedded in the credential chain. Months later, this is the proof that the action path still maps back to the original human instruction."
+        : "The recomputed hash does not match. That means the instruction text changed and no longer matches the original authority chain.";
+
+      verifyText.textContent = state.verifyText;
+      verifyHash.textContent = `intent_hash: ${recomputed}`;
+
+      addEvent(
+        matches ? "allowed" : "blocked",
+        matches ? "Intent verified" : "Intent mismatch",
+        state.verifyText
+      );
+
+      render();
+    }
+
+    function resetRuntime() {
+      state.root = null;
+      state.child = null;
+      state.revoked = false;
+      state.events = [];
+      state.verifyText = "";
+      state.packet = null;
+      verifyText.textContent = "Issue a credential first, then recompute the instruction hash to show that the original human intent is still bound to the chain.";
+      verifyHash.textContent = "intent_hash: -";
+      evidenceGrid.innerHTML = `
+        <div class="evidence-row"><strong>Status</strong><span>Not generated</span></div>
+        <div class="evidence-row"><strong>Packet hash</strong><span class="mono">-</span></div>
+        <div class="evidence-row"><strong>Tree summary</strong><span>Root, child, events, and verification state will appear here.</span></div>
+      `;
+      packetBox.textContent = "Generate the packet to view the JSON evidence export.";
+      setEnabled(["allowed-btn", "blocked-btn", "revoke-btn", "verify-btn", "packet-btn", "copy-packet-btn", "download-packet-btn"], false);
+    }
+
+    function setEnabled(ids, enabled) {
+      ids.forEach((id) => {
+        document.getElementById(id).disabled = !enabled;
+      });
+    }
+
+    function getSelectedScopes() {
+      return Array.from(document.querySelectorAll(".scope-chip input:checked")).map((el) => el.value);
+    }
+
+    function addEvent(kind, title, body, meta = "") {
+      state.events.unshift({
+        kind,
+        title,
+        body,
+        meta,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      });
+    }
+
+    function render() {
+      renderCredential("root", state.root, state.revoked);
+      renderCredential("child", state.child, state.revoked);
+      renderPacket();
+
+      timelineList.innerHTML = state.events.length
+        ? state.events.map(renderEvent).join("")
+        : `<div class="event"><div class="event-head"><div class="event-title">No events yet</div><div class="event-time">waiting</div></div><p>Run the flow to issue a credential, delegate a child, and inspect the audit sequence.</p></div>`;
+    }
+
+    async function generatePacket() {
+      if (!state.root) return;
+
+      const packet = await buildPacket();
+      state.packet = packet;
+      state.verifyText = state.verifyText || "The packet is ready for export and contains the authority chain plus the runtime evidence.";
+      addEvent(
+        "issued",
+        "Evidence packet generated",
+        "The demo packaged the full task tree into an exportable audit artifact.",
+        `packet_hash=${packet.packet_hash}`
+      );
+      render();
+    }
+
+    async function buildPacket() {
+      const packet = {
+        packet_type: "attest.evidence_packet",
+        schema_version: "1.0",
+        generated_at: new Date().toISOString(),
+        human: {
+          user_id: state.root.userId,
+          instruction: document.getElementById("instruction").value.trim(),
+          instruction_hash: state.root.intentHash,
+        },
+        authority_chain: {
+          root_jti: state.root.jti,
+          child_jti: state.child ? state.child.jti : null,
+          scopes: state.root.scope,
+          delegated_scopes: state.child ? state.child.scope : [],
+          revoked: state.revoked,
+        },
+        verification: {
+          intent_matches: state.verifyText ? state.verifyText.toLowerCase().includes("matches") : false,
+          task_tree_valid: Boolean(state.root && state.child),
+        },
+        events: state.events
+          .filter((event) => event.title !== "Evidence packet generated")
+          .map((event) => ({
+            kind: event.kind,
+            title: event.title,
+            body: event.body,
+            meta: event.meta,
+            time: event.time,
+          })),
+      };
+
+      packet.packet_hash = await hashPacket(packet);
+      return packet;
+    }
+
+    async function hashPacket(packet) {
+      const clone = { ...packet };
+      delete clone.packet_hash;
+      return sha256(JSON.stringify(clone));
+    }
+
+    function renderPacket() {
+      if (!state.packet) {
+        evidenceGrid.innerHTML = `
+          <div class="evidence-row"><strong>Status</strong><span>Not generated</span></div>
+          <div class="evidence-row"><strong>Packet hash</strong><span class="mono">-</span></div>
+          <div class="evidence-row"><strong>Tree summary</strong><span>Root, child, events, and verification state will appear here.</span></div>
+        `;
+        packetBox.textContent = "Generate the packet to view the JSON evidence export.";
+        copyPacketBtn.disabled = true;
+        downloadPacketBtn.disabled = true;
+        return;
+      }
+
+      const packet = state.packet;
+      const summary = [
+        `Root: ${packet.authority_chain.root_jti}`,
+        `Child: ${packet.authority_chain.child_jti || "n/a"}`,
+        `Scopes: ${packet.authority_chain.scopes.join(", ")}`,
+        `Verified: ${packet.verification.intent_matches ? "yes" : "no"}`,
+        `Revoked: ${packet.authority_chain.revoked ? "yes" : "no"}`,
+      ].join(" | ");
+
+      evidenceGrid.innerHTML = `
+        <div class="evidence-row"><strong>Status</strong><span>Ready for export</span></div>
+        <div class="evidence-row"><strong>Packet hash</strong><span class="mono">${packet.packet_hash}</span></div>
+        <div class="evidence-row"><strong>Tree summary</strong><span>${summary}</span></div>
+      `;
+      packetBox.textContent = JSON.stringify(packet, null, 2);
+      copyPacketBtn.disabled = false;
+      downloadPacketBtn.disabled = false;
+    }
+
+    async function copyPacket() {
+      if (!state.packet) return;
+      const packetText = JSON.stringify(state.packet, null, 2);
+
+      try {
+        await navigator.clipboard.writeText(packetText);
+        copyPacketBtn.textContent = "Copied!";
+        setTimeout(() => {
+          copyPacketBtn.textContent = "Copy packet JSON";
+        }, 1500);
+      } catch (err) {
+        window.prompt("Copy packet JSON", packetText);
+      }
+    }
+
+    function downloadPacket() {
+      if (!state.packet) return;
+      const blob = new Blob([JSON.stringify(state.packet, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `attest-evidence-${state.packet.packet_hash.slice(0, 12)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function renderCredential(prefix, credential, revoked) {
+      const statusEl = document.getElementById(`${prefix}-status`);
+      const metaEl = document.getElementById(`${prefix}-meta`);
+
+      if (!credential) {
+        statusEl.className = "badge badge-off";
+        statusEl.textContent = prefix === "root" ? "Not issued" : "Not delegated";
+        return;
+      }
+
+      statusEl.className = revoked ? "badge badge-off" : "badge badge-ok";
+      statusEl.textContent = revoked ? "Revoked" : "Active";
+
+      if (prefix === "root") {
+        metaEl.innerHTML = `
+          <div><strong>Agent</strong><span>${credential.agentId}</span></div>
+          <div><strong>Scope</strong><span>${credential.scope.join(", ")}</span></div>
+          <div><strong>JTI</strong><span class="mono">${credential.jti}</span></div>
+          <div><strong>Intent</strong><span class="mono">${shortHash(credential.intentHash)}</span></div>
+        `;
+      } else {
+        metaEl.innerHTML = `
+          <div><strong>Agent</strong><span>${credential.agentId}</span></div>
+          <div><strong>Scope</strong><span>${credential.scope.join(", ")}</span></div>
+          <div><strong>JTI</strong><span class="mono">${credential.jti}</span></div>
+          <div><strong>Chain</strong><span class="mono">${credential.chain.join(" -> ")}</span></div>
+        `;
+      }
+    }
+
+    function renderEvent(event) {
+      const eventClass = event.kind === "allowed"
+        ? "event allowed"
+        : event.kind === "blocked"
+          ? "event blocked"
+          : event.kind === "revoked"
+            ? "event revoked"
+            : "event";
+
+      return `
+        <article class="${eventClass}">
+          <div class="event-head">
+            <div class="event-title">${event.title}</div>
+            <div class="event-time">${event.time}</div>
+          </div>
+          <p>${event.body}</p>
+          ${event.meta ? `<div class="mono">${event.meta}</div>` : ""}
+        </article>
+      `;
+    }
+
+    function makeId(prefix) {
+      return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function shortHash(value) {
+      return `${value.slice(0, 16)}...`;
+    }
+
+    async function sha256(input) {
+      const bytes = new TextEncoder().encode(input);
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+  </script>
 </body>
 </html>

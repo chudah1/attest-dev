@@ -226,6 +226,27 @@
     }
     .callout p { margin: 0; font-size: 0.9rem; }
 
+    .reading-callout {
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.18);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0 1.5rem;
+    }
+    .reading-callout h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 0 0 0.35rem;
+      color: var(--text);
+    }
+    .reading-callout p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+    .reading-callout a {
+      font-weight: 600;
+    }
+
     /* LIFECYCLE DIAGRAM */
     .lifecycle {
       display: flex;
@@ -262,12 +283,12 @@
 <body>
 
 <nav>
-  <a href="/" class="logo">Attest<span>.</span></a>
+  <a href="./index.html" class="logo">Attest<span>.</span></a>
   <ul>
-    <li><a href="/">Home</a></li>
-    <li><a href="/docs" class="active">Docs</a></li>
+    <li><a href="./index.html">Home</a></li>
+    <li><a href="./docs.html" class="active">Docs</a></li>
     <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-    <li><a href="/dashboard" class="nav-cta">Dashboard</a></li>
+    <li><a href="./demo.html" class="nav-cta">Demo</a></li>
   </ul>
 </nav>
 
@@ -305,6 +326,12 @@
         <li><a href="#concepts-rotation">Key rotation</a></li>
       </ul>
     </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Further reading</div>
+      <ul>
+        <li><a href="#further-reading">Article</a></li>
+      </ul>
+    </div>
   </aside>
 
   <!-- Main content -->
@@ -320,6 +347,14 @@
       <strong>Attest</strong> gives every AI agent in your pipeline a cryptographically signed,
       scoped, auditable credential — so you always know who authorized what action and when.
     </p>
+
+    <div class="reading-callout" id="further-reading">
+      <h3>The Missing Protocol for AI Agent Authorization</h3>
+      <p>
+        A short companion piece on the product thesis behind Attest. It explains why delegated authority, intent binding, and provenance need to move together as agents fan out across tools and sub-agents.
+        <a href="https://dev.to/chudah1/the-missing-protocol-for-ai-agent-authorization-2532">Read the article</a>.
+      </p>
+    </div>
 
     <p>Each credential is an RS256-signed JWT carrying:</p>
     <ul class="prose">
@@ -345,38 +380,54 @@
 
     <!-- ── Quickstart ────────────────────────────────────────────────────── -->
     <h2 id="quickstart">Quickstart</h2>
-    <p>Three shell commands to go from zero to a verified credential.</p>
+    <p>The fastest path to value is not raw credential issuance. It is protecting one real MCP tool call end to end.</p>
 
-    <h3>1. Create an organisation</h3>
-    <pre><code>curl -X POST https://api.attestdev.com/v1/orgs \
+    <div class="callout">
+      <p><strong>Fastest activation path:</strong> run the <a href="./demo.html">demo</a>, add <code>withAttest()</code> to one MCP server, issue a credential with the exact discovered scopes, then confirm an allowed call succeeds and an out-of-scope call is blocked.</p>
+    </div>
+
+    <h3>1. Install the SDK and protect one tool</h3>
+    <pre><code>npm install @attest-dev/sdk @modelcontextprotocol/sdk</code></pre>
+
+    <pre><code><span class="kw">import</span> { McpServer } <span class="kw">from</span> <span class="str">"@modelcontextprotocol/sdk/server/mcp.js"</span>;
+<span class="kw">import</span> { withAttest } <span class="kw">from</span> <span class="str">"@attest-dev/sdk/mcp"</span>;
+
+<span class="kw">const</span> server = <span class="kw">new</span> <span class="fn">McpServer</span>({ name: <span class="str">"my-tools"</span>, version: <span class="str">"1.0.0"</span> });
+<span class="kw">const</span> protectedServer = <span class="fn">withAttest</span>(server, {
+  issuerUri: <span class="str">"https://api.attestdev.com"</span>,
+});
+
+protectedServer.<span class="fn">tool</span>(<span class="str">"send_email"</span>, schema, handler);</code></pre>
+
+    <h3>2. Expose scopes, then issue only what the tool needs</h3>
+    <pre><code><span class="kw">import</span> { getAttestScopes } <span class="kw">from</span> <span class="str">"@attest-dev/sdk/mcp"</span>;
+
+app.<span class="fn">get</span>(<span class="str">"/.well-known/attest-scopes"</span>, (_req, res) =&gt; {
+  res.<span class="fn">json</span>({ tools: <span class="fn">getAttestScopes</span>(protectedServer) });
+});</code></pre>
+
+    <pre><code><span class="comment"># Create an organisation and save the API key (shown once)</span>
+curl -X POST https://api.attestdev.com/v1/orgs \
   -H "Content-Type: application/json" \
-  -d '{"name": "acme-corp"}'</code></pre>
+  -d '{"name": "acme-corp"}'
 
-    <p>Response (save <code>api_key</code> — shown once):</p>
-    <pre><code>{
-  "org":     { "ID": "org-uuid", "Name": "acme-corp", "Status": "active", ... },
-  "api_key": "att_live_...",
-  "key_id":  "key-uuid"
-}</code></pre>
-
-    <h3>2. Issue a credential</h3>
-    <pre><code>curl -X POST https://api.attestdev.com/v1/credentials \
+<span class="comment"># Issue only the discovered scope for send_email</span>
+curl -X POST https://api.attestdev.com/v1/credentials \
   -H "Authorization: Bearer att_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "agent_id":    "summary-agent",
-    "user_id":     "user-123",
-    "scope":       ["files:read"],
-    "instruction": "Summarise Q4 report",
-    "ttl_seconds": 3600
+    "agent_id": "orchestrator-v1",
+    "user_id": "usr_alice",
+    "scope": ["email:send"],
+    "instruction": "Send the weekly digest"
   }'</code></pre>
 
-    <h3>3. Verify offline</h3>
-    <pre><code><span class="comment"># Fetch JWKS once and cache it</span>
-curl https://api.attestdev.com/orgs/&lt;orgID&gt;/jwks.json
-
-<span class="comment"># Decode and verify with any RS256 JWT library</span>
-<span class="comment"># Check att_chain[-1] == jti and len(att_chain) == att_depth + 1</span></code></pre>
+    <h3>3. Confirm the protected-tool moment</h3>
+    <pre><code><span class="comment"># Expected behavior after wiring Attest into the MCP server</span>
+<span class="comment"># - a tool call with email:send succeeds</span>
+<span class="comment"># - a tool call requiring crm:write is blocked</span>
+<span class="comment"># - the task tree can be revoked with DELETE /v1/credentials/{jti}</span>
+<span class="comment"># - the evidence trail is queryable with GET /v1/tasks/{tid}/audit</span></code></pre>
 
     <!-- ── API Reference ─────────────────────────────────────────────────── -->
     <h2 id="api-reference">API Reference</h2>
@@ -673,8 +724,10 @@ events = client.<span class="fn">audit</span>(token.claims.att_tid)
 </div>
 
 <footer>
-  &copy; 2025 Attest &mdash; Apache 2.0 &mdash;
+  &copy; 2026 Attest &mdash; Apache 2.0 &mdash;
   <a href="https://github.com/chudah1/attest-dev">GitHub</a>
+  &mdash; <a href="./demo.html">Demo</a>
+  &mdash; <a href="https://dev.to/chudah1/the-missing-protocol-for-ai-agent-authorization-2532">Article</a>
 </footer>
 
 </body>

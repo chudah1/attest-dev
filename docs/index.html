@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attest — Cryptographic credentials for AI agents</title>
-  <meta name="description" content="Attest gives every AI agent in your pipeline a signed, scoped, auditable credential — so you always know who authorized what." />
+  <title>Attest — Delegated authorization for AI agents</title>
+  <meta name="description" content="Attest gives AI agents signed, scoped credentials tied to human intent, so you can enforce MCP tool calls, prove authorization, and revoke the full task tree." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -153,6 +153,49 @@
       gap: 1rem;
       justify-content: center;
       flex-wrap: wrap;
+    }
+
+    .reading-callout {
+      max-width: 1000px;
+      margin: 0 auto 3.5rem;
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(17,17,24,0.95), rgba(12,12,18,0.95));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .reading-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 0.35rem;
+    }
+
+    .reading-callout h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.25rem;
+    }
+
+    .reading-callout p {
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin: 0;
+      max-width: 70ch;
+    }
+
+    @media (max-width: 720px) {
+      .reading-callout {
+        flex-direction: column;
+        align-items: flex-start;
+      }
     }
 
     .btn {
@@ -372,9 +415,9 @@
   <ul>
     <li><a href="#how-it-works">How it works</a></li>
     <li><a href="#install">Quickstart</a></li>
-    <li><a href="/docs">Docs</a></li>
+    <li><a href="./docs.html">Docs</a></li>
     <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-    <li><a href="/dashboard" class="nav-cta">Dashboard</a></li>
+    <li><a href="./demo.html" class="nav-cta">Demo</a></li>
     <li>
       <span class="api-status">
         <span class="status-dot" id="status-dot"></span>
@@ -397,14 +440,25 @@
 </script>
 
 <section class="hero">
-  <div class="badge">Now in beta</div>
-  <h1>Attest. Don't just log.</h1>
-  <p>Cryptographic credentials for AI agents.<br/>Every agent in your pipeline gets a signed, scoped, delegatable credential. Know exactly who authorized what — and revoke it instantly.</p>
+  <div class="badge">Delegation-grade auth</div>
+  <h1>Authorize every handoff. Prove every tool call.</h1>
+  <p>Attest gives orchestrators and MCP servers signed, scoped credentials tied to the original human instruction.<br/>Enforce tool access, narrow delegation automatically, and revoke the whole task tree when you need to.</p>
   <div class="cta-group">
-    <a href="#install" class="btn btn-primary">Get started</a>
+    <a href="./demo.html" class="btn btn-primary">Open demo</a>
     <a href="https://github.com/chudah1/attest-dev" class="btn btn-ghost">View on GitHub</a>
-    <a href="/demo" class="btn btn-ghost">Live demo →</a>
+    <a href="#install" class="btn btn-ghost">Get started</a>
   </div>
+</section>
+
+<section class="reading-callout" aria-label="Further reading">
+  <div>
+    <div class="reading-label">Further reading</div>
+    <h2>The Missing Protocol for AI Agent Authorization</h2>
+    <p>
+      Read the article behind the positioning: why delegated authority, intent binding, and provenance need to travel together for agent systems to be trustworthy.
+    </p>
+  </div>
+  <a href="https://dev.to/chudah1/the-missing-protocol-for-ai-agent-authorization-2532" class="btn btn-ghost">Read the article</a>
 </section>
 
 <div class="terminal-wrap">
@@ -437,67 +491,67 @@
 <div class="features">
   <div class="feature">
     <div class="feature-icon">⚡</div>
-    <h3>Intent locking</h3>
-    <p>The original instruction is SHA-256 hashed and baked into every credential in the chain. Six months later, a regulator asks what authorised that agent action. You recompute the hash. It matches. Proof.</p>
+    <h3>Intent binding</h3>
+    <p>The original instruction is hashed once and carried through the full delegation chain. Months later, you can recompute the hash and prove the action still maps back to the human request.</p>
   </div>
   <div class="feature">
-    <div class="feature-icon">🔐</div>
-    <h3>RS256-signed JWTs</h3>
-    <p>Every credential is cryptographically signed with your org's RSA-2048 key. Forgery is impossible, verification is instant.</p>
+    <div class="feature-icon">🔌</div>
+    <h3>MCP tool protection</h3>
+    <p>Drop <code>withAttest()</code> onto an MCP server and every tool call is credential-gated automatically. The server stays your source of truth for required scopes.</p>
   </div>
   <div class="feature">
     <div class="feature-icon">🎯</div>
     <h3>Scoped delegation</h3>
-    <p>Child agents can only receive scopes that are a strict subset of their parent's. Privilege escalation is blocked at issuance time.</p>
+    <p>Child agents only receive scopes that are a strict subset of the parent. Scope never expands as the task fan-outs across sub-agents.</p>
   </div>
   <div class="feature">
     <div class="feature-icon">🧵</div>
-    <h3>Full chain of custody</h3>
-    <p>Every credential carries its ancestry chain and a depth counter. Revoking a parent cascades to all descendants automatically.</p>
+    <h3>Cascade revocation</h3>
+    <p>Revoke a root credential once and the entire task tree becomes invalid immediately. No descendant handoff stays live after the parent is cut off.</p>
   </div>
   <div class="feature">
     <div class="feature-icon">📋</div>
-    <h3>Audit log</h3>
-    <p>Every issue, delegation, and revocation is appended to a tamper-evident audit log queryable by task ID.</p>
+    <h3>Audit evidence</h3>
+    <p>Every issue, delegation, and revocation lands in a tamper-evident audit log so you can produce evidence instead of just logs.</p>
   </div>
   <div class="feature">
-    <div class="feature-icon">🔌</div>
-    <h3>MCP middleware</h3>
-    <p>Drop <code>withAttest()</code> onto any MCP server. Tools enforce credentials automatically — no manual wiring needed.</p>
+    <div class="feature-icon">🔐</div>
+    <h3>Signed credentials</h3>
+    <p>RS256-signed JWTs make verification offline and forgery-resistant, so the proof travels with the token and not just the backend.</p>
   </div>
 </div>
 
 <section class="section" id="how-it-works">
   <div class="section-label">How it works</div>
-  <h2>From user intent to auditable action</h2>
-  <p>Attest implements a delegation chain: each agent can only act within the bounds set by the agent above it.</p>
+  <h2>From instruction to proof</h2>
+  <p>Attest turns a human request into a delegated authority chain that can be enforced in real time and verified later.</p>
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
       <div class="step-text">
         <h4>User authorizes a task</h4>
-        <p>Your backend calls <code>POST /v1/credentials</code> with the agent ID, user ID, permitted scopes, and the original instruction. Attest returns a signed root token.</p>
+        <p>Your backend calls <code>POST /v1/credentials</code> with the agent ID, user ID, permitted scopes, and original instruction. Attest returns a signed root credential bound to that intent.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num">2</div>
       <div class="step-text">
         <h4>Orchestrator delegates to sub-agents</h4>
-        <p>The orchestrator calls <code>POST /v1/credentials/delegate</code>, narrowing the scope for each child agent. Each child token carries the full ancestry chain.</p>
+        <p>The orchestrator calls <code>POST /v1/credentials/delegate</code>, narrowing scope for each child agent. Every child token carries the full ancestry chain.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num">3</div>
       <div class="step-text">
         <h4>MCP tools verify on every call</h4>
-        <p><code>withAttest()</code> intercepts every tool invocation, verifies the JWT against your org's JWKS, and checks that the required scope is granted — before your handler runs.</p>
+        <p><code>withAttest()</code> intercepts every tool invocation, verifies the JWT against your org's JWKS, and checks the required scope before your handler runs.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num">4</div>
       <div class="step-text">
         <h4>Revoke any time</h4>
-        <p>Call <code>DELETE /v1/credentials/:jti</code> to revoke a token. All descendants are invalidated immediately via cascade revocation.</p>
+        <p>Call <code>DELETE /v1/credentials/:jti</code> to revoke a token. All descendants are invalidated immediately through cascade revocation.</p>
       </div>
     </div>
   </div>
@@ -506,7 +560,7 @@
 <section class="install-section" id="install">
   <div class="section-label">Quickstart</div>
   <h2>Up in two minutes</h2>
-  <p>Install the SDK, sign up for an API key, and start issuing credentials.</p>
+  <p>Install the SDK, issue a credential, and try the demo flow that shows proof, revocation, and enforcement end to end.</p>
 
   <div class="code-block"><span class="c-dim"># Install</span>
 npm install @attest-dev/sdk@beta</div>
@@ -516,7 +570,7 @@ curl https://api.attestdev.com/health
 
 <span class="c-green">{"status":"ok"}</span></div>
 
-  <p style="color: var(--muted); font-size: 0.8rem; margin-bottom: 1.5rem;">Verify the API is live before you integrate</p>
+  <p style="color: var(--muted); font-size: 0.8rem; margin-bottom: 1.5rem;">Use the live demo first if you want to see the proof moment before integrating</p>
 
   <div class="code-block"><span class="c-green">import</span> { AttestClient } <span class="c-green">from</span> <span class="c-yellow">"@attest-dev/sdk"</span>;
 
@@ -534,7 +588,7 @@ curl https://api.attestdev.com/health
 
   <p style="color: var(--muted); font-size: 0.875rem;">
     API endpoint: <code>https://api.attestdev.com</code> &nbsp;·&nbsp;
-    <a href="https://github.com/chudah1/attest-dev">Full docs on GitHub</a>
+    <a href="./demo.html">Open the demo</a>
   </p>
 </section>
 
@@ -542,6 +596,7 @@ curl https://api.attestdev.com/health
   <div class="footer-links">
     <a href="https://github.com/chudah1/attest-dev">GitHub</a>
     <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
+    <a href="https://dev.to/chudah1/the-missing-protocol-for-ai-agent-authorization-2532">Article</a>
     <a href="https://api.attestdev.com/health">API Status</a>
   </div>
   <p>© 2026 Attest. Apache 2.0 licensed.</p>
