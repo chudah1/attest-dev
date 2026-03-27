@@ -21,7 +21,10 @@ from attest.types import (
     VerifyResult,
     AttestClaims,
     AttestToken,
+    EvidencePacket,
+    EvidencePacketVerifyResult,
 )
+from attest.verifier import AttestVerifier
 
 if TYPE_CHECKING:
     pass
@@ -387,6 +390,13 @@ class AttestClient:
         _raise_for_status(resp)
         return resp.json()
 
+    def fetch_evidence(self, task_id: str) -> EvidencePacket:
+        """Fetch the canonical evidence packet for a task tree."""
+        tid = urllib.parse.quote(task_id)
+        resp = self._http.get(f"/v1/tasks/{tid}/evidence")
+        _raise_for_status(resp)
+        return EvidencePacket.from_dict(resp.json())
+
     def verify(self, token: str, org_id: str | None = None, jwks: dict | None = None) -> VerifyResult:
         """Verify *token* offline using RS256.
 
@@ -399,6 +409,27 @@ class AttestClient:
                 raise AttestError("org_id is required when jwks is not provided")
             jwks = self.fetch_jwks(org_id)
         return _verify_token(token, jwks)
+
+    def verify_evidence_packet(
+        self,
+        packet: EvidencePacket | dict,
+        *,
+        org_id: str | None = None,
+        jwks: dict | None = None,
+    ) -> EvidencePacketVerifyResult:
+        """Verify a signed evidence packet offline using the org JWKS."""
+        if jwks is None:
+            if org_id is None:
+                if isinstance(packet, EvidencePacket):
+                    org_id = packet.org.id
+                elif isinstance(packet, dict):
+                    org_id = str(packet.get("org", {}).get("id", "") or "")
+            if not org_id:
+                raise AttestError("org_id is required when jwks is not provided")
+            jwks = self.fetch_jwks(org_id)
+
+        verifier = AttestVerifier(org_id=org_id or "", base_url=self._base_url)
+        return verifier.verify_evidence_packet(packet, jwks=jwks)
 
 
 # ---------------------------------------------------------------------------
@@ -575,6 +606,13 @@ class AsyncAttestClient:
         _raise_for_status(resp)
         return resp.json()
 
+    async def fetch_evidence(self, task_id: str) -> EvidencePacket:
+        """Fetch the canonical evidence packet for a task tree."""
+        tid = urllib.parse.quote(task_id)
+        resp = await self._http.get(f"/v1/tasks/{tid}/evidence")
+        _raise_for_status(resp)
+        return EvidencePacket.from_dict(resp.json())
+
     async def verify(self, token: str, org_id: str | None = None, jwks: dict | None = None) -> VerifyResult:
         """Verify *token* offline using RS256.
 
@@ -587,3 +625,24 @@ class AsyncAttestClient:
                 raise AttestError("org_id is required when jwks is not provided")
             jwks = await self.fetch_jwks(org_id)
         return _verify_token(token, jwks)
+
+    async def verify_evidence_packet(
+        self,
+        packet: EvidencePacket | dict,
+        *,
+        org_id: str | None = None,
+        jwks: dict | None = None,
+    ) -> EvidencePacketVerifyResult:
+        """Verify a signed evidence packet offline using the org JWKS."""
+        if jwks is None:
+            if org_id is None:
+                if isinstance(packet, EvidencePacket):
+                    org_id = packet.org.id
+                elif isinstance(packet, dict):
+                    org_id = str(packet.get("org", {}).get("id", "") or "")
+            if not org_id:
+                raise AttestError("org_id is required when jwks is not provided")
+            jwks = await self.fetch_jwks(org_id)
+
+        verifier = AttestVerifier(org_id=org_id or "", base_url=self._base_url)
+        return verifier.verify_evidence_packet(packet, jwks=jwks)

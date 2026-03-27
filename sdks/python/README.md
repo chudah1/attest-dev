@@ -175,3 +175,18 @@ for token_str in incoming_tokens:
 
 The public key is stable for the lifetime of the server instance; cache it
 as long as your process runs.
+
+## Verify a signed evidence packet
+
+```python
+packet = client.fetch_evidence(token.claims.att_tid)
+jwks = client.fetch_jwks(packet.org.id)
+verified = client.verify_evidence_packet(packet, jwks=jwks)
+
+print(verified.valid)
+print(verified.hash_valid, verified.signature_valid, verified.audit_chain_valid)
+print(verified.warnings)
+```
+
+This verifier checks the packet hash, the RS256 packet signature, and the
+append-only audit hash chain.

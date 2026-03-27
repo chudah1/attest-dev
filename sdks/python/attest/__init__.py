@@ -40,6 +40,8 @@ from attest.types import (
     VerifyResult,
     AttestClaims,
     AttestToken,
+    EvidencePacket,
+    EvidencePacketVerifyResult,
 )
 
 # Framework integrations (lazy — only usable when the framework is installed).
@@ -78,6 +80,8 @@ __all__ = [
     "ApprovalStatus",
     "AttestClaims",
     "AttestToken",
+    "EvidencePacket",
+    "EvidencePacketVerifyResult",
     "DelegatedToken",
     "VerifyResult",
     "AuditChain",

@@ -18,16 +18,22 @@ from __future__ import annotations
 
 import threading
 import urllib.parse
+import json
+import hashlib
+import base64
 from typing import Optional
 
 import httpx
 import jwt
 import jwt.algorithms
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
-from attest.types import AttestClaims, VerifyResult
+from attest.types import AttestClaims, VerifyResult, EvidencePacket, EvidencePacketVerifyResult, AuditEvent
 
 
 _DEFAULT_BASE_URL = "https://api.attestdev.com"
+_GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
 
 
 def _build_public_key(jwks: dict, kid: str):  # type: ignore[return]
@@ -40,6 +46,35 @@ def _build_public_key(jwks: dict, kid: str):  # type: ignore[return]
     if keys:
         return jwt.algorithms.RSAAlgorithm.from_jwk(keys[0])
     raise ValueError("No RSA key found in JWKS")
+
+
+def _canonical_packet_json(packet: EvidencePacket | dict) -> str:
+    if isinstance(packet, EvidencePacket):
+        raw = json.loads(json.dumps(packet, default=lambda o: o.__dict__))
+    else:
+        raw = json.loads(json.dumps(packet))
+
+    integrity = raw.get("integrity") or {}
+    integrity.pop("packet_hash", None)
+    integrity.pop("signature_algorithm", None)
+    integrity.pop("signature_kid", None)
+    integrity.pop("packet_signature", None)
+    raw["integrity"] = integrity
+    return json.dumps(raw, separators=(",", ":"), ensure_ascii=False)
+
+
+def _validate_audit_chain(events: list[AuditEvent]) -> list[str]:
+    warnings: list[str] = []
+    if not events:
+        return warnings
+    if events[0].prev_hash != _GENESIS_HASH:
+        warnings.append("first audit event does not use the genesis previous hash")
+    for prev, current in zip(events, events[1:]):
+        if current.prev_hash != prev.entry_hash:
+            warnings.append(
+                f"audit chain break between event {prev.id or '?'} and {current.id or '?'}"
+            )
+    return warnings
 
 
 class AttestVerifier:
@@ -159,6 +194,53 @@ class AttestVerifier:
         with self._lock:
             self._jwks_cache = None
 
+    def verify_evidence_packet(
+        self,
+        packet: EvidencePacket | dict,
+        *,
+        jwks: dict | None = None,
+    ) -> EvidencePacketVerifyResult:
+        """Verify a signed evidence packet offline using the cached org JWKS."""
+        packet_obj = packet if isinstance(packet, EvidencePacket) else EvidencePacket.from_dict(packet)
+        canonical_json = _canonical_packet_json(packet_obj)
+        computed_hash = hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
+
+        warnings: list[str] = []
+        hash_valid = computed_hash == packet_obj.integrity.packet_hash
+        if not hash_valid:
+            warnings.append(
+                f"packet hash mismatch: expected {packet_obj.integrity.packet_hash}, computed {computed_hash}"
+            )
+
+        signature_valid = False
+        if not packet_obj.integrity.signature_algorithm or not packet_obj.integrity.signature_kid or not packet_obj.integrity.packet_signature:
+            warnings.append("packet signature metadata missing")
+        elif packet_obj.integrity.signature_algorithm != "RS256":
+            warnings.append(f"unsupported signature algorithm: {packet_obj.integrity.signature_algorithm}")
+        else:
+            try:
+                jwks_data = jwks if jwks is not None else self._get_jwks()
+                public_key = _build_public_key(jwks_data, packet_obj.integrity.signature_kid)
+                signature_valid = self._verify_packet_signature(public_key, canonical_json, packet_obj.integrity.packet_signature)
+                if not signature_valid:
+                    warnings.append("packet signature verification failed")
+            except Exception as exc:
+                warnings.append(f"packet signature verification failed: {exc}")
+
+        audit_warnings = _validate_audit_chain(packet_obj.events)
+        warnings.extend(audit_warnings)
+        audit_chain_valid = packet_obj.integrity.audit_chain_valid and not audit_warnings
+        if not packet_obj.integrity.audit_chain_valid and not audit_warnings:
+            warnings.append("packet reports invalid audit chain")
+
+        return EvidencePacketVerifyResult(
+            valid=hash_valid and signature_valid and audit_chain_valid,
+            hash_valid=hash_valid,
+            signature_valid=signature_valid,
+            audit_chain_valid=audit_chain_valid,
+            warnings=warnings,
+        )
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
@@ -184,3 +266,14 @@ class AttestVerifier:
         response = httpx.get(url, timeout=10)
         response.raise_for_status()
         return response.json().get("revoked", False)
+
+    def _verify_packet_signature(self, public_key, canonical_json: str, signature: str) -> bool:  # type: ignore[no-untyped-def]
+        padded = signature + "=" * ((4 - len(signature) % 4) % 4)
+        raw = base64.urlsafe_b64decode(padded.encode("ascii"))
+        public_key.verify(
+            raw,
+            canonical_json.encode("utf-8"),
+            padding.PKCS1v15(),
+            hashes.SHA256(),
+        )
+        return True

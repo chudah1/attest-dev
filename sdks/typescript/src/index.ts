@@ -11,6 +11,7 @@ import {
   decodeJwt,
   type JWTPayload,
 } from 'jose';
+import { createHash, createPublicKey, verify as verifySignature } from 'node:crypto';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,6 +104,93 @@ export interface JWK {
   kid?: string;
 }
 
+export interface EvidenceOrg {
+  id: string;
+  name: string;
+}
+
+export interface EvidenceTask {
+  att_tid: string;
+  root_jti: string;
+  root_agent_id: string;
+  att_uid: string;
+  instruction_hash?: string;
+  depth_max: number;
+  credential_count: number;
+  event_count: number;
+  revoked: boolean;
+}
+
+export interface EvidenceApproval {
+  present: boolean;
+  request_id?: string;
+  issuer?: string;
+  subject?: string;
+}
+
+export interface EvidenceIdentity {
+  user_id: string;
+  idp_issuer?: string;
+  idp_subject?: string;
+  approval?: EvidenceApproval;
+}
+
+export interface EvidenceCredential {
+  jti: string;
+  parent_jti?: string;
+  agent_id: string;
+  scope: string[];
+  depth: number;
+  issued_at: string;
+  expires_at: string;
+  chain: string[];
+  intent_hash?: string;
+  agent_checksum?: string;
+  idp_issuer?: string;
+  idp_subject?: string;
+  hitl_request_id?: string;
+  hitl_subject?: string;
+  hitl_issuer?: string;
+}
+
+export interface EvidenceIntegrity {
+  audit_chain_valid: boolean;
+  hash_algorithm: string;
+  packet_hash: string;
+  signature_algorithm?: string;
+  signature_kid?: string;
+  packet_signature?: string;
+  notes: string[];
+}
+
+export interface EvidenceSummary {
+  result: string;
+  scope_violations: number;
+  approvals: number;
+  revocations: number;
+}
+
+export interface EvidencePacket {
+  packet_type: string;
+  schema_version: string;
+  generated_at: string;
+  org: EvidenceOrg;
+  task: EvidenceTask;
+  identity: EvidenceIdentity;
+  credentials: EvidenceCredential[];
+  events: AuditEvent[];
+  integrity: EvidenceIntegrity;
+  summary: EvidenceSummary;
+}
+
+export interface EvidencePacketVerifyResult {
+  valid: boolean;
+  hashValid: boolean;
+  signatureValid: boolean;
+  auditChainValid: boolean;
+  warnings: string[];
+}
+
 /** Parameters for issuing a root credential. */
 export interface IssueParams {
   agent_id: string;
@@ -140,6 +228,8 @@ export interface ApprovalStatus {
   created_at: string;
   resolved_at?: string;
 }
+
+const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
 // ── AttestClient ─────────────────────────────────────────────────────────────
 
@@ -282,6 +372,16 @@ export class AttestClient {
     return { taskId, events };
   }
 
+  /** Fetch the canonical evidence packet for a task tree. */
+  async fetchEvidence(taskId: string): Promise<EvidencePacket> {
+    const res = await fetch(
+      `${this.baseUrl}/v1/tasks/${encodeURIComponent(taskId)}/evidence`,
+      { headers: this.headers, signal: AbortSignal.timeout(this.timeoutMs) },
+    );
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<EvidencePacket>;
+  }
+
   /** Fetch the org's public key set for offline signature verification. */
   async fetchJWKS(orgId: string): Promise<JWKSResponse> {
     const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(orgId)}/jwks.json`, {
@@ -289,6 +389,15 @@ export class AttestClient {
     });
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<JWKSResponse>;
+  }
+
+  /**
+   * Offline verification for a signed evidence packet.
+   *
+   * Checks packet hash, packet signature, and audit prev_hash linkage.
+   */
+  async verifyEvidencePacket(packet: EvidencePacket, jwks: JWKSResponse): Promise<EvidencePacketVerifyResult> {
+    return verifyEvidencePacketAgainstJWKS(packet, jwks);
   }
 
   /** Request human approval for a high-risk delegation. */
@@ -456,6 +565,27 @@ export class AttestVerifier {
     return { valid: warnings.length === 0, claims: payload, warnings };
   }
 
+  /** Verify a signed evidence packet using the verifier's cached org JWKS. */
+  async verifyEvidencePacket(packet: EvidencePacket): Promise<EvidencePacketVerifyResult> {
+    if (!this.jwksCache) {
+      const res = await fetch(`${this.baseUrl}/orgs/${encodeURIComponent(this.orgId)}/jwks.json`, {
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!res.ok) {
+        return {
+          valid: false,
+          hashValid: false,
+          signatureValid: false,
+          auditChainValid: false,
+          warnings: [`failed to fetch JWKS: HTTP ${res.status}`],
+        };
+      }
+      this.jwksCache = await res.json() as JWKSResponse;
+    }
+
+    return verifyEvidencePacketAgainstJWKS(packet, this.jwksCache);
+  }
+
   /** Clear the cached JWKS (call this to force a key refresh). */
   clearJWKSCache(): void {
     this.jwksCache = null;
@@ -520,4 +650,91 @@ async function throwFromResponse(res: Response): Promise<never> {
     // ignore parse failure
   }
   throw new Error(message);
+}
+
+function decodeBase64Url(value: string): Buffer {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+  return Buffer.from(normalized + padding, 'base64');
+}
+
+function canonicalizeEvidencePacket(packet: EvidencePacket): string {
+  const clone = JSON.parse(JSON.stringify(packet)) as Record<string, unknown>;
+  const integrity = (clone.integrity ?? {}) as Record<string, unknown>;
+  clone.integrity = integrity;
+  delete integrity.packet_hash;
+  delete integrity.signature_algorithm;
+  delete integrity.signature_kid;
+  delete integrity.packet_signature;
+  return JSON.stringify(clone);
+}
+
+function validateAuditEvents(events: AuditEvent[]): string[] {
+  const warnings: string[] = [];
+  if (events.length === 0) return warnings;
+
+  if (events[0]?.prev_hash !== GENESIS_HASH) {
+    warnings.push('first audit event does not use the genesis previous hash');
+  }
+
+  for (let i = 1; i < events.length; i += 1) {
+    const prev = events[i - 1];
+    const current = events[i];
+    if (prev && current && current.prev_hash !== prev.entry_hash) {
+      warnings.push(`audit chain break between event ${prev.id ?? i} and ${current.id ?? i + 1}`);
+    }
+  }
+
+  return warnings;
+}
+
+function verifyEvidencePacketAgainstJWKS(packet: EvidencePacket, jwks: JWKSResponse): EvidencePacketVerifyResult {
+  const warnings: string[] = [];
+  const canonicalJson = canonicalizeEvidencePacket(packet);
+  const computedHash = createHash('sha256').update(canonicalJson).digest('hex');
+
+  const hashValid = computedHash === packet.integrity.packet_hash;
+  if (!hashValid) {
+    warnings.push(`packet hash mismatch: expected ${packet.integrity.packet_hash}, computed ${computedHash}`);
+  }
+
+  let signatureValid = false;
+  if (!packet.integrity.signature_algorithm || !packet.integrity.signature_kid || !packet.integrity.packet_signature) {
+    warnings.push('packet signature metadata missing');
+  } else if (packet.integrity.signature_algorithm !== 'RS256') {
+    warnings.push(`unsupported signature algorithm: ${packet.integrity.signature_algorithm}`);
+  } else {
+    const jwk = jwks.keys.find((key) => key.kid === packet.integrity.signature_kid) ?? jwks.keys[0];
+    if (!jwk) {
+      warnings.push('no verification key found in JWKS');
+    } else {
+      try {
+        const publicKey = createPublicKey({ key: jwk as any, format: 'jwk' });
+        signatureValid = verifySignature(
+          'RSA-SHA256',
+          Buffer.from(canonicalJson, 'utf8'),
+          publicKey,
+          decodeBase64Url(packet.integrity.packet_signature),
+        );
+        if (!signatureValid) warnings.push('packet signature verification failed');
+      } catch (err) {
+        warnings.push(`packet signature verification failed: ${String(err)}`);
+      }
+    }
+  }
+
+  const auditWarnings = validateAuditEvents(packet.events);
+  warnings.push(...auditWarnings);
+  const auditChainValid = packet.integrity.audit_chain_valid && auditWarnings.length === 0;
+  if (!packet.integrity.audit_chain_valid && auditWarnings.length === 0) {
+    warnings.push('packet reports invalid audit chain');
+  }
+
+  return {
+    valid: hashValid && signatureValid && auditChainValid,
+    hashValid,
+    signatureValid,
+    auditChainValid,
+    warnings,
+  };
 }

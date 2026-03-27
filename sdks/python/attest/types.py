@@ -87,6 +87,132 @@ class VerifyResult:
 
 
 @dataclass
+class EvidenceOrg:
+    id: str
+    name: str
+
+
+@dataclass
+class EvidenceTask:
+    att_tid: str
+    root_jti: str
+    root_agent_id: str
+    att_uid: str
+    depth_max: int
+    credential_count: int
+    event_count: int
+    revoked: bool
+    instruction_hash: str | None = None
+
+
+@dataclass
+class EvidenceApproval:
+    present: bool
+    request_id: str | None = None
+    issuer: str | None = None
+    subject: str | None = None
+
+
+@dataclass
+class EvidenceIdentity:
+    user_id: str
+    idp_issuer: str | None = None
+    idp_subject: str | None = None
+    approval: "EvidenceApproval | None" = None
+
+
+@dataclass
+class EvidenceCredential:
+    jti: str
+    agent_id: str
+    scope: list[str]
+    depth: int
+    issued_at: str
+    expires_at: str
+    chain: list[str]
+    parent_jti: str | None = None
+    intent_hash: str | None = None
+    agent_checksum: str | None = None
+    idp_issuer: str | None = None
+    idp_subject: str | None = None
+    hitl_request_id: str | None = None
+    hitl_subject: str | None = None
+    hitl_issuer: str | None = None
+
+
+@dataclass
+class EvidenceIntegrity:
+    audit_chain_valid: bool
+    hash_algorithm: str
+    packet_hash: str
+    notes: list[str] = field(default_factory=list)
+    signature_algorithm: str | None = None
+    signature_kid: str | None = None
+    packet_signature: str | None = None
+
+
+@dataclass
+class EvidenceSummary:
+    result: str
+    scope_violations: int
+    approvals: int
+    revocations: int
+
+
+@dataclass
+class EvidencePacket:
+    packet_type: str
+    schema_version: str
+    generated_at: str
+    org: EvidenceOrg
+    task: EvidenceTask
+    identity: EvidenceIdentity
+    credentials: list["EvidenceCredential"]
+    events: list["AuditEvent"]
+    integrity: EvidenceIntegrity
+    summary: EvidenceSummary
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "EvidencePacket":
+        approval = None
+        approval_data = d.get("identity", {}).get("approval")
+        if approval_data:
+            approval = EvidenceApproval(
+                present=bool(approval_data.get("present", False)),
+                request_id=approval_data.get("request_id"),
+                issuer=approval_data.get("issuer"),
+                subject=approval_data.get("subject"),
+            )
+
+        return cls(
+            packet_type=d.get("packet_type", ""),
+            schema_version=d.get("schema_version", ""),
+            generated_at=d.get("generated_at", ""),
+            org=EvidenceOrg(**d.get("org", {})),
+            task=EvidenceTask(**d.get("task", {})),
+            identity=EvidenceIdentity(
+                user_id=d.get("identity", {}).get("user_id", ""),
+                idp_issuer=d.get("identity", {}).get("idp_issuer"),
+                idp_subject=d.get("identity", {}).get("idp_subject"),
+                approval=approval,
+            ),
+            credentials=[EvidenceCredential(**item) for item in d.get("credentials", [])],
+            events=[AuditEvent.from_dict(item) for item in d.get("events", [])],
+            integrity=EvidenceIntegrity(**d.get("integrity", {})),
+            summary=EvidenceSummary(**d.get("summary", {})),
+        )
+
+
+@dataclass
+class EvidencePacketVerifyResult:
+    valid: bool
+    hash_valid: bool
+    signature_valid: bool
+    audit_chain_valid: bool
+    warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
 class AuditEvent:
     """A single immutable entry in the audit log."""
 
