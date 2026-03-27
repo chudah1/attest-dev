@@ -55,7 +55,7 @@ def _canonical_packet_json(packet: EvidencePacket | dict) -> str:
         raw = json.loads(json.dumps(packet))
 
     integrity = raw.get("integrity") or {}
-    integrity.pop("packet_hash", None)
+    integrity["packet_hash"] = ""
     integrity.pop("signature_algorithm", None)
     integrity.pop("signature_kid", None)
     integrity.pop("packet_signature", None)

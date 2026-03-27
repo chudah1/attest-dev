@@ -612,6 +612,106 @@
       margin-top: 0.8rem;
     }
 
+    .verification-panel {
+      display: grid;
+      gap: 0.8rem;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(143, 202, 255, 0.12);
+      border-radius: 16px;
+      padding: 0.9rem 1rem;
+    }
+
+    .verification-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .verification-title {
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .verification-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+      padding: 0.24rem 0.62rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+    }
+
+    .verification-status::before {
+      content: '';
+      width: 0.42rem;
+      height: 0.42rem;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .verification-status.idle { color: var(--muted); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
+    .verification-status.success { color: var(--green); background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.2); }
+    .verification-status.error { color: var(--red); background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.2); }
+
+    .verification-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.7rem;
+    }
+
+    .verification-check {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(143, 202, 255, 0.1);
+      border-radius: 14px;
+      padding: 0.72rem 0.8rem;
+      display: grid;
+      gap: 0.25rem;
+    }
+
+    .verification-check .label {
+      color: var(--muted);
+      font-size: 0.67rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .verification-check .value {
+      font-size: 0.88rem;
+      line-height: 1.3;
+    }
+
+    .verification-check.success .value { color: var(--green); }
+    .verification-check.error .value { color: var(--red); }
+
+    .verification-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.7rem;
+    }
+
+    .verification-warning-list {
+      display: grid;
+      gap: 0.45rem;
+      margin: 0;
+      padding-left: 1rem;
+      color: #f5c98a;
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+
+    .verification-copy {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.55;
+      max-width: 60ch;
+    }
+
     .timeline-shell {
       border: 1px solid rgba(143, 202, 255, 0.1);
       border-radius: 18px;
@@ -794,6 +894,10 @@
               <span class="btn-mark">≡</span>
               <span class="btn-text"><small>Timeline</small><span>Search events</span></span>
             </button>
+            <button class="btn btn-toolbar-secondary" onclick="verifyEvidenceOnSite()">
+              <span class="btn-mark">✓</span>
+              <span class="btn-text"><small>On-site</small><span>Verify packet</span></span>
+            </button>
             <button class="btn btn-toolbar-secondary" onclick="openEvidenceReport()">
               <span class="btn-mark">↗</span>
               <span class="btn-text"><small>Readable</small><span>Open report</span></span>
@@ -873,6 +977,10 @@
   let apiKey = '';
   let orgData = null;
   let keyVisible = false;
+  let currentAuditTaskId = '';
+  let currentAuditEvents = [];
+  let currentEvidencePacket = null;
+  let currentEvidenceVerification = null;
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -1063,6 +1171,7 @@
     const statusLabel = escapeHtml(summary.result || 'active');
     const userValue = identity.user_id || task.att_uid;
     const rootAgent = task.root_agent_id || '—';
+    const verificationMarkup = renderVerificationPanel(packet);
 
     return `
       <div class="evidence-preview">
@@ -1137,6 +1246,69 @@
             </div>
           </div>
         </div>
+
+        ${verificationMarkup}
+      </div>
+    `;
+  }
+
+  function renderVerificationPanel(packet) {
+    const integrity = packet.integrity || {};
+    const orgId = packet.org?.id || '—';
+    const status = currentEvidenceVerification?.status || 'idle';
+    const warnings = currentEvidenceVerification?.warnings || [];
+    const statusLabel = status === 'success'
+      ? 'Verified on site'
+      : status === 'error'
+        ? 'Verification failed'
+        : 'Ready to verify';
+    const verificationCopy = status === 'idle'
+      ? 'Run verification here to validate the packet hash, RS256 signature, and append-only audit chain against your org JWKS without leaving the dashboard.'
+      : status === 'success'
+        ? 'This packet passed hash, signature, and audit-chain checks in the browser against the org JWKS.'
+        : 'The packet did not pass one or more verification checks. Review the warnings below before sharing it externally.';
+
+    return `
+      <div class="verification-panel">
+        <div class="verification-header">
+          <div class="verification-title">Verification details</div>
+          <div class="verification-status ${status}">${statusLabel}</div>
+        </div>
+
+        <div class="verification-grid">
+          <div class="verification-check ${status === 'error' && currentEvidenceVerification && !currentEvidenceVerification.hashValid ? 'error' : status === 'idle' ? '' : 'success'}">
+            <div class="label">Packet hash</div>
+            <div class="value">${status === 'idle' ? 'Not checked yet' : currentEvidenceVerification.hashValid ? 'Matches canonical packet' : 'Hash mismatch detected'}</div>
+          </div>
+          <div class="verification-check ${status === 'error' && currentEvidenceVerification && !currentEvidenceVerification.signatureValid ? 'error' : status === 'idle' ? '' : 'success'}">
+            <div class="label">Signature</div>
+            <div class="value">${status === 'idle' ? 'Not checked yet' : currentEvidenceVerification.signatureValid ? 'RS256 signature valid' : 'Signature invalid or missing'}</div>
+          </div>
+          <div class="verification-check ${status === 'error' && currentEvidenceVerification && !currentEvidenceVerification.auditChainValid ? 'error' : status === 'idle' ? '' : 'success'}">
+            <div class="label">Audit chain</div>
+            <div class="value">${status === 'idle' ? 'Not checked yet' : currentEvidenceVerification.auditChainValid ? 'Append-only chain intact' : 'Audit chain inconsistency found'}</div>
+          </div>
+        </div>
+
+        <div class="verification-meta">
+          <div class="detail-item hash-item" title="${escapeAttr(integrity.signature_kid || '—')}">
+            <div class="label">Signing key</div>
+            <div class="value">${formatMono(shortValue(integrity.signature_kid || '—', 12, 8))}</div>
+          </div>
+          <div class="detail-item">
+            <div class="label">Algorithm</div>
+            <div class="value">${escapeHtml(integrity.signature_algorithm || '—')}</div>
+          </div>
+          <div class="detail-item hash-item" title="${escapeAttr(`${API}/orgs/${orgId}/jwks.json`)}">
+            <div class="label">JWKS URL</div>
+            <div class="value">${formatMono(shortValue(`${API}/orgs/${orgId}/jwks.json`, 22, 18))}</div>
+          </div>
+        </div>
+
+        <div class="verification-copy">${verificationCopy}</div>
+        ${warnings.length
+          ? `<ul class="verification-warning-list">${warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>`
+          : ''}
       </div>
     `;
   }
@@ -1176,6 +1348,20 @@
     `;
   }
 
+  function renderAuditResults() {
+    const el = document.getElementById('audit-results');
+    if (!currentAuditEvents.length) {
+      el.innerHTML = '<div class="empty">No events found for this task tree.</div>';
+      return;
+    }
+
+    const previewMarkup = currentEvidencePacket
+      ? renderEvidencePreview(currentEvidencePacket, currentAuditEvents)
+      : '';
+
+    el.innerHTML = `<div class="audit-stack">${previewMarkup}${renderAuditTable(currentAuditEvents)}</div>`;
+  }
+
   async function fetchAudit() {
     const tid = document.getElementById('task-id-input').value.trim();
     if (!tid) return;
@@ -1199,22 +1385,85 @@
         return;
       }
 
-      let previewMarkup = '';
+      currentAuditTaskId = tid;
+      currentAuditEvents = events;
+      currentEvidencePacket = null;
+      currentEvidenceVerification = null;
+
       try {
         const evidenceRes = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/evidence`, {
           headers: { 'Authorization': `Bearer ${apiKey}` }
         });
         if (evidenceRes.ok) {
-          const packet = await evidenceRes.json();
-          previewMarkup = renderEvidencePreview(packet, events);
+          currentEvidencePacket = await evidenceRes.json();
         }
       } catch {
         // Keep the audit timeline usable even if the packet preview cannot load.
       }
 
-      el.innerHTML = `<div class="audit-stack">${previewMarkup}${renderAuditTable(events)}</div>`;
+      renderAuditResults();
     } catch {
       el.innerHTML = '<div class="empty">Failed to load evidence events.</div>';
+    }
+  }
+
+  async function verifyEvidenceOnSite() {
+    const tid = document.getElementById('task-id-input').value.trim();
+    if (!tid) {
+      showToast('Enter a task ID first', 'error');
+      return;
+    }
+
+    try {
+      if (currentAuditTaskId !== tid || !currentAuditEvents.length) {
+        await fetchAudit();
+      }
+
+      if (!currentEvidencePacket || currentAuditTaskId !== tid) {
+        const packetRes = await fetch(`${API}/v1/tasks/${encodeURIComponent(tid)}/evidence`, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        if (!packetRes.ok) {
+          const data = await packetRes.json().catch(() => ({}));
+          showToast(data.error || 'Evidence packet unavailable', 'error');
+          return;
+        }
+        currentEvidencePacket = await packetRes.json();
+        currentAuditTaskId = tid;
+      }
+
+      const packet = currentEvidencePacket;
+      if (!packet?.org?.id) {
+        showToast('Packet is missing org metadata', 'error');
+        return;
+      }
+
+      if (!window.crypto?.subtle) {
+        showToast('This browser cannot verify signatures with Web Crypto', 'error');
+        return;
+      }
+
+      const jwksRes = await fetch(`${API}/orgs/${encodeURIComponent(packet.org.id)}/jwks.json`);
+      if (!jwksRes.ok) {
+        showToast(`Failed to load JWKS: HTTP ${jwksRes.status}`, 'error');
+        return;
+      }
+
+      const jwks = await jwksRes.json();
+      currentEvidenceVerification = await verifyEvidencePacketInBrowser(packet, jwks);
+      renderAuditResults();
+      showToast(currentEvidenceVerification.valid ? 'Packet verified on site' : 'Verification found issues', currentEvidenceVerification.valid ? 'success' : 'error');
+    } catch {
+      currentEvidenceVerification = {
+        status: 'error',
+        hashValid: false,
+        signatureValid: false,
+        auditChainValid: false,
+        warnings: ['Unexpected verification failure in the browser'],
+        valid: false,
+      };
+      renderAuditResults();
+      showToast('Verification failed', 'error');
     }
   }
 
@@ -1288,6 +1537,114 @@
       if (e.key === 'Enter') fetchAudit();
     });
   });
+
+  async function verifyEvidencePacketInBrowser(packet, jwks) {
+    const canonicalJson = canonicalizeEvidencePacket(packet);
+    const encoded = new TextEncoder().encode(canonicalJson);
+    const computedHash = await sha256Hex(encoded);
+    const hashValid = computedHash === (packet.integrity?.packet_hash || '');
+
+    const warnings = [];
+    if (!hashValid) {
+      warnings.push(`packet hash mismatch: expected ${packet.integrity?.packet_hash || '—'}, computed ${computedHash}`);
+    }
+
+    let signatureValid = false;
+    const signatureAlgorithm = packet.integrity?.signature_algorithm;
+    const signatureKid = packet.integrity?.signature_kid;
+    const packetSignature = packet.integrity?.packet_signature;
+
+    if (!signatureAlgorithm || !signatureKid || !packetSignature) {
+      warnings.push('packet signature metadata missing');
+    } else if (signatureAlgorithm !== 'RS256') {
+      warnings.push(`unsupported signature algorithm: ${signatureAlgorithm}`);
+    } else {
+      const jwk = (jwks.keys || []).find(key => key.kid === signatureKid) || (jwks.keys || [])[0];
+      if (!jwk) {
+        warnings.push('no verification key found in JWKS');
+      } else {
+        try {
+          const key = await window.crypto.subtle.importKey(
+            'jwk',
+            jwk,
+            { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+            false,
+            ['verify'],
+          );
+          signatureValid = await window.crypto.subtle.verify(
+            { name: 'RSASSA-PKCS1-v1_5' },
+            key,
+            decodeBase64Url(packetSignature),
+            encoded,
+          );
+          if (!signatureValid) warnings.push('packet signature verification failed');
+        } catch (error) {
+          warnings.push(`packet signature verification failed: ${String(error)}`);
+        }
+      }
+    }
+
+    const auditWarnings = validateAuditEvents(packet.events || []);
+    warnings.push(...auditWarnings);
+    const auditChainValid = Boolean(packet.integrity?.audit_chain_valid) && auditWarnings.length === 0;
+    if (!packet.integrity?.audit_chain_valid && auditWarnings.length === 0) {
+      warnings.push('packet reports invalid audit chain');
+    }
+
+    return {
+      status: hashValid && signatureValid && auditChainValid ? 'success' : 'error',
+      valid: hashValid && signatureValid && auditChainValid,
+      hashValid,
+      signatureValid,
+      auditChainValid,
+      warnings,
+    };
+  }
+
+  function canonicalizeEvidencePacket(packet) {
+    const clone = JSON.parse(JSON.stringify(packet || {}));
+    const integrity = clone.integrity || {};
+    clone.integrity = integrity;
+    integrity.packet_hash = '';
+    delete integrity.signature_algorithm;
+    delete integrity.signature_kid;
+    delete integrity.packet_signature;
+    return JSON.stringify(clone);
+  }
+
+  async function sha256Hex(bytes) {
+    const digest = await window.crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  function decodeBase64Url(value) {
+    const normalized = String(value).replaceAll('-', '+').replaceAll('_', '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const raw = atob(padded);
+    return Uint8Array.from(raw, char => char.charCodeAt(0));
+  }
+
+  function validateAuditEvents(events) {
+    const warnings = [];
+    if (!Array.isArray(events) || events.length === 0) return warnings;
+
+    const genesisHash = '0000000000000000000000000000000000000000000000000000000000000000';
+    if ((events[0]?.prev_hash || '') !== genesisHash) {
+      warnings.push('first audit event does not use the genesis previous hash');
+    }
+
+    for (let i = 1; i < events.length; i += 1) {
+      const prev = events[i - 1];
+      const current = events[i];
+      if (prev && current && current.prev_hash !== prev.entry_hash) {
+        warnings.push(`audit chain break between event ${prev.id ?? i} and ${current.id ?? i + 1}`);
+      }
+    }
+
+    return warnings;
+  }
 
   // ── Revoke ────────────────────────────────────────────────────────────────
 

@@ -662,7 +662,7 @@ function canonicalizeEvidencePacket(packet: EvidencePacket): string {
   const clone = JSON.parse(JSON.stringify(packet)) as Record<string, unknown>;
   const integrity = (clone.integrity ?? {}) as Record<string, unknown>;
   clone.integrity = integrity;
-  delete integrity.packet_hash;
+  integrity.packet_hash = '';
   delete integrity.signature_algorithm;
   delete integrity.signature_kid;
   delete integrity.packet_signature;
