@@ -1,0 +1,3544 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Agent Credential Attestation Protocol (ACAP)</title>
+<meta content="Chudah Yakung" name="author">
+<meta content="
+       This document defines the Agent Credential Attestation Protocol (ACAP),
+a cryptographic credentialing protocol for autonomous AI agent pipelines.
+An ACAP credential is a short-lived JSON Web Token (JWT) signed with
+RS256 that carries scope-limited permissions together with a SHA-256
+hash of the original human instruction that initiated the task.
+Credentials may be delegated to child agents; each delegation narrows
+scope, cannot outlive its parent, increments a delegation depth counter,
+and extends a tamper-evident chain of token identifiers.  Every
+lifecycle event is recorded in an append-only, hash-chained audit log. 
+       This document specifies the credential format, issuance rules,
+delegation rules, verification algorithm, revocation semantics,
+human-in-the-loop approval protocol, and audit log structure. 
+    " name="description">
+<meta content="xml2rfc 3.32.0" name="generator">
+<meta content="AI agents" name="keyword">
+<meta content="delegation" name="keyword">
+<meta content="JWT" name="keyword">
+<meta content="authorization" name="keyword">
+<meta content="credential" name="keyword">
+<meta content="attestation" name="keyword">
+<meta content="draft-yakung-oauth-agent-attestation-00" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.32.0
+    Python 3.12.0
+    ConfigArgParse 1.7.5
+    google-i18n-address 3.1.1
+    intervaltree 3.2.1
+    Jinja2 3.1.6
+    lxml 6.0.2
+    platformdirs 4.9.4
+    pycountry 26.2.16
+    PyYAML 6.0.3
+    requests 2.32.5
+    wcwidth 0.6.0
+-->
+<link href="draft-yakung-oauth-agent-attestation-00.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">/*
+
+  NOTE: Changes at the bottom of this file overrides some earlier settings.
+
+  Once the style has stabilized and has been adopted as an official RFC style,
+  this can be consolidated so that style settings occur only in one place, but
+  for now the contents of this file consists first of the initial CSS work as
+  provided to the RFC Formatter (xml2rfc) work, followed by itemized and
+  commented changes found necessary during the development of the v3
+  formatters.
+
+*/
+
+/* fonts */
+@import url('https://static.ietf.org/fonts/noto-sans/import.css'); /* Sans-serif */
+@import url('https://static.ietf.org/fonts/noto-serif/import.css'); /* Serif (print) */
+@import url('https://static.ietf.org/fonts/roboto-mono/import.css'); /* Monospace */
+
+:root {
+  --font-sans: 'Noto Sans', Arial, Helvetica, sans-serif;
+  --font-serif: 'Noto Serif', 'Times', 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', Courier, 'Courier New', monospace;
+}
+
+@viewport {
+  zoom: 1.0;
+}
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+/* general and mobile first */
+html {
+}
+body {
+  max-width: 90%;
+  margin: 1.5em auto;
+  color: #222;
+  background-color: #fff;
+  font-size: 14px;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  scroll-behavior: smooth;
+  overflow-wrap: break-word;
+}
+.ears {
+  display: none;
+}
+
+/* headings */
+#title, h1, h2, h3, h4, h5, h6 {
+  margin: 1em 0 0.5em;
+  font-weight: bold;
+  line-height: 1.3;
+}
+#title {
+  clear: both;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 0.5em 0;
+  padding: 1em 0 0.5em;
+}
+.author {
+  padding-bottom: 4px;
+}
+h1 {
+  font-size: 26px;
+  margin: 1em 0;
+}
+h2 {
+  font-size: 22px;
+  margin-top: -20px;  /* provide offset for in-page anchors */
+  padding-top: 33px;
+}
+h3 {
+  font-size: 18px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h4 {
+  font-size: 16px;
+  margin-top: -36px;  /* provide offset for in-page anchors */
+  padding-top: 42px;
+}
+h5, h6 {
+  font-size: 14px;
+}
+#n-copyright-notice {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 1em;
+  margin-bottom: 1em;
+}
+/* general structure */
+p {
+  padding: 0;
+  margin: 0 0 1em 0;
+  text-align: left;
+}
+div, span {
+  position: relative;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+@media print {
+  svg {
+    max-height: 850px;
+    max-width: 660px;
+  }
+}
+svg[font-family~="serif" i], svg [font-family~="serif" i] {
+  font-family: var(--font-serif);
+}
+svg[font-family~="sans-serif" i], svg [font-family~="sans-serif" i] {
+  font-family: var(--font-sans);
+}
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 1em 1em 0;
+  margin-bottom: 1.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  display: table;
+  border: none;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 1em 2em;
+}
+ol ol, ul ul, ol ul, ul ol {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+ul.ulBare, li.ulBare {
+  margin-left: 0em !important;
+}
+ul.compact, .ulCompact,
+ol.compact, .olCompact {
+  line-height: 100%;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+/* 
+dl.nohang > dt {
+  float: none;
+}
+*/
+dl > dd {
+  margin-bottom: .8em;
+  min-height: 1.3em;
+}
+dl.compact > dd, .dlCompact > dd {
+  margin-bottom: 0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0em;
+}
+
+/* links */
+a {
+  text-decoration: none;
+}
+a[href] {
+  color: #22e; /* Arlen: WCAG 2019 */
+}
+a[href]:hover {
+  background-color: #f2f2f2;
+}
+figcaption a[href],
+a[href].selfRef {
+  color: #222;
+}
+/* XXX probably not this:
+a.selfRef:hover {
+  background-color: transparent;
+  cursor: default;
+} */
+
+/* Figures */
+tt, code, pre {
+  background-color: #f9f9f9;
+  font-family: var(--font-mono);
+}
+pre {
+  border: 1px solid #eee;
+  margin: 0;
+  padding: 1em;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption {
+  font-style: italic;
+  margin: 0 0 1em 0;
+}
+@media screen {
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+    max-width: calc(100% - 22px);
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 1.2em 2em;
+}
+blockquote {
+  background-color: #f9f9f9;
+  color: #111; /* Arlen: WCAG 2019 */
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  margin: 1em 0;
+}
+blockquote > *:last-child {
+  margin-bottom: 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+.xref {
+  overflow-wrap: normal;
+}
+
+/* tables */
+table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  border: 1px solid #eee;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5em 0.75em;
+}
+th {
+  text-align: left;
+  background-color: #e9e9e9;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f5f5f5;
+}
+table caption {
+  font-style: italic;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+table p {
+  /* XXX to avoid bottom margin on table row signifiers. If paragraphs should
+     be allowed within tables more generally, it would be far better to select on a class. */
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  color: #666; /* Arlen: AHDJ 2019 */
+  text-decoration: none;
+  visibility: hidden;
+  user-select: none;
+  -ms-user-select: none;
+  -o-user-select:none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+@media screen {
+  aside:hover > a.pilcrow,
+  p:hover > a.pilcrow,
+  blockquote:hover > a.pilcrow,
+  div:hover > a.pilcrow,
+  li:hover > a.pilcrow,
+  pre:hover > a.pilcrow {
+    visibility: visible;
+  }
+  a.pilcrow:hover {
+    background-color: transparent;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid #eee;
+}
+.bcp14 {
+  font-variant: small-caps;
+}
+
+.role {
+  font-variant: all-small-caps;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: 0.9em;
+}
+#identifiers dt {
+  width: 3em;
+  clear: left;
+}
+#identifiers dd {
+  float: left;
+  margin-bottom: 0;
+}
+/* Fix PDF info block run off issue */
+@media print {
+  #identifiers dd {
+    max-width: 100%;
+  }
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #666; /* Arlen: WCAG 2019 */
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc  {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+nav.toc ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+nav.toc li {
+  line-height: 1.3em;
+  margin: 0.75em 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 7em;
+}
+.references dd {
+  margin-left: 8em;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.refSubseries {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+.index ul {
+  margin: 0 0 0 1em;
+  padding: 0;
+  list-style: none;
+}
+.index ul ul {
+  margin: 0;
+}
+.index li {
+  margin: 0;
+  text-indent: -2em;
+  padding-left: 2em;
+  padding-bottom: 5px;
+}
+.indexIndex {
+  margin: 0.5em 0 1em;
+}
+.index a {
+  font-weight: 700;
+}
+/* make the index two-column on all but the smallest screens */
+@media (min-width: 600px) {
+  .index ul {
+    -moz-column-count: 2;
+    -moz-column-gap: 20px;
+  }
+  .index ul ul {
+    -moz-column-count: 1;
+    -moz-column-gap: 0;
+  }
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  font-family: var(--font-sans);
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+
+/* temporary notes */
+.rfcEditorRemove::before {
+  position: absolute;
+  top: 0.2em;
+  right: 0.2em;
+  padding: 0.2em;
+  content: "The RFC Editor will remove this note";
+  color: #9e2a00; /* Arlen: WCAG 2019 */
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+}
+.rfcEditorRemove {
+  position: relative;
+  padding-top: 1.8em;
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  border-radius: 3px;
+}
+.cref {
+  background-color: #ffd; /* Arlen: WCAG 2019 */
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 1023px) {
+  body {
+    padding-top: 2em;
+  }
+  #title {
+    padding: 1em 0;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-top: -18px;  /* provide offset for in-page anchors */
+    padding-top: 38px;
+  }
+  #identifiers dd {
+    max-width: 60%;
+  }
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    background-color: inherit;
+    border-bottom: 1px solid #ccc;
+  }
+  #toc h2 {
+    margin: -1px 0 0 0;
+    padding: 4px 0 4px 6px;
+    padding-right: 1em;
+    min-width: 190px;
+    font-size: 1.1em;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 6px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 1024px) {
+  body {
+    max-width: 724px;
+    margin: 42px auto;
+    padding-left: 1.5em;
+    padding-right: 29em;
+  }
+  #toc {
+    position: fixed;
+    top: 42px;
+    right: 42px;
+    width: 25%;
+    margin: 0;
+    padding: 0 1em;
+    z-index: 1;
+  }
+  #toc h2 {
+    border-top: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 1em;
+    font-weight: normal;
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 0;
+    overflow: auto;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre {
+    page-break-inside: avoid;
+  }
+  figure {
+    overflow: scroll;
+  }
+  .breakable pre {
+    break-inside: auto;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  h2+*, h3+*, h4+*, h5+*, h6+* {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+/* This is commented out here, as the string-set: doesn't
+   pass W3C validation currently */
+/*
+.ears thead .left {
+  string-set: ears-top-left content();
+}
+
+.ears thead .center {
+  string-set: ears-top-center content();
+}
+
+.ears thead .right {
+  string-set: ears-top-right content();
+}
+
+.ears tfoot .left {
+  string-set: ears-bottom-left content();
+}
+
+.ears tfoot .center {
+  string-set: ears-bottom-center content();
+}
+
+.ears tfoot .right {
+  string-set: ears-bottom-right content();
+}
+*/
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+  /* The following is commented out here, but set appropriately by in code, as
+     the content depends on the document */
+  /*
+  @top-left {
+    content: 'Internet-Draft';
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-left {
+    content: string(ears-top-left);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-center {
+    content: string(ears-top-center);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @top-right {
+    content: string(ears-top-right);
+    vertical-align: bottom;
+    border-bottom: solid 1px #ccc;
+  }
+  @bottom-left {
+    content: string(ears-bottom-left);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-center {
+    content: string(ears-bottom-center);
+    vertical-align: top;
+    border-top: solid 1px #ccc;
+  }
+  @bottom-right {
+      content: '[Page ' counter(page) ']';
+      vertical-align: top;
+      border-top: solid 1px #ccc;
+  }
+  */
+
+}
+
+/* Changes introduced to fix issues found during implementation */
+/* Make sure links are clickable even if overlapped by following H* */
+a {
+  z-index: 2;
+}
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Leave room in document info to show Internet-Draft on one line */
+#identifiers dt {
+  width: 8em;
+}
+
+/* Don't waste quite as much whitespace between label and value in doc info */
+#identifiers dd {
+  margin-left: 1em;
+}
+
+/* Give floating toc a background color (needed when it's a div inside section */
+#toc {
+  background-color: white;
+}
+
+/* Make the collapsed ToC header render white on gray also when it's a link */
+@media screen and (max-width: 1023px) {
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+}
+
+/* Give the bottom of the ToC some whitespace */
+@media screen and (min-width: 1024px) {
+  #toc {
+    padding: 0 0 1em 1em;
+  }
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* prevent monospace from becoming overly large */
+tt, code, pre {
+  font-size: 95%;
+}
+
+/* Fix the height/width aspect for ascii art*/
+.sourcecode pre,
+.art-text pre {
+  line-height: 1.12;
+}
+
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin-right: 0.5em;
+}
+
+/* Fix the dl styling to match the RFC 7992 attributes */
+dl > dt,
+dl.dlParallel > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+
+/* Provide styling for table cell text alignment */
+table td.text-left,
+table th.text-left {
+  text-align: left;
+}
+table td.text-center,
+table th.text-center {
+  text-align: center;
+}
+table td.text-right,
+table th.text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 30em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Provide table alignment support.  We can't use the alignX classes above
+   since they do unwanted things with caption and other styling. */
+table.right {
+ margin-left: auto;
+ margin-right: 0;
+}
+table.center {
+ margin-left: auto;
+ margin-right: auto;
+}
+table.left {
+ margin-left: 0;
+ margin-right: auto;
+}
+
+/* Give the table caption label the same styling as the figcaption */
+caption a[href] {
+  color: #222;
+}
+
+@media print {
+  .toplink {
+    display: none;
+  }
+
+  /* avoid overwriting the top border line with the ToC header */
+  #toc {
+    padding-top: 1px;
+  }
+
+  /* Avoid page breaks inside dl and author address entries */
+  .vcard {
+    page-break-inside: avoid;
+  }
+
+}
+/* Tweak the bcp14 keyword presentation */
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+/* Tweak the invisible space above H* in order not to overlay links in text above */
+ h2 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 31px;
+ }
+ h3 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+ h4 {
+  margin-top: -18px;  /* provide offset for in-page anchors */
+  padding-top: 24px;
+ }
+/* Float artwork pilcrow to the right */
+@media screen {
+  .artwork a.pilcrow {
+    display: block;
+    line-height: 0.7;
+    margin-top: 0.15em;
+  }
+}
+/* Make pilcrows on dd visible */
+@media screen {
+  dd:hover > a.pilcrow {
+    visibility: visible;
+  }
+}
+/* Make the placement of figcaption match that of a table's caption
+   by removing the figure's added bottom margin */
+.alignLeft.art-text,
+.alignCenter.art-text,
+.alignRight.art-text {
+   margin-bottom: 0;
+}
+.alignLeft,
+.alignCenter,
+.alignRight {
+  margin: 1em 0 0 0;
+}
+/* In print, the pilcrow won't show on hover, so prevent it from taking up space,
+   possibly even requiring a new line */
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+/* Styling for the external metadata */
+div#external-metadata {
+  background-color: #eee;
+  padding: 0.5em;
+  margin-bottom: 0.5em;
+  display: none;
+}
+div#internal-metadata {
+  padding: 0.5em;                       /* to match the external-metadata padding */
+}
+/* Styling for title RFC Number */
+h1#rfcnum {
+  clear: both;
+  margin: 0 0 -1em;
+  padding: 1em 0 0 0;
+}
+/* Make .olPercent look the same as <ol><li> */
+dl.olPercent > dd {
+  margin-bottom: 0.25em;
+  min-height: initial;
+}
+/* Give aside some styling to set it apart */
+aside {
+  border-left: 1px solid #ddd;
+  margin: 1em 0 1em 2em;
+  padding: 0.2em 2em;
+}
+aside > dl,
+aside > ol,
+aside > ul,
+aside > table,
+aside > p {
+  margin-bottom: 0.5em;
+}
+/* Additional page break settings */
+@media print {
+  figcaption, table caption {
+    page-break-before: avoid;
+  }
+}
+/* Font size adjustments for print */
+@media print {
+  body  { font-size: 10pt;      line-height: normal; max-width: 96%; }
+  h1    { font-size: 1.72em;    padding-top: 1.5em; } /* 1*1.2*1.2*1.2 */
+  h2    { font-size: 1.44em;    padding-top: 1.5em; } /* 1*1.2*1.2 */
+  h3    { font-size: 1.2em;     padding-top: 1.5em; } /* 1*1.2 */
+  h4    { font-size: 1em;       padding-top: 1.5em; }
+  h5, h6 { font-size: 1em;      margin: initial; padding: 0.5em 0 0.3em; }
+}
+/* Sourcecode margin in print, when there's no pilcrow */
+@media print {
+  .artwork,
+  .artwork > pre,
+  .sourcecode {
+    margin-bottom: 1em;
+  }
+}
+/* Avoid narrow tables forcing too narrow table captions, which may render badly */
+table {
+  min-width: 20em;
+}
+/* ol type a */
+ol.type-a { list-style-type: lower-alpha; }
+ol.type-A { list-style-type: upper-alpha; }
+ol.type-i { list-style-type: lower-roman; }
+ol.type-I { list-style-type: upper-roman; }
+/* Apply the print table and row borders in general, on request from the RPC,
+and increase the contrast between border and odd row background slightly */
+table {
+  border: 1px solid #ddd;
+}
+td {
+  border-top: 1px solid #ddd;
+}
+tr {
+  break-inside: avoid;
+}
+tr:nth-child(2n+1) > td {
+  background-color: #f8f8f8;
+}
+/* Use style rules to govern display of the TOC. */
+@media screen and (max-width: 1023px) {
+  #toc nav { display: none; }
+  #toc.active nav { display: block; }
+}
+/* Add support for keepWithNext */
+.keepWithNext {
+  break-after: avoid-page;
+  break-after: avoid-page;
+}
+/* Add support for keepWithPrevious */
+.keepWithPrevious {
+  break-before: avoid-page;
+}
+/* Change the approach to avoiding breaks inside artwork etc. */
+figure, pre, table, .artwork, .sourcecode  {
+  break-before: auto;
+  break-after: auto;
+}
+/* Avoid breaks between <dt> and <dd> */
+dl {
+  break-before: auto;
+  break-inside: auto;
+}
+dt {
+  break-before: auto;
+  break-after: avoid-page;
+}
+dd {
+  break-before: avoid-page;
+  break-after: auto;
+  orphans: 3;
+  widows: 3
+}
+span.break, dd.break {
+  margin-bottom: 0;
+  min-height: 0;
+  break-before: auto;
+  break-inside: auto;
+  break-after: auto;
+}
+/* Undo break-before ToC */
+@media print {
+  #toc {
+    break-before: auto;
+  }
+}
+/* Text in compact lists should not get extra bottom margin space,
+   since that would makes the list not compact */
+ul.compact p, .ulCompact p,
+ol.compact p, .olCompact p {
+ margin: 0;
+}
+/* But the list as a whole needs the extra space at the end */
+section ul.compact,
+section .ulCompact,
+section ol.compact,
+section .olCompact {
+  margin-bottom: 1em;                    /* same as p not within ul.compact etc. */
+}
+/* The tt and code background above interferes with for instance table cell
+   backgrounds.  Changed to something a bit more selective. */
+tt, code {
+  background-color: transparent;
+}
+p tt, p code, li tt, li code, dt tt, dt code {
+  background-color: #f8f8f8;
+}
+/* Tweak the pre margin -- 0px doesn't come out well */
+pre {
+   margin-top: 0.5px;
+}
+/* Tweak the compact list text */
+ul.compact, .ulCompact,
+ol.compact, .olCompact,
+dl.compact, .dlCompact {
+  line-height: normal;
+}
+/* Don't add top margin for nested lists */
+li > ul, li > ol, li > dl,
+dd > ul, dd > ol, dd > dl,
+dl > dd > dl {
+  margin-top: initial;
+}
+/* Elements that should not be rendered on the same line as a <dt> */
+/* This should match the element list in writer.text.TextWriter.render_dl() */
+dd > div.artwork:first-child,
+dd > aside:first-child,
+dd > blockquote:first-child,
+dd > figure:first-child,
+dd > ol:first-child,
+dd > div.sourcecode:first-child,
+dd > table:first-child,
+dd > ul:first-child {
+  clear: left;
+}
+/* fix for weird browser behaviour when <dd/> is empty */
+dt+dd:empty::before{
+  content: "\00a0";
+}
+/* Make paragraph spacing inside <li> smaller than in body text, to fit better within the list */
+li > p {
+  margin-bottom: 0.5em
+}
+/* Don't let p margin spill out from inside list items */
+li > p:last-of-type:only-child {
+  margin-bottom: 0;
+}
+</style>
+<link href="rfc-local.css" rel="stylesheet" type="text/css">
+<script type="application/javascript">async function addMetadata(){try{const e=document.styleSheets[0].cssRules;for(let t=0;t<e.length;t++)if(/#identifiers/.exec(e[t].selectorText)){const a=e[t].cssText.replace("#identifiers","#external-updates");document.styleSheets[0].insertRule(a,document.styleSheets[0].cssRules.length)}}catch(e){console.log(e)}const e=document.getElementById("external-metadata");if(e)try{var t,a="",o=function(e){const t=document.getElementsByTagName("meta");for(let a=0;a<t.length;a++)if(t[a].getAttribute("name")===e)return t[a].getAttribute("content");return""}("rfc.number");if(o){t="https://www.rfc-editor.org/rfc/rfc"+o+".json";try{const e=await fetch(t);a=await e.json()}catch(e){t=document.URL.indexOf("html")>=0?document.URL.replace(/html$/,"json"):document.URL+".json";const o=await fetch(t);a=await o.json()}}if(!a)return;e.style.display="block";const s="",d="https://datatracker.ietf.org/doc",n="https://datatracker.ietf.org/ipr/search",c="https://www.rfc-editor.org/info",l=a.doc_id.toLowerCase(),i=a.doc_id.slice(0,3).toLowerCase(),f=a.doc_id.slice(3).replace(/^0+/,""),u={status:"Status",obsoletes:"Obsoletes",obsoleted_by:"Obsoleted By",updates:"Updates",updated_by:"Updated By",see_also:"See Also",errata_url:"Errata"};let h="<dl style='overflow:hidden' id='external-updates'>";["status","obsoletes","obsoleted_by","updates","updated_by","see_also","errata_url"].forEach(e=>{if("status"==e){a[e]=a[e].toLowerCase();var t=a[e].split(" "),o=t.length,w="",p=1;for(let e=0;e<o;e++)p<o?w=w+r(t[e])+" ":w+=r(t[e]),p++;a[e]=w}else if("obsoletes"==e||"obsoleted_by"==e||"updates"==e||"updated_by"==e){var g,m="",b=1;g=a[e].length;for(let t=0;t<g;t++)a[e][t]&&(a[e][t]=String(a[e][t]).toLowerCase(),m=b<g?m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>, ":m+"<a href='"+s+"/rfc/".concat(a[e][t])+"'>"+a[e][t].slice(3)+"</a>",b++);a[e]=m}else if("see_also"==e){var y,L="",C=1;y=a[e].length;for(let t=0;t<y;t++)if(a[e][t]){a[e][t]=String(a[e][t]);var _=a[e][t].slice(0,3),v=a[e][t].slice(3).replace(/^0+/,"");L=C<y?"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>, ":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>, ":"RFC"!=_?L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+_+" "+v+"</a>":L+"<a href='"+s+"/info/"+_.toLowerCase().concat(v.toLowerCase())+"'>"+v+"</a>",C++}a[e]=L}else if("errata_url"==e){var R="";R=a[e]?R+"<a href='"+a[e]+"'>Errata exist</a> | <a href='"+d+"/"+l+"'>Datatracker</a>| <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>":"<a href='"+d+"/"+l+"'>Datatracker</a> | <a href='"+n+"/?"+i+"="+f+"&submit="+i+"'>IPR</a> | <a href='"+c+"/"+l+"'>Info page</a>",a[e]=R}""!=a[e]?"Errata"==u[e]?h+=`<dt>More info:</dt><dd>${a[e]}</dd>`:h+=`<dt>${u[e]}:</dt><dd>${a[e]}</dd>`:"Errata"==u[e]&&(h+=`<dt>More info:</dt><dd>${a[e]}</dd>`)}),h+="</dl>",e.innerHTML=h}catch(e){console.log(e)}else console.log("Could not locate metadata <div> element");function r(e){return e.charAt(0).toUpperCase()+e.slice(1)}}window.removeEventListener("load",addMetadata),window.addEventListener("load",addMetadata);</script>
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">ACAP</td>
+<td class="right">March 2026</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Yakung</td>
+<td class="center">Expires 27 September 2026</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Network Working Group</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-yakung-oauth-agent-attestation-00</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2026-03-26" class="published">26 March 2026</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Informational</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2026-09-27">27 September 2026</time></dd>
+<dt class="label-authors">Author:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">C. Yakung</div>
+<div class="org">Attest</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Agent Credential Attestation Protocol (ACAP)</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">This document defines the Agent Credential Attestation Protocol (ACAP),
+a cryptographic credentialing protocol for autonomous AI agent pipelines.
+An ACAP credential is a short-lived JSON Web Token (JWT) signed with
+RS256 that carries scope-limited permissions together with a SHA-256
+hash of the original human instruction that initiated the task.
+Credentials may be delegated to child agents; each delegation narrows
+scope, cannot outlive its parent, increments a delegation depth counter,
+and extends a tamper-evident chain of token identifiers.  Every
+lifecycle event is recorded in an append-only, hash-chained audit log.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">This document specifies the credential format, issuance rules,
+delegation rules, verification algorithm, revocation semantics,
+human-in-the-loop approval protocol, and audit log structure.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 27 September 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2026 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.1">
+                <p id="section-toc.1-1.1.2.1.1" class="keepWithNext"><a href="#section-1.1" class="auto internal xref">1.1</a>.  <a href="#name-problem-statement" class="internal xref">Problem Statement</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.2">
+                <p id="section-toc.1-1.1.2.2.1" class="keepWithNext"><a href="#section-1.2" class="auto internal xref">1.2</a>.  <a href="#name-what-acap-adds" class="internal xref">What ACAP Adds</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.3">
+                <p id="section-toc.1-1.1.2.3.1" class="keepWithNext"><a href="#section-1.3" class="auto internal xref">1.3</a>.  <a href="#name-relationship-to-prior-art" class="internal xref">Relationship to Prior Art</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-conventions-and-definitions" class="internal xref">Conventions and Definitions</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-terminology" class="internal xref">Terminology</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-credential-format" class="internal xref">Credential Format</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-overview" class="internal xref">Overview</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-standard-jwt-claims" class="internal xref">Standard JWT Claims</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.3">
+                <p id="section-toc.1-1.4.2.3.1"><a href="#section-4.3" class="auto internal xref">4.3</a>.  <a href="#name-acap-extension-claims" class="internal xref">ACAP Extension Claims</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4">
+                <p id="section-toc.1-1.4.2.4.1"><a href="#section-4.4" class="auto internal xref">4.4</a>.  <a href="#name-concrete-examples" class="internal xref">Concrete Examples</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4.2.1">
+                    <p id="section-toc.1-1.4.2.4.2.1.1"><a href="#section-4.4.1" class="auto internal xref">4.4.1</a>.  <a href="#name-root-credential-payload" class="internal xref">Root Credential Payload</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4.2.2">
+                    <p id="section-toc.1-1.4.2.4.2.2.1"><a href="#section-4.4.2" class="auto internal xref">4.4.2</a>.  <a href="#name-delegated-credential-payloa" class="internal xref">Delegated Credential Payload</a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-scope-model" class="internal xref">Scope Model</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-scope-entry-format" class="internal xref">Scope Entry Format</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
+                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-wildcard-rules" class="internal xref">Wildcard Rules</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3">
+                <p id="section-toc.1-1.5.2.3.1"><a href="#section-5.3" class="auto internal xref">5.3</a>.  <a href="#name-normalisescope" class="internal xref">NormaliseScope</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.4">
+                <p id="section-toc.1-1.5.2.4.1"><a href="#section-5.4" class="auto internal xref">5.4</a>.  <a href="#name-issubset-algorithm" class="internal xref">IsSubset Algorithm</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-issuance" class="internal xref">Issuance</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-overview-2" class="internal xref">Overview</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-input-validation" class="internal xref">Input Validation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3">
+                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-intent-hash-computation" class="internal xref">Intent Hash Computation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.4">
+                <p id="section-toc.1-1.6.2.4.1"><a href="#section-6.4" class="auto internal xref">6.4</a>.  <a href="#name-identifier-generation" class="internal xref">Identifier Generation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.5">
+                <p id="section-toc.1-1.6.2.5.1"><a href="#section-6.5" class="auto internal xref">6.5</a>.  <a href="#name-ttl-and-expiry" class="internal xref">TTL and Expiry</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.6">
+                <p id="section-toc.1-1.6.2.6.1"><a href="#section-6.6" class="auto internal xref">6.6</a>.  <a href="#name-root-credential-constructio" class="internal xref">Root Credential Construction</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-delegation" class="internal xref">Delegation</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-overview-3" class="internal xref">Overview</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-input-validation-2" class="internal xref">Input Validation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.3">
+                <p id="section-toc.1-1.7.2.3.1"><a href="#section-7.3" class="auto internal xref">7.3</a>.  <a href="#name-parent-token-verification" class="internal xref">Parent Token Verification</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.4">
+                <p id="section-toc.1-1.7.2.4.1"><a href="#section-7.4" class="auto internal xref">7.4</a>.  <a href="#name-scope-subset-enforcement" class="internal xref">Scope Subset Enforcement</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.5">
+                <p id="section-toc.1-1.7.2.5.1"><a href="#section-7.5" class="auto internal xref">7.5</a>.  <a href="#name-depth-limit" class="internal xref">Depth Limit</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.6">
+                <p id="section-toc.1-1.7.2.6.1"><a href="#section-7.6" class="auto internal xref">7.6</a>.  <a href="#name-expiry-computation" class="internal xref">Expiry Computation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.7">
+                <p id="section-toc.1-1.7.2.7.1"><a href="#section-7.7" class="auto internal xref">7.7</a>.  <a href="#name-delegated-credential-constr" class="internal xref">Delegated Credential Construction</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-verification" class="internal xref">Verification</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1">
+                <p id="section-toc.1-1.8.2.1.1"><a href="#section-8.1" class="auto internal xref">8.1</a>.  <a href="#name-overview-4" class="internal xref">Overview</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.2">
+                <p id="section-toc.1-1.8.2.2.1"><a href="#section-8.2" class="auto internal xref">8.2</a>.  <a href="#name-verification-algorithm" class="internal xref">Verification Algorithm</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.3">
+                <p id="section-toc.1-1.8.2.3.1"><a href="#section-8.3" class="auto internal xref">8.3</a>.  <a href="#name-warnings-vs-hard-failures" class="internal xref">Warnings vs. Hard Failures</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-revocation" class="internal xref">Revocation</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-semantics" class="internal xref">Semantics</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
+                <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="auto internal xref">9.2</a>.  <a href="#name-cascade-semantics" class="internal xref">Cascade Semantics</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3">
+                <p id="section-toc.1-1.9.2.3.1"><a href="#section-9.3" class="auto internal xref">9.3</a>.  <a href="#name-revocation-store" class="internal xref">Revocation Store</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.4">
+                <p id="section-toc.1-1.9.2.4.1"><a href="#section-9.4" class="auto internal xref">9.4</a>.  <a href="#name-lifetime-interaction" class="internal xref">Lifetime Interaction</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-human-in-the-loop-approval" class="internal xref">Human-in-the-Loop Approval</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
+                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-overview-5" class="internal xref">Overview</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
+                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-approval-lifecycle" class="internal xref">Approval Lifecycle</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.3">
+                <p id="section-toc.1-1.10.2.3.1"><a href="#section-10.3" class="auto internal xref">10.3</a>.  <a href="#name-approval-expiry" class="internal xref">Approval Expiry</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.4">
+                <p id="section-toc.1-1.10.2.4.1"><a href="#section-10.4" class="auto internal xref">10.4</a>.  <a href="#name-parent-token-re-verificatio" class="internal xref">Parent Token Re-verification</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.5">
+                <p id="section-toc.1-1.10.2.5.1"><a href="#section-10.5" class="auto internal xref">10.5</a>.  <a href="#name-hitl-claims-propagation" class="internal xref">HITL Claims Propagation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.6">
+                <p id="section-toc.1-1.10.2.6.1"><a href="#section-10.6" class="auto internal xref">10.6</a>.  <a href="#name-multi-tenant-isolation" class="internal xref">Multi-Tenant Isolation</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#section-11" class="auto internal xref">11</a>. <a href="#name-audit-log" class="internal xref">Audit Log</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.1">
+                <p id="section-toc.1-1.11.2.1.1"><a href="#section-11.1" class="auto internal xref">11.1</a>.  <a href="#name-structure" class="internal xref">Structure</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.2">
+                <p id="section-toc.1-1.11.2.2.1"><a href="#section-11.2" class="auto internal xref">11.2</a>.  <a href="#name-entry-hash-computation" class="internal xref">Entry Hash Computation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.3">
+                <p id="section-toc.1-1.11.2.3.1"><a href="#section-11.3" class="auto internal xref">11.3</a>.  <a href="#name-event-types" class="internal xref">Event Types</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.4">
+                <p id="section-toc.1-1.11.2.4.1"><a href="#section-11.4" class="auto internal xref">11.4</a>.  <a href="#name-audit-entry-fields" class="internal xref">Audit Entry Fields</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.5">
+                <p id="section-toc.1-1.11.2.5.1"><a href="#section-11.5" class="auto internal xref">11.5</a>.  <a href="#name-append-only-enforcement" class="internal xref">Append-Only Enforcement</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11.2.6">
+                <p id="section-toc.1-1.11.2.6.1"><a href="#section-11.6" class="auto internal xref">11.6</a>.  <a href="#name-log-verification" class="internal xref">Log Verification</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#section-12" class="auto internal xref">12</a>. <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.1">
+                <p id="section-toc.1-1.12.2.1.1"><a href="#section-12.1" class="auto internal xref">12.1</a>.  <a href="#name-prompt-injection" class="internal xref">Prompt Injection</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.2">
+                <p id="section-toc.1-1.12.2.2.1"><a href="#section-12.2" class="auto internal xref">12.2</a>.  <a href="#name-replay-attacks" class="internal xref">Replay Attacks</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.3">
+                <p id="section-toc.1-1.12.2.3.1"><a href="#section-12.3" class="auto internal xref">12.3</a>.  <a href="#name-scope-creep" class="internal xref">Scope Creep</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.4">
+                <p id="section-toc.1-1.12.2.4.1"><a href="#section-12.4" class="auto internal xref">12.4</a>.  <a href="#name-clock-skew" class="internal xref">Clock Skew</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.5">
+                <p id="section-toc.1-1.12.2.5.1"><a href="#section-12.5" class="auto internal xref">12.5</a>.  <a href="#name-key-management" class="internal xref">Key Management</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.6">
+                <p id="section-toc.1-1.12.2.6.1"><a href="#section-12.6" class="auto internal xref">12.6</a>.  <a href="#name-credential-store-integrity" class="internal xref">Credential Store Integrity</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12.2.7">
+                <p id="section-toc.1-1.12.2.7.1"><a href="#section-12.7" class="auto internal xref">12.7</a>.  <a href="#name-audit-log-integrity" class="internal xref">Audit Log Integrity</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.13">
+            <p id="section-toc.1-1.13.1"><a href="#section-13" class="auto internal xref">13</a>. <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14">
+            <p id="section-toc.1-1.14.1"><a href="#section-14" class="auto internal xref">14</a>. <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.1">
+                <p id="section-toc.1-1.14.2.1.1"><a href="#section-14.1" class="auto internal xref">14.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.14.2.2">
+                <p id="section-toc.1-1.14.2.2.1"><a href="#section-14.2" class="auto internal xref">14.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.15">
+            <p id="section-toc.1-1.15.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-summary-of-constants" class="internal xref">Summary of Constants</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.16">
+            <p id="section-toc.1-1.16.1"><a href="#appendix-B" class="auto internal xref">Appendix B</a>.  <a href="#name-implementation-status" class="internal xref">Implementation Status</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.17">
+            <p id="section-toc.1-1.17.1"><a href="#appendix-C" class="auto internal xref">Appendix C</a>.  <a href="#name-data-model" class="internal xref">Data Model</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.18">
+            <p id="section-toc.1-1.18.1"><a href="#appendix-D" class="auto internal xref"></a><a href="#name-acknowledgements" class="internal xref">Acknowledgements</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.19">
+            <p id="section-toc.1-1.19.1"><a href="#appendix-E" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<div id="problem-statement">
+<section id="section-1.1">
+        <h3 id="name-problem-statement">
+<a href="#section-1.1" class="section-number selfRef">1.1. </a><a href="#name-problem-statement" class="section-name selfRef">Problem Statement</a>
+        </h3>
+<p id="section-1.1-1">Contemporary authorization frameworks such as OAuth 2.0 <span>[<a href="#RFC6749" class="cite xref">RFC6749</a>]</span> and
+OpenID Connect <span>[<a href="#OIDC" class="cite xref">OIDC</a>]</span> were designed for human-initiated, single-hop
+delegations: a resource owner grants a client access on behalf of
+themselves.  AI agent pipelines violate this assumption in several
+important ways.<a href="#section-1.1-1" class="pilcrow">¶</a></p>
+<p id="section-1.1-2">First, an agent pipeline may involve an arbitrary number of hops.  A
+root agent receives a task from a human, decomposes it, and delegates
+sub-tasks to child agents, which may themselves delegate further.
+OAuth's two-party model has no native representation for this; each hop
+requires a fresh grant cycle or an out-of-band trust agreement.<a href="#section-1.1-2" class="pilcrow">¶</a></p>
+<p id="section-1.1-3">Second, the originating human instruction -- the intent -- is not
+cryptographically bound to any OAuth token.  An agent can receive a
+token whose original purpose has been transformed or corrupted by prompt
+injection at an intermediate step, and the verifying party has no way to
+detect this.<a href="#section-1.1-3" class="pilcrow">¶</a></p>
+<p id="section-1.1-4">Third, scope in OAuth is flat and is not guaranteed to narrow
+monotonically through a delegation chain.  A child agent can, in
+principle, present its parent token to a different authorization server
+and request broader access.  Nothing in the wire format prevents scope
+creep.<a href="#section-1.1-4" class="pilcrow">¶</a></p>
+<p id="section-1.1-5">Fourth, the delegation graph is not natively recorded.  OAuth
+introspection surfaces information about a single token; it provides no
+view of the full task ancestry.<a href="#section-1.1-5" class="pilcrow">¶</a></p>
+<p id="section-1.1-6">Recent IETF work -- notably the WIMSE working group <span>[<a href="#WIMSE" class="cite xref">WIMSE</a>]</span> and the
+draft on AI agents acting on behalf of users <span>[<a href="#OBO01" class="cite xref">OBO01</a>]</span> -- acknowledges
+these gaps but stops short of specifying a compact, self-contained
+credential format with cryptographically enforced monotone scope
+reduction and intent binding.<a href="#section-1.1-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="what-acap-adds">
+<section id="section-1.2">
+        <h3 id="name-what-acap-adds">
+<a href="#section-1.2" class="section-number selfRef">1.2. </a><a href="#name-what-acap-adds" class="section-name selfRef">What ACAP Adds</a>
+        </h3>
+<p id="section-1.2-1">ACAP addresses the gaps above as follows.<a href="#section-1.2-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-1.2-2">
+          <dt id="section-1.2-2.1">Intent binding:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.2-2.2">
+            <p id="section-1.2-2.2.1">Every ACAP credential carries <code>att_intent</code>, a hex-encoded SHA-256
+hash of the original UTF-8 instruction text.  This value is set at
+issuance and propagated unchanged through every delegation.  A verifier
+can confirm that a presented credential descends from a specific human
+instruction by independently computing the hash.<a href="#section-1.2-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.2-2.3">Monotone scope reduction:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.2-2.4">
+            <p id="section-1.2-2.4.1">At delegation time the issuer MUST verify that the child's requested
+scope is a subset of the parent's scope using the <code>IsSubset</code> algorithm
+defined in <a href="#scope-model" class="auto internal xref">Section 5</a>.  Any request that fails this check MUST be
+rejected.  Scope therefore only ever narrows; it can never widen through
+delegation.<a href="#section-1.2-2.4.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.2-2.5">Depth-limited delegation:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.2-2.6">
+            <p id="section-1.2-2.6.1">Each credential carries <code>att_depth</code>, an integer that starts at 0 for a
+root credential and increments by 1 at each delegation.  Depth is
+bounded above by <code>MaxDelegationDepth</code> (10).  A credential whose depth
+equals this limit MUST NOT be used as a parent for further delegation.<a href="#section-1.2-2.6.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.2-2.7">Tamper-evident chain:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.2-2.8">
+            <p id="section-1.2-2.8.1">Each credential carries <code>att_chain</code>, an ordered list of JWT IDs from
+the root of the delegation tree to the current token.  The verifier
+checks that the chain length equals <code>att_depth + 1</code> and that the final
+element equals the token's own <code>jti</code>.  Together these checks detect any
+tampering with the ancestry record.<a href="#section-1.2-2.8.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.2-2.9">Lifetime containment:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.2-2.10">
+            <p id="section-1.2-2.10.1">A child credential's expiry is capped at the parent's expiry.
+Concretely, <code>exp = min(requested_exp, parent_exp)</code>.  This ensures that
+revoking a parent token effectively expires all descendants, even
+without an active revocation lookup.<a href="#section-1.2-2.10.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.2-2.11">Cascade revocation:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.2-2.12">
+            <p id="section-1.2-2.12.1">The revocation store records revoked JTIs and cascades revocation to
+all descendants by inspecting the <code>att_chain</code> column in the credential
+store.  Revocation is permanent and takes precedence over token expiry.<a href="#section-1.2-2.12.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-1.2-2.13">Append-only audit log:</dt>
+          <dd style="margin-left: 1.5em" id="section-1.2-2.14">
+            <p id="section-1.2-2.14.1">Every issuance, delegation, verification, revocation, and expiry event
+is recorded in a hash-chained log.  Each entry commits to the previous
+entry's hash, the event type, the JTI, and the timestamp, forming a
+tamper-evident record of all credential lifecycle events within a task
+tree.<a href="#section-1.2-2.14.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="relationship-to-prior-art">
+<section id="section-1.3">
+        <h3 id="name-relationship-to-prior-art">
+<a href="#section-1.3" class="section-number selfRef">1.3. </a><a href="#name-relationship-to-prior-art" class="section-name selfRef">Relationship to Prior Art</a>
+        </h3>
+<p id="section-1.3-1">ACAP is informed by but is not a profile of any existing specification.
+The Agentic JWT (A-JWT) paper proposes delegation chains for AI agents
+but does not specify exact claim semantics, scope subset enforcement, or
+audit log structure.  The IETF draft <span>[<a href="#AGENTJWT" class="cite xref">AGENTJWT</a>]</span> covers similar ground
+in the JWT format domain.  The draft <span>[<a href="#OBO01" class="cite xref">OBO01</a>]</span> addresses delegation in
+the OAuth authorization code flow context.  ACAP occupies a different
+point in the design space: it is a self-contained signed-token format
+with no external authorization server required at verification time.<a href="#section-1.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="conventions-and-definitions">
+<section id="section-2">
+      <h2 id="name-conventions-and-definitions">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-conventions-and-definitions" class="section-name selfRef">Conventions and Definitions</a>
+      </h2>
+<p id="section-2-1">The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only when, they appear in all
+capitals, as shown here.<a href="#section-2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="terminology">
+<section id="section-3">
+      <h2 id="name-terminology">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-terminology" class="section-name selfRef">Terminology</a>
+      </h2>
+<span class="break"></span><dl class="dlParallel" id="section-3-1">
+        <dt id="section-3-1.1">Issuer:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.2">
+          <p id="section-3-1.2.1">The service that creates and signs ACAP credentials.  The Issuer holds
+an RSA private key and is identified by a URI recorded in the <code>iss</code> JWT
+claim.  A single Issuer MAY serve multiple task trees.<a href="#section-3-1.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-1.3">Root Credential:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.4">
+          <p id="section-3-1.4.1">An ACAP credential whose <code>att_depth</code> is 0 and whose <code>att_pid</code> is
+absent.  A root credential is issued directly by the Issuer in response
+to a human principal's instruction.  Its <code>att_chain</code> contains exactly
+one element: its own <code>jti</code>.<a href="#section-3-1.4.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-1.5">Delegated Credential:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.6">
+          <p id="section-3-1.6.1">An ACAP credential whose <code>att_depth</code> is greater than 0.  A delegated
+credential is derived from a parent credential and MUST have <code>att_pid</code>
+set to the parent's <code>jti</code>.  Its scope MUST be a subset of the parent's
+scope and its expiry MUST NOT exceed the parent's expiry.<a href="#section-3-1.6.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-1.7">Task Tree:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.8">
+          <p id="section-3-1.8.1">The complete graph of credentials that share the same <code>att_tid</code>.  A
+task tree has exactly one root credential; all other credentials in the
+tree are delegated credentials descended from it.<a href="#section-3-1.8.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-1.9">Intent Hash:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.10">
+          <p id="section-3-1.10.1">The value of the <code>att_intent</code> claim: a lowercase hex-encoded SHA-256
+digest of the UTF-8 encoding of the original human instruction string.
+The intent hash is set at root issuance and propagated unchanged to all
+descendants.<a href="#section-3-1.10.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-1.11">Depth:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.12">
+          <p id="section-3-1.12.1">The integer value of <code>att_depth</code>.  Depth 0 identifies a root
+credential.  Each delegation increments depth by exactly 1.  The maximum
+permitted depth is <code>MaxDelegationDepth</code> (10).<a href="#section-3-1.12.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-1.13">Chain:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.14">
+          <p id="section-3-1.14.1">The ordered list of JWT IDs in <code>att_chain</code>.  For a credential at
+depth D, the chain contains exactly D+1 elements: the root credential's
+<code>jti</code> at index 0, followed by each intermediate credential's <code>jti</code> in
+delegation order, with the current credential's <code>jti</code> at the final
+position (index D).<a href="#section-3-1.14.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-3-1.15">Scope Entry:</dt>
+        <dd style="margin-left: 1.5em" id="section-3-1.16">
+          <p id="section-3-1.16.1">A string of the form <code>resource:action</code> where <code>resource</code> and <code>action</code>
+are non-empty strings.  The wildcard character <code>*</code> MAY appear in either
+position.<a href="#section-3-1.16.1" class="pilcrow">¶</a></p>
+</dd>
+      <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="credential-format">
+<section id="section-4">
+      <h2 id="name-credential-format">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-credential-format" class="section-name selfRef">Credential Format</a>
+      </h2>
+<div id="overview">
+<section id="section-4.1">
+        <h3 id="name-overview">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-overview" class="section-name selfRef">Overview</a>
+        </h3>
+<p id="section-4.1-1">An ACAP credential is a JSON Web Token <span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span> with:<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.1-2.1">
+            <p id="section-4.1-2.1.1">Header: <code>{ "alg": "RS256", "typ": "JWT" }</code><a href="#section-4.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-4.1-2.2">
+            <p id="section-4.1-2.2.1">Payload: the claims defined in <a href="#standard-jwt-claims" class="auto internal xref">Section 4.2</a> and
+<a href="#acap-extension-claims" class="auto internal xref">Section 4.3</a><a href="#section-4.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-4.1-2.3">
+            <p id="section-4.1-2.3.1">Signature: RS256 over the ASCII representation of the header and
+payload<a href="#section-4.1-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-4.1-3">All implementations MUST use RS256 (RSASSA-PKCS1-v1_5 using SHA-256
+<span>[<a href="#RFC7518" class="cite xref">RFC7518</a>]</span>) as the signing algorithm.  No other signing algorithm is
+permitted.<a href="#section-4.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="standard-jwt-claims">
+<section id="section-4.2">
+        <h3 id="name-standard-jwt-claims">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-standard-jwt-claims" class="section-name selfRef">Standard JWT Claims</a>
+        </h3>
+<p id="section-4.2-1">The following standard JWT claims are used.  All are REQUIRED unless
+noted.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-1">
+          <caption><a href="#table-1" class="selfRef">Table 1</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Claim</th>
+              <th class="text-left" rowspan="1" colspan="1">Type</th>
+              <th class="text-left" rowspan="1" colspan="1">Required</th>
+              <th class="text-left" rowspan="1" colspan="1">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>iss</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Issuer URI</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>sub</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Subject. MUST be of the form <code>agent:{agent_id}</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>iat</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">NumericDate</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Issued-at time (Unix epoch seconds, UTC)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>exp</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">NumericDate</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Expiry time (Unix epoch seconds, UTC)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>jti</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">JWT ID. A UUID v4 <span>[<a href="#RFC9562" class="cite xref">RFC9562</a>]</span> that uniquely identifies this credential</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-4.2-3">The <code>sub</code> claim MUST match the pattern <code>^agent:[A-Za-z0-9_\-]+$</code>.
+Implementations MUST reject credentials whose <code>sub</code> does not begin with
+the literal prefix <code>agent:</code>.<a href="#section-4.2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="acap-extension-claims">
+<section id="section-4.3">
+        <h3 id="name-acap-extension-claims">
+<a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-acap-extension-claims" class="section-name selfRef">ACAP Extension Claims</a>
+        </h3>
+<p id="section-4.3-1">All ACAP-specific claims are prefixed with <code>att_</code>.  Implementations MUST
+ignore unknown <code>att_*</code> claims to allow forward compatibility.<a href="#section-4.3-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-2">
+          <caption><a href="#table-2" class="selfRef">Table 2</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Claim</th>
+              <th class="text-left" rowspan="1" colspan="1">Type</th>
+              <th class="text-left" rowspan="1" colspan="1">Required</th>
+              <th class="text-left" rowspan="1" colspan="1">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_tid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string (UUID v4)</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Task tree identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_pid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string (UUID v4)</td>
+              <td class="text-left" rowspan="1" colspan="1">CONDITIONAL</td>
+              <td class="text-left" rowspan="1" colspan="1">Parent credential identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_depth</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">integer</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Delegation depth (0 for root)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_scope</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">array of strings</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Permission set</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_intent</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string (hex)</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">SHA-256 of original instruction (64 hex chars)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_chain</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">array of strings</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Ordered list of JTIs from root to current</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_uid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">REQUIRED</td>
+              <td class="text-left" rowspan="1" colspan="1">Originating human user identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_hitl_req</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string (UUID v4)</td>
+              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
+              <td class="text-left" rowspan="1" colspan="1">HITL approval request ID</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_hitl_uid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
+              <td class="text-left" rowspan="1" colspan="1">Identity of the human who approved</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_hitl_iss</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
+              <td class="text-left" rowspan="1" colspan="1">IdP issuer of the approving human</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_idp_iss</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
+              <td class="text-left" rowspan="1" colspan="1">IdP issuer from root OIDC session</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_idp_sub</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
+              <td class="text-left" rowspan="1" colspan="1">IdP subject from root OIDC session</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_ack</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">string</td>
+              <td class="text-left" rowspan="1" colspan="1">OPTIONAL</td>
+              <td class="text-left" rowspan="1" colspan="1">Agent binary checksum digest</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-4.3-3"><code>att_pid</code> MUST be present when <code>att_depth</code> &gt; 0 and MUST be absent when
+<code>att_depth</code> == 0.<a href="#section-4.3-3" class="pilcrow">¶</a></p>
+<p id="section-4.3-4"><code>att_tid</code>, <code>att_intent</code>, and <code>att_uid</code> MUST be propagated unchanged
+through all delegations.<a href="#section-4.3-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="concrete-examples">
+<section id="section-4.4">
+        <h3 id="name-concrete-examples">
+<a href="#section-4.4" class="section-number selfRef">4.4. </a><a href="#name-concrete-examples" class="section-name selfRef">Concrete Examples</a>
+        </h3>
+<div id="root-credential-payload">
+<section id="section-4.4.1">
+          <h4 id="name-root-credential-payload">
+<a href="#section-4.4.1" class="section-number selfRef">4.4.1. </a><a href="#name-root-credential-payload" class="section-name selfRef">Root Credential Payload</a>
+          </h4>
+<div class="lang-json sourcecode" id="section-4.4.1-1">
+<pre>
+{
+  "iss": "https://attest.example.com",
+  "sub": "agent:inbox-agent-v2",
+  "iat": 1742386800,
+  "exp": 1742473200,
+  "jti": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "att_tid": "f9e8d7c6-b5a4-3210-fedc-ba9876543210",
+  "att_depth": 0,
+  "att_scope": ["email:read", "email:draft"],
+  "att_intent": "3b4c2a1f8e7d6c5b4a3f2e1d0c9b8a7f...",
+  "att_chain": ["a1b2c3d4-e5f6-7890-abcd-ef1234567890"],
+  "att_uid": "user:alice"
+}
+</pre><a href="#section-4.4.1-1" class="pilcrow">¶</a>
+</div>
+<p id="section-4.4.1-2">Note that <code>att_pid</code> is absent because this is a root credential.  The
+<code>att_chain</code> contains exactly one element -- the credential's own <code>jti</code>.<a href="#section-4.4.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="delegated-credential-payload">
+<section id="section-4.4.2">
+          <h4 id="name-delegated-credential-payloa">
+<a href="#section-4.4.2" class="section-number selfRef">4.4.2. </a><a href="#name-delegated-credential-payloa" class="section-name selfRef">Delegated Credential Payload</a>
+          </h4>
+<div class="lang-json sourcecode" id="section-4.4.2-1">
+<pre>
+{
+  "iss": "https://attest.example.com",
+  "sub": "agent:summariser-agent-v1",
+  "iat": 1742387100,
+  "exp": 1742473200,
+  "jti": "c3d4e5f6-a7b8-9012-cdef-012345678901",
+  "att_tid": "f9e8d7c6-b5a4-3210-fedc-ba9876543210",
+  "att_pid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "att_depth": 1,
+  "att_scope": ["email:read"],
+  "att_intent": "3b4c2a1f8e7d6c5b4a3f2e1d0c9b8a7f...",
+  "att_chain": [
+    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "c3d4e5f6-a7b8-9012-cdef-012345678901"
+  ],
+  "att_uid": "user:alice"
+}
+</pre><a href="#section-4.4.2-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="scope-model">
+<section id="section-5">
+      <h2 id="name-scope-model">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-scope-model" class="section-name selfRef">Scope Model</a>
+      </h2>
+<div id="scope-entry-format">
+<section id="section-5.1">
+        <h3 id="name-scope-entry-format">
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-scope-entry-format" class="section-name selfRef">Scope Entry Format</a>
+        </h3>
+<p id="section-5.1-1">A scope entry is a string conforming to the grammar:<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-5.1-2">
+<pre>
+scope-entry = resource ":" action
+resource    = 1*( ALPHA / DIGIT / "_" / "-" / "*" )
+action      = 1*( ALPHA / DIGIT / "_" / "-" / "*" )
+</pre><a href="#section-5.1-2" class="pilcrow">¶</a>
+</div>
+<p id="section-5.1-3">Both <code>resource</code> and <code>action</code> MUST be non-empty.  Implementations MUST
+reject invalid scope entries at all stages: issuance, delegation, and
+verification.<a href="#section-5.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="wildcard-rules">
+<section id="section-5.2">
+        <h3 id="name-wildcard-rules">
+<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-wildcard-rules" class="section-name selfRef">Wildcard Rules</a>
+        </h3>
+<p id="section-5.2-1">The wildcard character <code>*</code> MAY appear as the entirety of either the
+<code>resource</code> or <code>action</code> component (or both).  Coverage rules:<a href="#section-5.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-5.2-2.1">
+            <p id="section-5.2-2.1.1">P covers C if P.resource equals <code>*</code> OR P.resource equals C.resource<a href="#section-5.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-5.2-2.2">
+            <p id="section-5.2-2.2.1">AND P.action equals <code>*</code> OR P.action equals C.action<a href="#section-5.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-5.2-3">Consequently <code>*:*</code> covers every valid scope entry, <code>email:*</code> covers
+<code>email:read</code>, <code>email:draft</code>, etc.<a href="#section-5.2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="normalisescope">
+<section id="section-5.3">
+        <h3 id="name-normalisescope">
+<a href="#section-5.3" class="section-number selfRef">5.3. </a><a href="#name-normalisescope" class="section-name selfRef">NormaliseScope</a>
+        </h3>
+<p id="section-5.3-1">Before storing scope in any credential or comparing scopes,
+implementations MUST apply the NormaliseScope procedure:<a href="#section-5.3-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-2">
+<li id="section-5.3-2.1">
+            <p id="section-5.3-2.1.1">Trim leading and trailing whitespace from each entry.<a href="#section-5.3-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-2.2">
+            <p id="section-5.3-2.2.1">Remove any empty entries that result from trimming.<a href="#section-5.3-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-2.3">
+            <p id="section-5.3-2.3.1">Remove duplicate entries, preserving the first occurrence.<a href="#section-5.3-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-2.4">
+            <p id="section-5.3-2.4.1">Return the resulting list in insertion order.<a href="#section-5.3-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="issubset-algorithm">
+<section id="section-5.4">
+        <h3 id="name-issubset-algorithm">
+<a href="#section-5.4" class="section-number selfRef">5.4. </a><a href="#name-issubset-algorithm" class="section-name selfRef">IsSubset Algorithm</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-5.4-1">
+<pre>
+function IsSubset(parentScope, childScope):
+    for each entry CE in childScope:
+        childEntry = ParseScope(CE)
+        if childEntry is invalid:
+            return false
+        covered = false
+        for each entry PE in parentScope:
+            parentEntry = ParseScope(PE)
+            if parentEntry is invalid:
+                continue
+            if EntryCovers(parentEntry, childEntry):
+                covered = true
+                break
+        if not covered:
+            return false
+    return true
+
+function EntryCovers(parent, child):
+    resourceOK = (parent.Resource == "*") OR
+                 (parent.Resource == child.Resource)
+    actionOK   = (parent.Action  == "*") OR
+                 (parent.Action  == child.Action)
+    return resourceOK AND actionOK
+</pre><a href="#section-5.4-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="issuance">
+<section id="section-6">
+      <h2 id="name-issuance">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-issuance" class="section-name selfRef">Issuance</a>
+      </h2>
+<div id="overview-1">
+<section id="section-6.1">
+        <h3 id="name-overview-2">
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-overview-2" class="section-name selfRef">Overview</a>
+        </h3>
+<p id="section-6.1-1">Issuance creates a root credential (depth 0) that anchors a new task
+tree.  The Issuer MUST perform all validation checks before constructing
+the credential.  The Issuer MUST sign the credential with its RSA
+private key using RS256.<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="input-validation">
+<section id="section-6.2">
+        <h3 id="name-input-validation">
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-input-validation" class="section-name selfRef">Input Validation</a>
+        </h3>
+<p id="section-6.2-1">The Issuer MUST reject the issuance request if any of the following
+conditions hold:<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.2-2">
+<li id="section-6.2-2.1">
+            <p id="section-6.2-2.1.1"><code>agent_id</code> is absent or empty.<a href="#section-6.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.2-2.2">
+            <p id="section-6.2-2.2.1"><code>user_id</code> is absent or empty.<a href="#section-6.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.2-2.3">
+            <p id="section-6.2-2.3.1"><code>scope</code> is absent or contains no entries.<a href="#section-6.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.2-2.4">
+            <p id="section-6.2-2.4.1">Any entry in <code>scope</code> is not parseable as a valid scope entry.<a href="#section-6.2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.2-2.5">
+            <p id="section-6.2-2.5.1"><code>instruction</code> is absent or empty.<a href="#section-6.2-2.5.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="intent-hash-computation">
+<section id="section-6.3">
+        <h3 id="name-intent-hash-computation">
+<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-intent-hash-computation" class="section-name selfRef">Intent Hash Computation</a>
+        </h3>
+<p id="section-6.3-1">The intent hash is computed as:<a href="#section-6.3-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-6.3-2">
+<pre>
+att_intent = lowercase-hex( SHA-256( UTF-8-encode( instruction ) ) )
+</pre><a href="#section-6.3-2" class="pilcrow">¶</a>
+</div>
+<p id="section-6.3-3">The <code>instruction</code> string MUST be encoded as UTF-8 before hashing.  The
+resulting 32-byte SHA-256 digest MUST be encoded as 64 lowercase
+hexadecimal characters.  No canonicalization is applied to the
+instruction before hashing; the raw UTF-8 bytes are hashed as-is.<a href="#section-6.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="identifier-generation">
+<section id="section-6.4">
+        <h3 id="name-identifier-generation">
+<a href="#section-6.4" class="section-number selfRef">6.4. </a><a href="#name-identifier-generation" class="section-name selfRef">Identifier Generation</a>
+        </h3>
+<p id="section-6.4-1">The Issuer MUST generate two UUID v4 <span>[<a href="#RFC9562" class="cite xref">RFC9562</a>]</span> values at issuance:<a href="#section-6.4-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-6.4-2.1">
+            <p id="section-6.4-2.1.1"><code>jti</code>: the unique identifier for this credential.<a href="#section-6.4-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-6.4-2.2">
+            <p id="section-6.4-2.2.1"><code>att_tid</code>: the task tree identifier.<a href="#section-6.4-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-6.4-3">Both values MUST be generated using a cryptographically secure random
+source.<a href="#section-6.4-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="ttl-and-expiry">
+<section id="section-6.5">
+        <h3 id="name-ttl-and-expiry">
+<a href="#section-6.5" class="section-number selfRef">6.5. </a><a href="#name-ttl-and-expiry" class="section-name selfRef">TTL and Expiry</a>
+        </h3>
+<ol start="1" type="1" class="normal type-1" id="section-6.5-1">
+<li id="section-6.5-1.1">
+            <p id="section-6.5-1.1.1">If <code>ttl_seconds</code> is zero, the TTL defaults to <code>DefaultTTLSeconds</code>
+(3600 seconds).<a href="#section-6.5-1.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.5-1.2">
+            <p id="section-6.5-1.2.1">If <code>ttl_seconds</code> is negative, the issuance MUST be rejected.<a href="#section-6.5-1.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.5-1.3">
+            <p id="section-6.5-1.3.1">If <code>ttl_seconds</code> exceeds <code>MaxTTLSeconds</code> (86400 seconds), the TTL is
+capped at <code>MaxTTLSeconds</code>.<a href="#section-6.5-1.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.5-1.4">
+            <p id="section-6.5-1.4.1"><code>exp = iat + ttl_seconds</code> (after applying the rules above).<a href="#section-6.5-1.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="root-credential-construction">
+<section id="section-6.6">
+        <h3 id="name-root-credential-constructio">
+<a href="#section-6.6" class="section-number selfRef">6.6. </a><a href="#name-root-credential-constructio" class="section-name selfRef">Root Credential Construction</a>
+        </h3>
+<table class="center" id="table-3">
+          <caption><a href="#table-3" class="selfRef">Table 3</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Field</th>
+              <th class="text-left" rowspan="1" colspan="1">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>iss</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Issuer URI</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>sub</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>"agent:" + agent_id</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>iat</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Current UTC time</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>exp</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>iat + ttl</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>jti</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Freshly generated UUID v4</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_tid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Freshly generated UUID v4</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_pid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Absent</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_depth</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>0</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_scope</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>NormaliseScope(scope)</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_intent</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>hex(SHA-256(UTF-8(instruction)))</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_chain</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>[ jti ]</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_uid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>user_id</code>
+</td>
+            </tr>
+          </tbody>
+        </table>
+</section>
+</div>
+</section>
+</div>
+<div id="delegation">
+<section id="section-7">
+      <h2 id="name-delegation">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-delegation" class="section-name selfRef">Delegation</a>
+      </h2>
+<div id="overview-2">
+<section id="section-7.1">
+        <h3 id="name-overview-3">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-overview-3" class="section-name selfRef">Overview</a>
+        </h3>
+<p id="section-7.1-1">Delegation creates a child credential derived from an existing parent
+credential.  The result is a credential at <code>att_depth + 1</code> with a scope
+that is a subset of the parent's scope and an expiry no later than the
+parent's expiry.<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="input-validation-1">
+<section id="section-7.2">
+        <h3 id="name-input-validation-2">
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-input-validation-2" class="section-name selfRef">Input Validation</a>
+        </h3>
+<p id="section-7.2-1">The Issuer MUST reject a delegation request if:<a href="#section-7.2-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-7.2-2">
+<li id="section-7.2-2.1">
+            <p id="section-7.2-2.1.1"><code>parent_token</code> is absent or empty.<a href="#section-7.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-7.2-2.2">
+            <p id="section-7.2-2.2.1"><code>child_agent</code> is absent or empty.<a href="#section-7.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-7.2-2.3">
+            <p id="section-7.2-2.3.1"><code>child_scope</code> is absent or contains no entries.<a href="#section-7.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="parent-token-verification">
+<section id="section-7.3">
+        <h3 id="name-parent-token-verification">
+<a href="#section-7.3" class="section-number selfRef">7.3. </a><a href="#name-parent-token-verification" class="section-name selfRef">Parent Token Verification</a>
+        </h3>
+<p id="section-7.3-1">The Issuer MUST:<a href="#section-7.3-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-7.3-2">
+<li id="section-7.3-2.1">
+            <p id="section-7.3-2.1.1">Verify the RS256 signature against the Issuer's public key.<a href="#section-7.3-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-7.3-2.2">
+            <p id="section-7.3-2.2.1">Verify that the parent token has not expired (<code>exp &gt; now</code>).<a href="#section-7.3-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-7.3-2.3">
+            <p id="section-7.3-2.3.1">Verify that the signing algorithm is <code>RS256</code>.<a href="#section-7.3-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="scope-subset-enforcement">
+<section id="section-7.4">
+        <h3 id="name-scope-subset-enforcement">
+<a href="#section-7.4" class="section-number selfRef">7.4. </a><a href="#name-scope-subset-enforcement" class="section-name selfRef">Scope Subset Enforcement</a>
+        </h3>
+<p id="section-7.4-1">The Issuer MUST apply NormaliseScope to the requested <code>child_scope</code>.
+The Issuer MUST then apply IsSubset(parentScope, childScope).  If
+IsSubset returns <code>false</code>, the delegation MUST be rejected.<a href="#section-7.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="depth-limit">
+<section id="section-7.5">
+        <h3 id="name-depth-limit">
+<a href="#section-7.5" class="section-number selfRef">7.5. </a><a href="#name-depth-limit" class="section-name selfRef">Depth Limit</a>
+        </h3>
+<p id="section-7.5-1">The Issuer MUST check that <code>parent.att_depth &lt; MaxDelegationDepth</code> (10).
+If the parent's depth equals or exceeds the limit, the delegation MUST
+be rejected.<a href="#section-7.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="expiry-computation">
+<section id="section-7.6">
+        <h3 id="name-expiry-computation">
+<a href="#section-7.6" class="section-number selfRef">7.6. </a><a href="#name-expiry-computation" class="section-name selfRef">Expiry Computation</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-7.6-1">
+<pre>
+parent_exp = parent.exp
+
+if ttl_seconds &gt; 0:
+    requested_exp = now + ttl_seconds
+    child_exp = min(requested_exp, parent_exp)
+else:
+    default_exp = now + DefaultTTLSeconds
+    child_exp = min(default_exp, parent_exp)
+</pre><a href="#section-7.6-1" class="pilcrow">¶</a>
+</div>
+<p id="section-7.6-2">The child's expiry MUST NOT exceed the parent's expiry.<a href="#section-7.6-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="delegated-credential-construction">
+<section id="section-7.7">
+        <h3 id="name-delegated-credential-constr">
+<a href="#section-7.7" class="section-number selfRef">7.7. </a><a href="#name-delegated-credential-constr" class="section-name selfRef">Delegated Credential Construction</a>
+        </h3>
+<table class="center" id="table-4">
+          <caption><a href="#table-4" class="selfRef">Table 4</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Field</th>
+              <th class="text-left" rowspan="1" colspan="1">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>iss</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Issuer URI</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>sub</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>"agent:" + child_agent</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>iat</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Current UTC time</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>exp</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>min(now + ttl_seconds, parent.exp)</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>jti</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Freshly generated UUID v4</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_tid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>parent.att_tid</code> (propagated)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_pid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>parent.jti</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_depth</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>parent.att_depth + 1</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_scope</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>NormaliseScope(child_scope)</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_intent</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>parent.att_intent</code> (propagated)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_chain</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>parent.att_chain + [ jti ]</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_uid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>parent.att_uid</code> (propagated)</td>
+            </tr>
+          </tbody>
+        </table>
+</section>
+</div>
+</section>
+</div>
+<div id="verification">
+<section id="section-8">
+      <h2 id="name-verification">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-verification" class="section-name selfRef">Verification</a>
+      </h2>
+<div id="overview-3">
+<section id="section-8.1">
+        <h3 id="name-overview-4">
+<a href="#section-8.1" class="section-number selfRef">8.1. </a><a href="#name-overview-4" class="section-name selfRef">Overview</a>
+        </h3>
+<p id="section-8.1-1">A credential is valid if and only if all of the following conditions are
+satisfied:<a href="#section-8.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-8.1-2">
+<li id="section-8.1-2.1">
+            <p id="section-8.1-2.1.1">The RS256 signature verifies against the Issuer's public key.<a href="#section-8.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-8.1-2.2">
+            <p id="section-8.1-2.2.1">The current time is before <code>exp</code> (subject to clock-skew allowance).<a href="#section-8.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-8.1-2.3">
+            <p id="section-8.1-2.3.1">The length of <code>att_chain</code> equals <code>att_depth + 1</code>.<a href="#section-8.1-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-8.1-2.4">
+            <p id="section-8.1-2.4.1">The final element of <code>att_chain</code> equals <code>jti</code>.<a href="#section-8.1-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-8.1-2.5">
+            <p id="section-8.1-2.5.1">The <code>jti</code> is not present in the revocation store.<a href="#section-8.1-2.5.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="verification-algorithm">
+<section id="section-8.2">
+        <h3 id="name-verification-algorithm">
+<a href="#section-8.2" class="section-number selfRef">8.2. </a><a href="#name-verification-algorithm" class="section-name selfRef">Verification Algorithm</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-8.2-1">
+<pre>
+function Verify(tokenString, issuerPublicKey, revocationStore):
+
+    // Step 1: Signature and expiry
+    claims, err = RS256Parse(tokenString, issuerPublicKey)
+    if err is not nil:
+        return invalid("signature verification failed")
+
+    // Step 2: Chain length invariant
+    expectedLen = claims.att_depth + 1
+    if len(claims.att_chain) != expectedLen:
+        return invalid("chain length mismatch")
+
+    // Step 3: Chain tail invariant
+    if claims.att_chain[len(claims.att_chain) - 1] != claims.jti:
+        return invalid("chain tail does not match jti")
+
+    // Step 4: Revocation check
+    if revocationStore.IsRevoked(claims.jti):
+        return invalid("credential has been revoked")
+
+    return valid(claims)
+</pre><a href="#section-8.2-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="warnings-vs-hard-failures">
+<section id="section-8.3">
+        <h3 id="name-warnings-vs-hard-failures">
+<a href="#section-8.3" class="section-number selfRef">8.3. </a><a href="#name-warnings-vs-hard-failures" class="section-name selfRef">Warnings vs. Hard Failures</a>
+        </h3>
+<p id="section-8.3-1">Chain length and chain tail inconsistencies are surfaced as warnings
+that cause the credential to be reported as invalid.  The warning
+mechanism exists to distinguish between cryptographic failures (which may
+indicate active attack) and structural inconsistencies (which may
+indicate implementation bugs).<a href="#section-8.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="revocation">
+<section id="section-9">
+      <h2 id="name-revocation">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-revocation" class="section-name selfRef">Revocation</a>
+      </h2>
+<div id="semantics">
+<section id="section-9.1">
+        <h3 id="name-semantics">
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-semantics" class="section-name selfRef">Semantics</a>
+        </h3>
+<p id="section-9.1-1">Revocation permanently invalidates a credential identified by its <code>jti</code>.
+Once revoked, a credential MUST be treated as invalid regardless of its
+<code>exp</code> claim.  Revocation is irreversible.<a href="#section-9.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="cascade-semantics">
+<section id="section-9.2">
+        <h3 id="name-cascade-semantics">
+<a href="#section-9.2" class="section-number selfRef">9.2. </a><a href="#name-cascade-semantics" class="section-name selfRef">Cascade Semantics</a>
+        </h3>
+<p id="section-9.2-1">Revoking a credential with <code>jti</code> X automatically revokes every
+credential whose <code>att_chain</code> contains X:<a href="#section-9.2-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-9.2-2">
+<pre>
+Revoke(X):
+    targets = { jti | jti == X OR X in credentials[jti].att_chain }
+    for each T in targets:
+        revocations.insert(T, now, revokedBy)
+</pre><a href="#section-9.2-2" class="pilcrow">¶</a>
+</div>
+<p id="section-9.2-3">Cascade revocation SHOULD be performed atomically within a single
+database transaction.<a href="#section-9.2-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="revocation-store">
+<section id="section-9.3">
+        <h3 id="name-revocation-store">
+<a href="#section-9.3" class="section-number selfRef">9.3. </a><a href="#name-revocation-store" class="section-name selfRef">Revocation Store</a>
+        </h3>
+<p id="section-9.3-1">The revocation store records:<a href="#section-9.3-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-5">
+          <caption><a href="#table-5" class="selfRef">Table 5</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Field</th>
+              <th class="text-left" rowspan="1" colspan="1">Type</th>
+              <th class="text-left" rowspan="1" colspan="1">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>jti</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text (PK)</td>
+              <td class="text-left" rowspan="1" colspan="1">The revoked credential identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>revoked_at</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">timestamptz</td>
+              <td class="text-left" rowspan="1" colspan="1">UTC timestamp of revocation</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>revoked_by</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">Agent or user ID that triggered revocation</td>
+            </tr>
+          </tbody>
+        </table>
+<p id="section-9.3-3">Duplicate revocation attempts MUST be treated as a no-op (idempotent).<a href="#section-9.3-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="lifetime-interaction">
+<section id="section-9.4">
+        <h3 id="name-lifetime-interaction">
+<a href="#section-9.4" class="section-number selfRef">9.4. </a><a href="#name-lifetime-interaction" class="section-name selfRef">Lifetime Interaction</a>
+        </h3>
+<p id="section-9.4-1">A credential that has expired is invalid regardless of the revocation
+store.  A credential that has been revoked is invalid regardless of
+whether it has expired.  These are independent failure conditions.<a href="#section-9.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="human-in-the-loop-approval">
+<section id="section-10">
+      <h2 id="name-human-in-the-loop-approval">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-human-in-the-loop-approval" class="section-name selfRef">Human-in-the-Loop Approval</a>
+      </h2>
+<div id="overview-4">
+<section id="section-10.1">
+        <h3 id="name-overview-5">
+<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-overview-5" class="section-name selfRef">Overview</a>
+        </h3>
+<p id="section-10.1-1">Certain delegations require explicit human approval before being
+granted.  ACAP defines an approval protocol that makes the human
+decision a cryptographic event embedded in the resulting credential.<a href="#section-10.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="approval-lifecycle">
+<section id="section-10.2">
+        <h3 id="name-approval-lifecycle">
+<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-approval-lifecycle" class="section-name selfRef">Approval Lifecycle</a>
+        </h3>
+<p id="section-10.2-1">The HITL approval flow consists of four phases:<a href="#section-10.2-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-10.2-2">
+<li id="section-10.2-2.1">
+            <p id="section-10.2-2.1.1"><strong>Request.</strong>  The agent sends an approval request containing the
+<code>parent_token</code>, requested <code>child_scope</code>, an <code>intent</code> description,
+and the <code>agent_id</code>.  The Issuer creates a pending approval record
+and returns a <code>challenge_id</code>.<a href="#section-10.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-10.2-2.2">
+            <p id="section-10.2-2.2.1"><strong>Poll.</strong>  The agent polls for approval status using the
+<code>challenge_id</code>.  Status is one of: <code>pending</code>, <code>approved</code>,
+<code>rejected</code>, or <code>expired</code>.<a href="#section-10.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-10.2-2.3">
+            <p id="section-10.2-2.3.1"><strong>Grant or Deny.</strong>  A human reviews the request via a dashboard or
+integration.  To grant, the human authenticates via an OIDC Identity
+Provider and the Issuer verifies the <code>id_token</code>.  The Issuer records
+the human's identity and marks the approval as granted.<a href="#section-10.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-10.2-2.4">
+            <p id="section-10.2-2.4.1"><strong>Credential Issuance.</strong>  Upon grant, the Issuer delegates a new
+credential from the parent token with the approved scope.  The
+credential carries <code>att_hitl_req</code>, <code>att_hitl_uid</code>, and
+<code>att_hitl_iss</code>.<a href="#section-10.2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+</section>
+</div>
+<div id="approval-expiry">
+<section id="section-10.3">
+        <h3 id="name-approval-expiry">
+<a href="#section-10.3" class="section-number selfRef">10.3. </a><a href="#name-approval-expiry" class="section-name selfRef">Approval Expiry</a>
+        </h3>
+<p id="section-10.3-1">Pending approvals MUST expire after a bounded time window.
+Implementations MUST NOT allow approvals to remain pending indefinitely.
+An expired approval MUST be treated identically to a rejection.<a href="#section-10.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="parent-token-re-verification">
+<section id="section-10.4">
+        <h3 id="name-parent-token-re-verificatio">
+<a href="#section-10.4" class="section-number selfRef">10.4. </a><a href="#name-parent-token-re-verificatio" class="section-name selfRef">Parent Token Re-verification</a>
+        </h3>
+<p id="section-10.4-1">When an approval is granted, the Issuer MUST re-verify the parent token
+before issuing the delegated credential.  If the parent token has
+expired or been revoked while the approval was pending, the Issuer MUST
+reject the grant.<a href="#section-10.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="hitl-claims-propagation">
+<section id="section-10.5">
+        <h3 id="name-hitl-claims-propagation">
+<a href="#section-10.5" class="section-number selfRef">10.5. </a><a href="#name-hitl-claims-propagation" class="section-name selfRef">HITL Claims Propagation</a>
+        </h3>
+<p id="section-10.5-1">The HITL claims (<code>att_hitl_req</code>, <code>att_hitl_uid</code>, <code>att_hitl_iss</code>) from
+the most recent human approval propagate to all subsequent delegations.
+If a new HITL approval occurs at a deeper delegation, the new claims
+replace the inherited ones.<a href="#section-10.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="multi-tenant-isolation">
+<section id="section-10.6">
+        <h3 id="name-multi-tenant-isolation">
+<a href="#section-10.6" class="section-number selfRef">10.6. </a><a href="#name-multi-tenant-isolation" class="section-name selfRef">Multi-Tenant Isolation</a>
+        </h3>
+<p id="section-10.6-1">Approval requests are scoped to the authenticated organization.  An
+approval created by org A MUST NOT be resolvable by org B.<a href="#section-10.6-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="audit-log">
+<section id="section-11">
+      <h2 id="name-audit-log">
+<a href="#section-11" class="section-number selfRef">11. </a><a href="#name-audit-log" class="section-name selfRef">Audit Log</a>
+      </h2>
+<div id="structure">
+<section id="section-11.1">
+        <h3 id="name-structure">
+<a href="#section-11.1" class="section-number selfRef">11.1. </a><a href="#name-structure" class="section-name selfRef">Structure</a>
+        </h3>
+<p id="section-11.1-1">The audit log is an append-only, hash-chained record of credential
+lifecycle events.  Each entry commits to the previous entry's hash,
+making the log tamper-evident.<a href="#section-11.1-1" class="pilcrow">¶</a></p>
+<p id="section-11.1-2">The audit log is partitioned by <code>att_tid</code>.  Each task tree has its own
+independent hash chain.  The first event uses a genesis hash of 64
+ASCII zero characters as the previous hash value.<a href="#section-11.1-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="entry-hash-computation">
+<section id="section-11.2">
+        <h3 id="name-entry-hash-computation">
+<a href="#section-11.2" class="section-number selfRef">11.2. </a><a href="#name-entry-hash-computation" class="section-name selfRef">Entry Hash Computation</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-11.2-1">
+<pre>
+entry_hash = lowercase-hex( SHA-256(
+    prev_hash
+    || event_type
+    || jti
+    || created_at_rfc3339nano
+) )
+</pre><a href="#section-11.2-1" class="pilcrow">¶</a>
+</div>
+<p id="section-11.2-2">where <code>||</code> denotes string concatenation.  The genesis hash is:<a href="#section-11.2-2" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-11.2-3">
+<pre>
+"00000000000000000000000000000000\
+ 00000000000000000000000000000000"
+</pre><a href="#section-11.2-3" class="pilcrow">¶</a>
+</div>
+<p id="section-11.2-4">(64 ASCII zero characters.)<a href="#section-11.2-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="event-types">
+<section id="section-11.3">
+        <h3 id="name-event-types">
+<a href="#section-11.3" class="section-number selfRef">11.3. </a><a href="#name-event-types" class="section-name selfRef">Event Types</a>
+        </h3>
+<table class="center" id="table-6">
+          <caption><a href="#table-6" class="selfRef">Table 6</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Event Type</th>
+              <th class="text-left" rowspan="1" colspan="1">Trigger</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>issued</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Root credential issued</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>delegated</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Delegated credential issued</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>verified</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Credential verified</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>revoked</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Credential revoked (one event per cascade target)</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>expired</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Credential reached <code>exp</code> time</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>hitl_granted</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Human approved a HITL request</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>action</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Agent executed a registered action</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>lifecycle</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">Agent lifecycle transition (started/completed/failed)</td>
+            </tr>
+          </tbody>
+        </table>
+</section>
+</div>
+<div id="audit-entry-fields">
+<section id="section-11.4">
+        <h3 id="name-audit-entry-fields">
+<a href="#section-11.4" class="section-number selfRef">11.4. </a><a href="#name-audit-entry-fields" class="section-name selfRef">Audit Entry Fields</a>
+        </h3>
+<table class="center" id="table-7">
+          <caption><a href="#table-7" class="selfRef">Table 7</a></caption>
+<thead>
+            <tr>
+              <th class="text-left" rowspan="1" colspan="1">Field</th>
+              <th class="text-left" rowspan="1" colspan="1">Type</th>
+              <th class="text-left" rowspan="1" colspan="1">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>id</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">bigserial</td>
+              <td class="text-left" rowspan="1" colspan="1">Monotonically increasing row ID</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>prev_hash</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">Hash of the prior entry for same <code>att_tid</code>
+</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>entry_hash</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">SHA-256 of concatenated fields</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>event_type</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">One of the defined event types</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>jti</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">JWT ID of the credential involved</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>org_id</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">Tenant identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_tid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">Task tree identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>att_uid</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">Human principal identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>agent_id</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">text</td>
+              <td class="text-left" rowspan="1" colspan="1">Agent identifier</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>scope</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">jsonb</td>
+              <td class="text-left" rowspan="1" colspan="1">Scope array at time of event</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>meta</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">jsonb</td>
+              <td class="text-left" rowspan="1" colspan="1">Optional implementation-defined metadata</td>
+            </tr>
+            <tr>
+              <td class="text-left" rowspan="1" colspan="1">
+                <code>created_at</code>
+</td>
+              <td class="text-left" rowspan="1" colspan="1">timestamptz</td>
+              <td class="text-left" rowspan="1" colspan="1">UTC timestamp</td>
+            </tr>
+          </tbody>
+        </table>
+</section>
+</div>
+<div id="append-only-enforcement">
+<section id="section-11.5">
+        <h3 id="name-append-only-enforcement">
+<a href="#section-11.5" class="section-number selfRef">11.5. </a><a href="#name-append-only-enforcement" class="section-name selfRef">Append-Only Enforcement</a>
+        </h3>
+<p id="section-11.5-1">Implementations MUST enforce append-only semantics on the audit log.<a href="#section-11.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="log-verification">
+<section id="section-11.6">
+        <h3 id="name-log-verification">
+<a href="#section-11.6" class="section-number selfRef">11.6. </a><a href="#name-log-verification" class="section-name selfRef">Log Verification</a>
+        </h3>
+<p id="section-11.6-1">To verify the integrity of the audit log for a given <code>att_tid</code>:<a href="#section-11.6-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-11.6-2">
+<li id="section-11.6-2.1">
+            <p id="section-11.6-2.1.1">Retrieve all entries in ascending <code>id</code> order.<a href="#section-11.6-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-11.6-2.2">
+            <p id="section-11.6-2.2.1">For each entry starting at the second, verify that <code>entry.prev_hash</code>
+equals the <code>entry_hash</code> of the preceding entry.<a href="#section-11.6-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-11.6-2.3">
+            <p id="section-11.6-2.3.1">Recompute <code>entry_hash</code> from the raw fields and verify it matches.<a href="#section-11.6-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-11.6-3">Any discrepancy indicates tampering or corruption.<a href="#section-11.6-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="security-considerations">
+<section id="section-12">
+      <h2 id="name-security-considerations">
+<a href="#section-12" class="section-number selfRef">12. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<div id="prompt-injection">
+<section id="section-12.1">
+        <h3 id="name-prompt-injection">
+<a href="#section-12.1" class="section-number selfRef">12.1. </a><a href="#name-prompt-injection" class="section-name selfRef">Prompt Injection</a>
+        </h3>
+<p id="section-12.1-1">ACAP credentials bind to the intent hash of the original instruction,
+but they do not prevent a legitimate credential from being used by a
+compromised agent.  The narrow, monotone-reducing scope model limits the
+blast radius of a compromised agent.  The intent hash enables post-hoc
+detection of misuse.  The <code>att_ack</code> claim carries a checksum of the
+agent binary for agent substitution detection.<a href="#section-12.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="replay-attacks">
+<section id="section-12.2">
+        <h3 id="name-replay-attacks">
+<a href="#section-12.2" class="section-number selfRef">12.2. </a><a href="#name-replay-attacks" class="section-name selfRef">Replay Attacks</a>
+        </h3>
+<p id="section-12.2-1">Credentials carry a unique <code>jti</code>.  Verifiers MUST check the revocation
+store on every verification call.  The <code>exp</code> claim bounds the replay
+window for non-revoked credentials.  Verifiers SHOULD maintain a
+short-term cache of recently seen <code>jti</code> values.<a href="#section-12.2-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="scope-creep">
+<section id="section-12.3">
+        <h3 id="name-scope-creep">
+<a href="#section-12.3" class="section-number selfRef">12.3. </a><a href="#name-scope-creep" class="section-name selfRef">Scope Creep</a>
+        </h3>
+<p id="section-12.3-1">Scope creep is prevented by IsSubset enforcement at delegation time.
+Resource servers MUST verify that the presented credential's <code>att_scope</code>
+covers the requested operation.<a href="#section-12.3-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="clock-skew">
+<section id="section-12.4">
+        <h3 id="name-clock-skew">
+<a href="#section-12.4" class="section-number selfRef">12.4. </a><a href="#name-clock-skew" class="section-name selfRef">Clock Skew</a>
+        </h3>
+<p id="section-12.4-1">Implementations SHOULD allow a clock-skew leeway of up to 60 seconds.
+Implementations MUST NOT allow a leeway of more than 300 seconds.<a href="#section-12.4-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="key-management">
+<section id="section-12.5">
+        <h3 id="name-key-management">
+<a href="#section-12.5" class="section-number selfRef">12.5. </a><a href="#name-key-management" class="section-name selfRef">Key Management</a>
+        </h3>
+<p id="section-12.5-1">The Issuer's RSA private key is the root of trust.  Compromise allows
+forging credentials.  Implementations SHOULD use hardware security
+modules and short key rotation periods.  The public key MUST be
+distributed via an out-of-band mechanism (e.g., a JWKS endpoint).<a href="#section-12.5-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="credential-store-integrity">
+<section id="section-12.6">
+        <h3 id="name-credential-store-integrity">
+<a href="#section-12.6" class="section-number selfRef">12.6. </a><a href="#name-credential-store-integrity" class="section-name selfRef">Credential Store Integrity</a>
+        </h3>
+<p id="section-12.6-1">The revocation store and credential store are security-critical.
+Implementations MUST apply access controls preventing unauthorized
+modification.<a href="#section-12.6-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="audit-log-integrity">
+<section id="section-12.7">
+        <h3 id="name-audit-log-integrity">
+<a href="#section-12.7" class="section-number selfRef">12.7. </a><a href="#name-audit-log-integrity" class="section-name selfRef">Audit Log Integrity</a>
+        </h3>
+<p id="section-12.7-1">Hash-chaining provides tamper-evidence but not tamper-prevention.  The
+audit log SHOULD be replicated to a write-once store or transparency log
+for stronger guarantees.<a href="#section-12.7-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="iana-considerations">
+<section id="section-13">
+      <h2 id="name-iana-considerations">
+<a href="#section-13" class="section-number selfRef">13. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-13-1">This specification defines the following JWT claim names for
+registration in the IANA "JSON Web Token Claims" registry established by
+<span>[<a href="#RFC7519" class="cite xref">RFC7519</a>]</span>.<a href="#section-13-1" class="pilcrow">¶</a></p>
+<table class="center" id="table-8">
+        <caption><a href="#table-8" class="selfRef">Table 8</a></caption>
+<thead>
+          <tr>
+            <th class="text-left" rowspan="1" colspan="1">Claim Name</th>
+            <th class="text-left" rowspan="1" colspan="1">Description</th>
+            <th class="text-left" rowspan="1" colspan="1">Change Controller</th>
+            <th class="text-left" rowspan="1" colspan="1">Reference</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_tid</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP task tree identifier</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_pid</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP parent credential identifier</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_depth</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP delegation depth</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_scope</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP permission scope</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_intent</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP intent hash</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_chain</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP delegation chain</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_uid</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP originating user identifier</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_hitl_req</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP HITL request ID</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_hitl_uid</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP HITL approving user</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_hitl_iss</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP HITL issuer authority</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_idp_iss</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP IdP issuer</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_idp_sub</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP IdP subject</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>att_ack</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">ACAP agent checksum digest</td>
+            <td class="text-left" rowspan="1" colspan="1">IESG</td>
+            <td class="text-left" rowspan="1" colspan="1">This document</td>
+          </tr>
+        </tbody>
+      </table>
+</section>
+</div>
+<div id="sec-combined-references">
+<section id="section-14">
+      <h2 id="name-references">
+<a href="#section-14" class="section-number selfRef">14. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<div id="sec-normative-references">
+<section id="section-14.1">
+        <h3 id="name-normative-references">
+<a href="#section-14.1" class="section-number selfRef">14.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="RFC2119">[RFC2119]</dt>
+        <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6749">[RFC6749]</dt>
+        <dd>
+<span class="refAuthor">Hardt, D., Ed.</span>, <span class="refTitle">"The OAuth 2.0 Authorization Framework"</span>, <span class="seriesInfo">RFC 6749</span>, <span class="seriesInfo">DOI 10.17487/RFC6749</span>, <time datetime="2012-10" class="refDate">October 2012</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc6749">https://www.rfc-editor.org/rfc/rfc6749</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7518">[RFC7518]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refTitle">"JSON Web Algorithms (JWA)"</span>, <span class="seriesInfo">RFC 7518</span>, <span class="seriesInfo">DOI 10.17487/RFC7518</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7518">https://www.rfc-editor.org/rfc/rfc7518</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7519">[RFC7519]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Token (JWT)"</span>, <span class="seriesInfo">RFC 7519</span>, <span class="seriesInfo">DOI 10.17487/RFC7519</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7519">https://www.rfc-editor.org/rfc/rfc7519</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8174">[RFC8174]</dt>
+        <dd>
+<span class="refAuthor">Leiba, B.</span>, <span class="refTitle">"Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 8174</span>, <span class="seriesInfo">DOI 10.17487/RFC8174</span>, <time datetime="2017-05" class="refDate">May 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8174">https://www.rfc-editor.org/rfc/rfc8174</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC9562">[RFC9562]</dt>
+      <dd>
+<span class="refAuthor">Davis, K.</span>, <span class="refAuthor">Peabody, B.</span>, and <span class="refAuthor">P. Leach</span>, <span class="refTitle">"Universally Unique IDentifiers (UUIDs)"</span>, <span class="seriesInfo">RFC 9562</span>, <span class="seriesInfo">DOI 10.17487/RFC9562</span>, <time datetime="2024-05" class="refDate">May 2024</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9562">https://www.rfc-editor.org/rfc/rfc9562</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="sec-informative-references">
+<section id="section-14.2">
+        <h3 id="name-informative-references">
+<a href="#section-14.2" class="section-number selfRef">14.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="AGENTJWT">[AGENTJWT]</dt>
+        <dd>
+<span class="refAuthor">Goswami, D.</span>, <span class="refTitle">"Agentic JWT: Secure Delegation Protocol for AI Agent Pipelines"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/draft-goswami-agentic-jwt/">https://datatracker.ietf.org/doc/draft-goswami-agentic-jwt/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OBO01">[OBO01]</dt>
+        <dd>
+<span class="refTitle">"OAuth 2.0 for AI Agents Acting on Behalf of Users"</span>, <time datetime="2025" class="refDate">2025</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/draft-oauth-ai-agents-on-behalf-of-user/">https://datatracker.ietf.org/doc/draft-oauth-ai-agents-on-behalf-of-user/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="OIDC">[OIDC]</dt>
+        <dd>
+<span class="refAuthor">Sakimura, N.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Medeiros, B. de.</span>, and <span class="refAuthor">C. Mortimore</span>, <span class="refTitle">"OpenID Connect Core 1.0"</span>, <time datetime="2014-11" class="refDate">November 2014</time>, <span>&lt;<a href="https://openid.net/specs/openid-connect-core-1_0.html">https://openid.net/specs/openid-connect-core-1_0.html</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="WIMSE">[WIMSE]</dt>
+      <dd>
+<span class="refTitle">"IETF Workload Identity in Multi System Environments (WIMSE) Working Group"</span>, <span>n.d.</span>, <span>&lt;<a href="https://datatracker.ietf.org/wg/wimse/about/">https://datatracker.ietf.org/wg/wimse/about/</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="summary-of-constants">
+<section id="appendix-A">
+      <h2 id="name-summary-of-constants">
+<a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-summary-of-constants" class="section-name selfRef">Summary of Constants</a>
+      </h2>
+<table class="center" id="table-9">
+        <caption><a href="#table-9" class="selfRef">Table 9</a></caption>
+<thead>
+          <tr>
+            <th class="text-left" rowspan="1" colspan="1">Constant</th>
+            <th class="text-left" rowspan="1" colspan="1">Value</th>
+            <th class="text-left" rowspan="1" colspan="1">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>MaxDelegationDepth</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">10</td>
+            <td class="text-left" rowspan="1" colspan="1">Maximum permitted <code>att_depth</code>
+</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>DefaultTTLSeconds</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">3600</td>
+            <td class="text-left" rowspan="1" colspan="1">Default credential lifetime (1 hour)</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">
+              <code>MaxTTLSeconds</code>
+</td>
+            <td class="text-left" rowspan="1" colspan="1">86400</td>
+            <td class="text-left" rowspan="1" colspan="1">Maximum credential lifetime (24 hours)</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Genesis hash</td>
+            <td class="text-left" rowspan="1" colspan="1">64 x "0"</td>
+            <td class="text-left" rowspan="1" colspan="1">Previous hash for first audit entry</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Clock skew (SHOULD)</td>
+            <td class="text-left" rowspan="1" colspan="1">60s</td>
+            <td class="text-left" rowspan="1" colspan="1">Recommended leeway</td>
+          </tr>
+          <tr>
+            <td class="text-left" rowspan="1" colspan="1">Clock skew (MUST NOT exceed)</td>
+            <td class="text-left" rowspan="1" colspan="1">300s</td>
+            <td class="text-left" rowspan="1" colspan="1">Maximum leeway</td>
+          </tr>
+        </tbody>
+      </table>
+</section>
+</div>
+<div id="implementation-status">
+<section id="appendix-B">
+      <h2 id="name-implementation-status">
+<a href="#appendix-B" class="section-number selfRef">Appendix B. </a><a href="#name-implementation-status" class="section-name selfRef">Implementation Status</a>
+      </h2>
+<p id="appendix-B-1">A reference implementation is available as open source software:<a href="#appendix-B-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="appendix-B-2.1">
+          <p id="appendix-B-2.1.1">Server: Go, available at https://github.com/chudah1/attest-dev<a href="#appendix-B-2.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-B-2.2">
+          <p id="appendix-B-2.2.1">TypeScript SDK: <code>@attest-dev/sdk</code> on npm (0.1.0-beta.4)<a href="#appendix-B-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-B-2.3">
+          <p id="appendix-B-2.3.1">Python SDK: <code>attest-sdk</code> on PyPI (0.1.0b3)<a href="#appendix-B-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-B-2.4">
+          <p id="appendix-B-2.4.1">Framework integrations: Anthropic Claude, LangGraph, OpenAI Agents
+SDK, Model Context Protocol (MCP)<a href="#appendix-B-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="appendix-B-2.5">
+          <p id="appendix-B-2.5.1">Deployment: Docker Compose, Railway<a href="#appendix-B-2.5.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="appendix-B-3">All SDKs implement credential issuance, delegation, offline
+verification via JWKS, revocation, and audit trail retrieval.<a href="#appendix-B-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="data-model">
+<section id="appendix-C">
+      <h2 id="name-data-model">
+<a href="#appendix-C" class="section-number selfRef">Appendix C. </a><a href="#name-data-model" class="section-name selfRef">Data Model</a>
+      </h2>
+<p id="appendix-C-1">The following SQL schema is informative for implementations using
+relational storage:<a href="#appendix-C-1" class="pilcrow">¶</a></p>
+<div class="breakable lang-sql sourcecode" id="appendix-C-2">
+<pre>
+CREATE TABLE IF NOT EXISTS credentials (
+    jti         TEXT        PRIMARY KEY,
+    org_id      TEXT        NOT NULL,
+    att_tid     TEXT        NOT NULL,
+    att_pid     TEXT,
+    att_uid     TEXT        NOT NULL,
+    agent_id    TEXT        NOT NULL,
+    depth       INTEGER     NOT NULL DEFAULT 0,
+    scope       TEXT[]      NOT NULL,
+    chain       TEXT[]      NOT NULL,
+    issued_at   TIMESTAMPTZ NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_credentials_chain
+    ON credentials USING GIN (chain);
+
+CREATE TABLE IF NOT EXISTS revocations (
+    jti         TEXT        PRIMARY KEY,
+    revoked_at  TIMESTAMPTZ NOT NULL,
+    revoked_by  TEXT        NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS approvals (
+    id              TEXT        PRIMARY KEY,
+    org_id          TEXT        NOT NULL,
+    agent_id        TEXT        NOT NULL,
+    att_tid         TEXT        NOT NULL,
+    parent_token    TEXT        NOT NULL,
+    intent          TEXT        NOT NULL,
+    requested_scope TEXT[]      NOT NULL,
+    status          TEXT        NOT NULL DEFAULT 'pending',
+    approved_by     TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at     TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id           BIGSERIAL   PRIMARY KEY,
+    org_id       TEXT        NOT NULL,
+    prev_hash    TEXT        NOT NULL,
+    entry_hash   TEXT        NOT NULL,
+    event_type   TEXT        NOT NULL,
+    jti          TEXT        NOT NULL,
+    att_tid      TEXT        NOT NULL,
+    att_uid      TEXT        NOT NULL,
+    agent_id     TEXT        NOT NULL,
+    scope        JSONB       NOT NULL DEFAULT '[]',
+    meta         JSONB,
+    idp_issuer   TEXT,
+    idp_subject  TEXT,
+    hitl_req     TEXT,
+    hitl_issuer  TEXT,
+    hitl_subject TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE OR REPLACE RULE audit_log_no_update AS
+    ON UPDATE TO audit_log DO INSTEAD NOTHING;
+CREATE OR REPLACE RULE audit_log_no_delete AS
+    ON DELETE TO audit_log DO INSTEAD NOTHING;
+</pre><a href="#appendix-C-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="acknowledgements">
+<section id="appendix-D">
+      <h2 id="name-acknowledgements">
+<a href="#name-acknowledgements" class="section-name selfRef">Acknowledgements</a>
+      </h2>
+<p id="appendix-D-1">The authors acknowledge the contributions of the broader AI safety and
+identity communities, including the IETF WIMSE working group, the NIST
+AI Agent Standards Initiative, and the authors of the Agentic JWT
+proposal.<a href="#appendix-D-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-E">
+      <h2 id="name-authors-address">
+<a href="#name-authors-address" class="section-name selfRef">Author's Address</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Chudah Yakung</span></div>
+<div dir="auto" class="left"><span class="org">Attest</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:ychudah@gmail.com" class="email">ychudah@gmail.com</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>

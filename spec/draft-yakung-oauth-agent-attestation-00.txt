@@ -4,8 +4,8 @@
 
 Network Working Group                                          C. Yakung
 Internet-Draft                                                    Attest
-Intended status: Informational                             25 March 2026
-Expires: 26 September 2026
+Intended status: Informational                             26 March 2026
+Expires: 27 September 2026
 
 
               Agent Credential Attestation Protocol (ACAP)
@@ -43,7 +43,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 26 September 2026.
+   This Internet-Draft will expire on 27 September 2026.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Yakung                  Expires 26 September 2026               [Page 1]
+Yakung                  Expires 27 September 2026               [Page 1]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Yakung                  Expires 26 September 2026               [Page 2]
+Yakung                  Expires 27 September 2026               [Page 2]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -165,7 +165,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026               [Page 3]
+Yakung                  Expires 27 September 2026               [Page 3]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -221,7 +221,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026               [Page 4]
+Yakung                  Expires 27 September 2026               [Page 4]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -277,7 +277,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026               [Page 5]
+Yakung                  Expires 27 September 2026               [Page 5]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -333,7 +333,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026               [Page 6]
+Yakung                  Expires 27 September 2026               [Page 6]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -389,7 +389,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026               [Page 7]
+Yakung                  Expires 27 September 2026               [Page 7]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -445,7 +445,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026               [Page 8]
+Yakung                  Expires 27 September 2026               [Page 8]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -501,7 +501,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026               [Page 9]
+Yakung                  Expires 27 September 2026               [Page 9]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -557,7 +557,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 10]
+Yakung                  Expires 27 September 2026              [Page 10]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -613,7 +613,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 11]
+Yakung                  Expires 27 September 2026              [Page 11]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -669,7 +669,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 12]
+Yakung                  Expires 27 September 2026              [Page 12]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -725,7 +725,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 13]
+Yakung                  Expires 27 September 2026              [Page 13]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -781,7 +781,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 14]
+Yakung                  Expires 27 September 2026              [Page 14]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -837,7 +837,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 15]
+Yakung                  Expires 27 September 2026              [Page 15]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -893,7 +893,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 16]
+Yakung                  Expires 27 September 2026              [Page 16]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -949,7 +949,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 17]
+Yakung                  Expires 27 September 2026              [Page 17]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1005,7 +1005,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 18]
+Yakung                  Expires 27 September 2026              [Page 18]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1061,7 +1061,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 19]
+Yakung                  Expires 27 September 2026              [Page 19]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1117,7 +1117,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 20]
+Yakung                  Expires 27 September 2026              [Page 20]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1173,7 +1173,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 21]
+Yakung                  Expires 27 September 2026              [Page 21]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1229,7 +1229,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 22]
+Yakung                  Expires 27 September 2026              [Page 22]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1285,7 +1285,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 23]
+Yakung                  Expires 27 September 2026              [Page 23]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1341,7 +1341,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 24]
+Yakung                  Expires 27 September 2026              [Page 24]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1397,7 +1397,7 @@ Appendix C.  Data Model
 
 
 
-Yakung                  Expires 26 September 2026              [Page 25]
+Yakung                  Expires 27 September 2026              [Page 25]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1453,7 +1453,7 @@ Internet-Draft                    ACAP                        March 2026
 
 
 
-Yakung                  Expires 26 September 2026              [Page 26]
+Yakung                  Expires 27 September 2026              [Page 26]
 
 Internet-Draft                    ACAP                        March 2026
 
@@ -1509,4 +1509,4 @@ Author's Address
 
 
 
-Yakung                  Expires 26 September 2026              [Page 27]
+Yakung                  Expires 27 September 2026              [Page 27]
