@@ -9,6 +9,21 @@
   <meta property="og:description" content="Signed, scoped credentials for AI agent pipelines. Enforce tool access, prove authorization, revoke the full task tree." />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary" />
+  <link rel="canonical" href="https://attestdev.com/" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Attest",
+    "description": "Delegated authorization protocol for AI agent pipelines. Issue signed, scoped credentials tied to human intent, enforce tool access, and revoke the full task tree.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "url": "https://attestdev.com",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Attest", "url": "https://attestdev.com" },
+    "softwareHelp": { "@type": "WebPage", "url": "https://attestdev.com/docs.html" }
+  }
+  </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -114,10 +129,14 @@
     .dot-green { background: #28c840; }
     .terminal pre { padding: 1.25rem 1.5rem; font-family: "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 0.82rem; line-height: 1.75; overflow-x: auto; color: var(--text); }
     .c-dim { color: var(--muted); }
-    .c-green { color: var(--green); }
+    .c-green { color: #22c55e; }
     .c-purple { color: #a78bfa; }
     .c-blue { color: #60a5fa; }
     .c-yellow { color: #fbbf24; }
+    [data-theme='light'] .c-green { color: #15803d; }
+    [data-theme='light'] .c-purple { color: #7c3aed; }
+    [data-theme='light'] .c-blue { color: #2563eb; }
+    [data-theme='light'] .c-yellow { color: #b45309; }
 
     /* FEATURES */
     .features { max-width: 1000px; margin: 0 auto; padding: 2rem 2rem 5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border-radius: var(--radius-lg); border: 1px solid var(--line); overflow: hidden; }
@@ -156,7 +175,7 @@
     .install-section { max-width: 780px; margin: 0 auto; padding: 0 2rem 6rem; }
     .install-section h2 { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
     .install-section > p { color: var(--muted); margin-bottom: 2rem; }
-    .code-block { background: var(--surface-3); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 1rem 1.25rem; font-family: "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 0.84rem; margin-bottom: 1rem; overflow-x: auto; line-height: 1.7; }
+    .code-block { background: var(--surface-3); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 1rem 1.25rem; font-family: "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 0.84rem; margin-bottom: 1rem; overflow-x: auto; line-height: 1.7; white-space: pre; }
 
     /* FOOTER */
     footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.84rem; }
@@ -347,12 +366,12 @@ curl https://api.attestdev.com/health
 
 <span class="c-green">const</span> client = <span class="c-green">new</span> <span class="c-purple">AttestClient</span>({
   baseUrl: <span class="c-yellow">"https://api.attestdev.com"</span>,
-  apiKey:  <span class="c-yellow">"att_live_..."</span>,  <span class="c-dim">// from POST /v1/orgs</span>
+  apiKey:  <span class="c-yellow">"att_live_..."</span>,
 });
 
 <span class="c-green">const</span> { token } = <span class="c-blue">await</span> client.<span class="c-purple">issue</span>({
-  agentId:     <span class="c-yellow">"my-agent"</span>,
-  userId:      <span class="c-yellow">"usr_123"</span>,
+  agent_id:    <span class="c-yellow">"my-agent"</span>,
+  user_id:     <span class="c-yellow">"usr_123"</span>,
   scope:       [<span class="c-yellow">"research:read"</span>],
   instruction: <span class="c-yellow">"find recent AI papers"</span>,
 });</div>
@@ -374,18 +393,53 @@ curl https://api.attestdev.com/health
 </footer>
 
 <script>
-fetch('https://api.attestdev.com/health')
-  .then(function(r){return r.json()})
-  .then(function(d){if(d.status==='ok'){document.getElementById('status-dot').classList.add('live');document.getElementById('status-label').textContent='API live';}})
-  .catch(function(){document.getElementById('status-label').textContent='API offline';});
-</script>
-<script>
-(function(){
-  var t=document.getElementById('theme-toggle'),s=document.getElementById('sun-icon'),m=document.getElementById('moon-icon');
-  function u(){var l=document.documentElement.getAttribute('data-theme')==='light';s.style.display=l?'block':'none';m.style.display=l?'none':'block';}
-  u();t&&t.addEventListener('click',function(){var l=document.documentElement.getAttribute('data-theme')==='light';document.documentElement.setAttribute('data-theme',l?'dark':'light');localStorage.setItem('attest-theme',l?'dark':'light');u();});
-  var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
-  nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
+(function () {
+  'use strict';
+
+  // ── Theme toggle ───────────────────────────────────────────────────────────
+  const themeToggle = document.getElementById('theme-toggle');
+  const sunIcon     = document.getElementById('sun-icon');
+  const moonIcon    = document.getElementById('moon-icon');
+
+  function syncIcons() {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    sunIcon.style.display  = isLight ? 'block' : 'none';
+    moonIcon.style.display = isLight ? 'none'  : 'block';
+  }
+
+  syncIcons();
+
+  themeToggle?.addEventListener('click', () => {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const next = isLight ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('attest-theme', next);
+    syncIcons();
+  });
+
+  // ── Mobile nav ─────────────────────────────────────────────────────────────
+  const navToggle = document.getElementById('nav-toggle');
+  const navLinks  = document.getElementById('nav-links');
+
+  navToggle?.addEventListener('click', () => {
+    navLinks.classList.toggle('open');
+  });
+
+  // ── API health check ──────────────────────────────────────────────────────
+  const statusDot   = document.getElementById('status-dot');
+  const statusLabel = document.getElementById('status-label');
+
+  fetch('https://api.attestdev.com/health')
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        statusDot.classList.add('live');
+        statusLabel.textContent = 'API live';
+      }
+    })
+    .catch(() => {
+      statusLabel.textContent = 'API offline';
+    });
 })();
 </script>
 

@@ -1,0 +1,163 @@
+# Attest — Full Reference
+
+> Delegated authorization protocol for AI agent pipelines.
+
+Attest gives AI agents signed, scoped credentials tied to human intent. It lets you issue a root credential when a human approves a task, delegate narrower credentials to sub-agents, enforce tool-call authorization at runtime, and revoke the full delegation tree instantly. Every action produces a cryptographic evidence trail.
+
+## Why Attest exists
+
+AI agent frameworks (LangChain, CrewAI, AutoGen, OpenAI Agents SDK) ship tool-calling with no authorization layer. An agent with access to `gmail:send` can send any email to anyone. There is no way to prove what a human actually authorized, no way to scope what a sub-agent can do, and no way to revoke a running task tree.
+
+Attest is the missing authorization protocol. It sits between the human approval and the tool call, ensuring every action is scoped, signed, and auditable.
+
+## Core concepts
+
+### Delegated authority
+A human authorizes a task. The orchestrator receives a signed RS256 JWT credential scoped to that task. When it delegates work to a sub-agent, it issues a child credential with a strict subset of the parent's scope. Authority flows downward through the delegation tree, never sideways or upward.
+
+### Intent binding
+The human's original instruction is SHA-256 hashed and embedded in the credential as the `intent_hash` claim. Any mutation to the original intent is cryptographically detectable. This creates a tamper-evident link between what the human said and what the agent does.
+
+### Scope enforcement
+Each credential carries an explicit `scope` array (e.g. `["gmail:send", "research:read"]`). When a tool call is made, the enforcement layer checks that the requested action falls within the credential's scope. Child credentials must be strict subsets of their parent — you cannot escalate privileges through delegation.
+
+### Revocation
+Revoking a parent credential cascades to all children in the delegation tree. Revocation is checked at enforcement time via `GET /v1/revoked/{jti}`. A single API call can shut down an entire multi-agent task tree.
+
+### Evidence and provenance
+Every issuance, delegation, enforcement decision, tool call, and revocation is recorded in an append-only audit log. Each entry is hash-chained (each event references the previous event's hash), creating a tamper-evident evidence trail. Evidence can be exported as a signed packet and verified independently using the public verifier.
+
+## API reference
+
+Base URL: `https://api.attestdev.com`
+Authentication: `Authorization: Bearer att_live_...`
+
+### Organizations
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /v1/orgs | Create an organization, returns API key |
+| GET | /v1/org | Get current org details |
+
+### Credentials
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /v1/credentials | Issue a root credential |
+| POST | /v1/credentials/delegate | Delegate a child credential |
+| DELETE | /v1/credentials/{jti} | Revoke a credential and all children |
+| GET | /v1/revoked/{jti} | Check revocation status |
+
+### Audit and evidence
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /v1/tasks/{tid}/audit | Query the audit trail for a task |
+
+### Key management
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /v1/org/keys | List signing keys |
+| POST | /v1/org/keys | Import a signing key |
+| DELETE | /v1/org/keys/{keyID} | Delete a signing key |
+| POST | /v1/org/keys/rotate | Rotate to a new RSA-2048 key |
+
+### JWKS
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /orgs/{org_id}/jwks.json | Public JWKS endpoint for signature verification |
+
+## TypeScript SDK
+
+Install: `npm install @attest-dev/sdk@beta`
+Package: https://www.npmjs.com/package/@attest-dev/sdk
+
+```typescript
+import { AttestClient } from "@attest-dev/sdk";
+
+const client = new AttestClient({
+  baseUrl: "https://api.attestdev.com",
+  apiKey: "att_live_...",
+});
+
+// Issue a root credential
+const { token } = await client.issue({
+  agent_id: "orchestrator-v1",
+  user_id: "usr_alice",
+  scope: ["research:read", "gmail:send"],
+  instruction: "summarise inbox and send digest",
+});
+
+// Delegate to a sub-agent with narrower scope
+const { token: childToken } = await client.delegate({
+  parent_token: token,
+  child_agent: "email-agent-v2",
+  child_scope: ["gmail:send"],
+});
+
+// Revoke the entire delegation tree
+await client.revoke(token);
+
+// Verify a credential offline
+const jwks = await client.fetchJWKS(orgId);
+const result = await client.verify(token, jwks);
+```
+
+### SDK methods
+- `client.issue(params)` — Issue a root credential. Params: `agent_id`, `user_id`, `scope`, `instruction`, optional `ttl_seconds`, `id_token`, `agent_checksum`.
+- `client.delegate(params)` — Delegate a child credential. Params: `parent_token`, `child_agent`, `child_scope`.
+- `client.revoke(token)` — Revoke a credential and all its children.
+- `client.verify(token, jwks)` — Offline verification of signature, expiry, chain integrity.
+- `client.fetchJWKS(orgId)` — Fetch org's public JWKS for verification.
+
+## Python SDK
+
+Install: `pip install attest-sdk`
+Package: https://pypi.org/project/attest-sdk/
+
+```python
+from attest_sdk import AttestClient
+
+client = AttestClient(
+    base_url="https://api.attestdev.com",
+    api_key="att_live_...",
+)
+
+token = client.issue(
+    agent_id="orchestrator-v1",
+    user_id="usr_alice",
+    scope=["research:read", "gmail:send"],
+    instruction="summarise inbox and send digest",
+)
+```
+
+## MCP integration
+
+Attest provides a drop-in MCP (Model Context Protocol) server wrapper that enforces credential-based authorization on every tool call. The wrapper intercepts `tools/call` requests, checks the credential's scope against the requested tool, and produces evidence for every allow/block decision.
+
+Quickstart guide: https://attestdev.com/mcp.html
+
+## Credential format
+
+Attest credentials are RS256-signed JWTs with these claims:
+- `jti` — unique credential ID
+- `sub` — agent ID
+- `scope` — array of authorized actions
+- `intent_hash` — SHA-256 of the human's instruction
+- `depth` — delegation depth (0 for root)
+- `chain` — array of ancestor credential IDs
+- `exp` — expiry timestamp
+- `tid` — task tree ID (shared across the delegation tree)
+
+## IETF specification
+
+Attest is specified as an IETF Internet-Draft: `draft-yakung-oauth-agent-attestation-00`. The spec defines the credential format, delegation protocol, scope narrowing rules, and revocation semantics as an extension to OAuth 2.0.
+
+## Links
+
+- Homepage: https://attestdev.com
+- API docs: https://attestdev.com/docs.html
+- MCP quickstart: https://attestdev.com/mcp.html
+- Evidence verifier: https://attestdev.com/verify.html
+- Interactive demo: https://attestdev.com/demo.html
+- GitHub: https://github.com/chudah1/attest-dev
+- npm SDK: https://www.npmjs.com/package/@attest-dev/sdk
+- PyPI SDK: https://pypi.org/project/attest-sdk/
+- API health: https://api.attestdev.com/health

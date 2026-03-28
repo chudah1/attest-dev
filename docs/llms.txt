@@ -1,0 +1,27 @@
+# Attest
+
+> Delegated authorization protocol for AI agent pipelines.
+
+Attest gives AI agents signed, scoped credentials tied to human intent. It lets you issue a root credential when a human approves a task, delegate narrower credentials to sub-agents, enforce tool-call authorization at runtime, and revoke the full delegation tree instantly. Every action produces a cryptographic evidence trail.
+
+## Core concepts
+
+- **Delegated authority**: A human authorizes a task. The orchestrator gets a signed JWT credential scoped to that task. Sub-agents receive narrower child credentials. Authority flows downward, never sideways.
+- **Intent binding**: The human's instruction is SHA-256 hashed and embedded in the credential. Any mutation to the original intent is detectable.
+- **Scope enforcement**: Each credential carries an explicit scope array (e.g. `["gmail:send", "research:read"]`). Child credentials must be strict subsets of their parent.
+- **Revocation**: Revoking a parent credential cascades to all children. Revocation is checked at enforcement time.
+- **Evidence and provenance**: Every issuance, delegation, tool call, and revocation is recorded in an append-only audit log with hash-chained entries.
+
+## Links
+
+- Homepage: https://attestdev.com
+- API docs: https://attestdev.com/docs.html
+- MCP quickstart: https://attestdev.com/mcp.html
+- Evidence verifier: https://attestdev.com/verify.html
+- Interactive demo: https://attestdev.com/demo.html
+- GitHub: https://github.com/chudah1/attest-dev
+- npm SDK: https://www.npmjs.com/package/@attest-dev/sdk
+- PyPI SDK: https://pypi.org/project/attest-sdk/
+- API endpoint: https://api.attestdev.com
+- IETF Internet-Draft: draft-yakung-oauth-agent-attestation-00
+- Full context for LLMs: https://attestdev.com/llms-full.txt
