@@ -27,7 +27,10 @@ function serveStatic(rootDir) {
     try {
       const url = new URL(req.url || '/', 'http://localhost');
       const pathname = decodeURIComponent(url.pathname);
-      const relative = pathname === '/' ? 'docs/dashboard.html' : pathname.replace(/^\/+/, '');
+      const relative =
+        pathname === '/' || pathname === '/dashboard'
+          ? 'server/cmd/attest/ui/dashboard.html'
+          : pathname.replace(/^\/+/, '');
       const filePath = path.join(rootDir, relative);
 
       if (!filePath.startsWith(rootDir)) {
@@ -203,7 +206,7 @@ async function withDashboard(t, packetMutator, fn) {
   });
 
   const page = await context.newPage();
-  await page.goto(`http://localhost:${port}/docs/dashboard.html`);
+  await page.goto(`http://localhost:${port}/dashboard`);
   await page.getByRole('button', { name: /audit log/i }).click();
   await page.locator('#task-id-input').fill(packet.task.att_tid);
   await page.getByRole('button', { name: /search events/i }).click();

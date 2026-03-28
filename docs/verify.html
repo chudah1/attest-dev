@@ -5,243 +5,351 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Verify evidence packet — Attest</title>
   <meta name="description" content="Verify an Attest evidence packet in the browser using the packet hash, signature metadata, and org JWKS." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #081019;
-      --surface: #0f1b2a;
-      --surface-2: #122335;
-      --border: rgba(143, 202, 255, 0.12);
-      --text: #edf6ff;
-      --muted: #93a7bb;
-      --accent: #7dd3fc;
-      --accent-strong: #22c7ff;
-      --green: #34d399;
-      --red: #f87171;
-      --amber: #fbbf24;
-      --radius: 18px;
+      --bg: #0a0a0f;
+      --surface: rgba(17, 17, 24, 0.84);
+      --surface-2: rgba(17, 17, 24, 0.95);
+      --surface-3: rgba(255, 255, 255, 0.05);
+      --line: #1e1e2e;
+      --line-strong: #2a2a3c;
+      --text: #e2e2f0;
+      --muted: #7b7b9a;
+      --accent: #6366f1;
+      --accent-2: #818cf8;
+      --amber: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+      --shadow-glow: 0 0 24px rgba(99, 102, 241, 0.25);
+      --radius-xl: 24px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+    }
+
+    [data-theme='light'] {
+      --bg: #f8fafc;
+      --surface: rgba(255, 255, 255, 0.84);
+      --surface-2: rgba(255, 255, 255, 0.95);
+      --surface-3: rgba(0, 0, 0, 0.03);
+      --line: #e2e8f0;
+      --line-strong: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #4f46e5;
+      --accent-2: #4338ca;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+      --shadow-glow: 0 0 24px rgba(79, 70, 229, 0.25);
     }
 
     body {
       min-height: 100vh;
-      background:
-        radial-gradient(circle at top left, rgba(34, 199, 255, 0.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 22%),
-        linear-gradient(180deg, #06111b 0%, var(--bg) 100%);
+      background: var(--bg);
       color: var(--text);
-      font-family: Georgia, "Times New Roman", serif;
-      line-height: 1.55;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
 
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 1.25rem 2rem;
-      border-bottom: 1px solid var(--border);
-      background: rgba(6, 17, 27, 0.82);
-      backdrop-filter: blur(14px);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
+    /* NAV */
+    nav { border-bottom: 1px solid var(--line); background: var(--surface-2); backdrop-filter: blur(14px); position: sticky; top: 0; z-index: 20; }
+    .nav-shell { max-width: 1240px; margin: 0 auto; padding: 0.65rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; }
+    .logo { color: var(--text); font-size: 1rem; font-weight: 800; letter-spacing: -0.03em; text-decoration: none; }
+    .logo span { color: var(--accent); }
+    nav ul { display: flex; list-style: none; gap: 0.65rem; align-items: center; }
+    nav ul a { color: var(--muted); font-size: 0.86rem; padding: 0.42rem 0.62rem; border-radius: 999px; text-decoration: none; }
+    nav ul a.active, nav ul a:hover { color: var(--text); background: rgba(255,255,255,0.025); text-decoration: none; }
+    .nav-cta { display: inline-flex; align-items: center; gap: 0.42rem; padding: 0.42rem 0.8rem; border-radius: 999px; border: 1px solid transparent; background: var(--accent); color: #fff !important; font-size: 0.86rem; font-weight: 600; text-decoration: none; }
+    .nav-cta:hover { background: var(--accent-2); text-decoration: none !important; }
+    .nav-toggle { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 0.4rem; }
 
-    .logo {
-      color: var(--text);
-      font-size: 1.1rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
-
-    .logo span { color: var(--accent-strong); }
-
-    nav ul {
-      display: flex;
-      gap: 1.6rem;
-      list-style: none;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    nav ul a {
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    nav ul a.active,
-    nav ul a:hover {
-      color: var(--text);
-      text-decoration: none;
-    }
-
-    .nav-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.48rem 0.9rem;
-      border-radius: 999px;
-      border: 1px solid rgba(125, 211, 252, 0.22);
-      background: rgba(125, 211, 252, 0.1);
-      color: var(--text) !important;
+    @media (max-width: 720px) {
+      .nav-toggle { display: flex; }
+      nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 1rem 2rem; gap: 0.5rem; }
+      nav ul.open { display: flex; }
+      .nav-shell { position: relative; }
     }
 
     .page {
-      max-width: 1200px;
+      max-width: 1240px;
       margin: 0 auto;
-      padding: 3.5rem 2rem 4rem;
+      padding: 2.2rem 2rem 4rem;
     }
 
     .hero {
       display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
-      gap: 1.5rem;
-      align-items: stretch;
-      margin-bottom: 1.8rem;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.85fr);
+      gap: 1.3rem;
+      margin-bottom: 1.3rem;
     }
 
     .hero-card,
-    .proof-card,
-    .workspace-card {
-      border: 1px solid var(--border);
-      border-radius: 26px;
-      background:
-        linear-gradient(180deg, rgba(18, 35, 53, 0.92), rgba(9, 21, 33, 0.96));
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    .rail-card,
+    .panel,
+    .subpanel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg, 16px);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      padding: 1.8rem 2rem;
     }
 
-    .hero-card {
-      padding: 2.1rem 2.2rem;
-    }
-
-    .proof-card {
-      padding: 1.5rem 1.6rem;
+    .rail-card {
+      padding: 1.4rem;
       display: grid;
       gap: 1rem;
     }
 
     .eyebrow {
       color: var(--accent);
-      font: 600 0.82rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      font: 600 0.75rem/1.2 "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      margin-bottom: 0.9rem;
-    }
-
-    h1 {
-      font-size: clamp(2.4rem, 6vw, 4.6rem);
-      line-height: 0.95;
-      letter-spacing: -0.05em;
       margin-bottom: 1rem;
     }
 
-    .hero-copy {
-      max-width: 56ch;
-      color: var(--muted);
-      font-size: 1.02rem;
-      margin-bottom: 1.35rem;
+    h1 {
+      font-size: clamp(1.85rem, 4.1vw, 3.15rem);
+      line-height: 1.02;
+      letter-spacing: -0.06em;
+      max-width: 14ch;
+      margin-bottom: 0.75rem;
     }
 
-    .hero-bullets {
+    .hero-copy {
+      max-width: 60ch;
+      color: var(--muted);
+      font-size: 0.98rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.4rem;
+    }
+
+    .hero-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .hero-btn.primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .hero-btn.primary:hover {
+      background: var(--accent-2);
+      transform: translateY(-2px);
+      box-shadow: 0 0 32px rgba(99, 102, 241, 0.4);
+    }
+
+    .hero-btn.secondary {
+      background: var(--surface-3);
+      border-color: var(--line);
+      color: var(--text);
+    }
+
+    .hero-btn.secondary:hover {
+      background: var(--surface-2);
+      border-color: var(--line-strong);
+      transform: translateY(-2px);
+    }
+
+    .hero-pills {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.65rem;
+      gap: 0.55rem;
     }
 
     .hero-pill {
-      padding: 0.42rem 0.82rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.36rem 0.76rem;
       border-radius: 999px;
-      border: 1px solid rgba(125, 211, 252, 0.18);
-      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      background: var(--surface-3);
       color: var(--text);
-      font-size: 0.85rem;
+      font-size: 0.82rem;
     }
 
-    .proof-title {
-      font-size: 1.55rem;
-      letter-spacing: -0.03em;
+    .rail-title {
+      font-size: 1.45rem;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
     }
 
-    .proof-copy {
+    .rail-copy {
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 0.92rem;
     }
 
-    .proof-list {
+    .rail-grid {
       display: grid;
-      gap: 0.75rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.7rem;
     }
 
-    .proof-item {
-      border: 1px solid rgba(143, 202, 255, 0.1);
-      border-radius: 16px;
-      padding: 0.9rem 1rem;
+    .mini-card {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(142, 201, 255, 0.1);
       background: rgba(255, 255, 255, 0.03);
+      padding: 0.9rem;
+      min-height: 112px;
     }
 
-    .proof-item strong {
-      display: block;
-      font-size: 0.9rem;
-      margin-bottom: 0.2rem;
-    }
-
-    .proof-item span {
+    .mini-card .label {
       color: var(--muted);
-      font-size: 0.85rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.35rem;
     }
 
-    .workspace {
+    .mini-card .value {
+      font-size: 1.3rem;
+      letter-spacing: -0.04em;
+      margin-bottom: 0.28rem;
+    }
+
+    .mini-card p {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .workflow {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 360px;
-      gap: 1.4rem;
+      grid-template-columns: minmax(0, 1.1fr) 360px;
+      gap: 1.3rem;
       align-items: start;
     }
 
-    .workspace-card {
+    .panel {
       padding: 1.4rem;
-      display: grid;
-      gap: 1.1rem;
     }
 
-    .card-head {
+    .section-row {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .section-head {
       display: flex;
       justify-content: space-between;
       gap: 1rem;
-      align-items: baseline;
+      align-items: end;
+      margin-bottom: 1rem;
     }
 
-    .card-title {
-      font-size: 1.1rem;
+    .section-kicker {
+      color: var(--muted);
+      font-size: 0.76rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.3rem;
+    }
+
+    .section-title {
+      font-size: 1.16rem;
+      letter-spacing: -0.03em;
+    }
+
+    .section-copy {
+      color: var(--muted);
+      font-size: 0.9rem;
+      max-width: 58ch;
+    }
+
+    .step-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .subpanel {
+      border-radius: var(--radius-lg);
+      padding: 1rem;
+    }
+
+    .step-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .step-title {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .step-index {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(117, 216, 255, 0.1);
+      border: 1px solid rgba(117, 216, 255, 0.2);
+      color: var(--accent);
+      font: 700 0.84rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .step-title strong {
+      display: block;
+      font-size: 1rem;
       letter-spacing: -0.02em;
     }
 
-    .card-kicker {
+    .step-title span {
       color: var(--muted);
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      font-size: 0.84rem;
+    }
+
+    .step-hint {
+      color: var(--muted);
+      font-size: 0.8rem;
+      max-width: 30ch;
+      text-align: right;
     }
 
     .field-grid {
       display: grid;
-      gap: 1rem;
+      gap: 0.95rem;
     }
 
     .field-row {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1rem;
+      gap: 0.95rem;
     }
 
     label {
       display: block;
-      margin-bottom: 0.42rem;
+      margin-bottom: 0.4rem;
       color: var(--muted);
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
@@ -249,12 +357,21 @@
     input[type="url"],
     textarea {
       width: 100%;
-      border: 1px solid rgba(143, 202, 255, 0.12);
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
       color: var(--text);
-      padding: 0.9rem 0.95rem;
-      font: 0.92rem/1.6 "SF Mono", "Fira Code", monospace;
+      padding: 0.9rem 1rem;
+      font: 0.85rem/1.6 "SF Mono", Monaco, Consolas, monospace;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    
+    input[type="url"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      background: var(--surface-2);
     }
 
     textarea {
@@ -267,6 +384,14 @@
       color: #688199;
     }
 
+    .file-shell {
+      border: 1px dashed rgba(117, 216, 255, 0.2);
+      border-radius: var(--radius-md);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+      padding: 0.9rem 1rem;
+    }
+
     input[type="file"] {
       width: 100%;
       color: var(--muted);
@@ -275,62 +400,100 @@
 
     .helper {
       color: var(--muted);
-      font-size: 0.83rem;
+      font-size: 0.82rem;
       line-height: 1.55;
+      margin-top: 0.35rem;
     }
 
-    .btn-row {
+    .action-bar {
       display: flex;
       flex-wrap: wrap;
       gap: 0.7rem;
+      margin-top: 1rem;
     }
 
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.45rem;
-      padding: 0.72rem 1rem;
-      border-radius: 16px;
+      gap: 0.5rem;
+      padding: 0.8rem 1.25rem;
+      border-radius: var(--radius-sm);
       border: 1px solid transparent;
       cursor: pointer;
       font-size: 0.9rem;
       font-weight: 600;
-      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, opacity 160ms ease;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: inherit;
     }
 
-    .btn:hover { transform: translateY(-1px); }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
     .btn-primary {
-      background: linear-gradient(135deg, rgba(34, 199, 255, 0.18), rgba(125, 211, 252, 0.22));
-      border-color: rgba(125, 211, 252, 0.28);
-      color: var(--text);
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-2);
+      box-shadow: var(--shadow-glow);
     }
 
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: rgba(143, 202, 255, 0.12);
+      background: var(--surface-3);
+      border-color: var(--line);
       color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-2);
+      border-color: var(--line-strong);
     }
 
     .btn-ghost {
       background: transparent;
-      border-color: rgba(143, 202, 255, 0.1);
+      border-color: transparent;
       color: var(--muted);
+    }
+    
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
     }
 
     .summary-panel {
+      position: sticky;
+      top: 92px;
       display: grid;
       gap: 1rem;
+      padding: 1.1rem;
     }
 
-    .summary-status {
+    .status-shell {
+      display: grid;
+      gap: 0.9rem;
+      padding: 1rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(142, 201, 255, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .status-top {
       display: flex;
       justify-content: space-between;
-      gap: 0.75rem;
-      align-items: center;
-      padding: 1rem 1.05rem;
-      border-radius: 18px;
-      border: 1px solid rgba(143, 202, 255, 0.12);
-      background: rgba(255, 255, 255, 0.03);
+      gap: 0.8rem;
+      align-items: start;
+    }
+
+    .status-title {
+      font-size: 1.18rem;
+      letter-spacing: -0.03em;
+    }
+
+    .status-line {
+      color: var(--muted);
+      font-size: 0.88rem;
+      max-width: 30ch;
     }
 
     .status-chip {
@@ -338,15 +501,16 @@
       align-items: center;
       gap: 0.42rem;
       border-radius: 999px;
-      padding: 0.34rem 0.7rem;
-      font-size: 0.78rem;
+      padding: 0.36rem 0.72rem;
+      font-size: 0.76rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       border: 1px solid transparent;
+      flex-shrink: 0;
     }
 
     .status-chip::before {
-      content: '';
+      content: "";
       width: 0.46rem;
       height: 0.46rem;
       border-radius: 999px;
@@ -359,16 +523,16 @@
 
     .result-grid {
       display: grid;
-      gap: 0.8rem;
+      gap: 0.7rem;
     }
 
     .result-item {
-      border: 1px solid rgba(143, 202, 255, 0.1);
-      border-radius: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: var(--surface-3);
       padding: 0.9rem 1rem;
-      background: rgba(255, 255, 255, 0.03);
       display: grid;
-      gap: 0.24rem;
+      gap: 0.28rem;
     }
 
     .result-item .label {
@@ -384,17 +548,16 @@
     }
 
     .mono {
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.82rem;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
     }
 
     .pass { color: var(--green); }
     .fail { color: var(--red); }
-    .warn { color: var(--amber); }
 
     .warning-list {
       display: grid;
-      gap: 0.55rem;
+      gap: 0.5rem;
       padding-left: 1rem;
       color: #ffd89b;
       font-size: 0.86rem;
@@ -402,202 +565,309 @@
 
     .notes {
       color: var(--muted);
-      font-size: 0.84rem;
+      font-size: 0.83rem;
       line-height: 1.6;
     }
 
     .toast {
       position: fixed;
-      right: 1.2rem;
-      bottom: 1.2rem;
+      right: 1.15rem;
+      bottom: 1.15rem;
       z-index: 30;
       display: none;
       max-width: 340px;
-      padding: 0.85rem 1rem;
+      padding: 0.88rem 1rem;
       border-radius: 14px;
-      border: 1px solid rgba(143, 202, 255, 0.12);
-      background: rgba(10, 18, 29, 0.96);
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      box-shadow: var(--shadow);
     }
 
-    .toast.show { display: block; }
-    .toast.success { color: var(--green); }
-    .toast.error { color: var(--red); }
+    .toast.show { 
+      display: block; 
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .toast.success { color: var(--green); border-color: rgba(16, 185, 129, 0.3); }
+    .toast.error { color: var(--red); border-color: rgba(239, 68, 68, 0.3); }
+
+    footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.84rem; }
+    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-grid .result-item {
+      animation: fadeIn 0.4s ease-out forwards;
+      opacity: 0;
+    }
+    .result-grid .result-item:nth-child(1) { animation-delay: 0.05s; }
+    .result-grid .result-item:nth-child(2) { animation-delay: 0.1s; }
+    .result-grid .result-item:nth-child(3) { animation-delay: 0.15s; }
 
     @media (max-width: 980px) {
       .hero,
-      .workspace {
+      .workflow {
         grid-template-columns: 1fr;
+      }
+
+      .summary-panel {
+        position: static;
+        top: auto;
       }
     }
 
     @media (max-width: 720px) {
-      nav {
-        padding: 1rem 1.1rem;
-        align-items: flex-start;
-      }
       nav ul {
         gap: 1rem;
-        justify-content: flex-end;
       }
+
       .page {
-        padding: 2rem 1rem 3rem;
+        padding: 1.4rem 1rem 3rem;
       }
+
       .hero-card,
-      .proof-card,
-      .workspace-card {
+      .rail-card,
+      .panel,
+      .subpanel {
         border-radius: 22px;
       }
-      .hero-card {
-        padding: 1.35rem;
-      }
-      .proof-card,
-      .workspace-card {
+
+      .hero-card,
+      .rail-card,
+      .panel {
         padding: 1.15rem;
       }
-      .field-row {
+
+      .field-row,
+      .rail-grid {
         grid-template-columns: 1fr;
+      }
+
+      .step-head,
+      .status-top {
+        flex-direction: column;
+        align-items: start;
       }
     }
   </style>
+
+<script>
+  (function() {
+    const stored = localStorage.getItem('attest-theme');
+    if (stored === 'light' || (!stored && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
 </head>
 <body>
-  <nav>
+<nav>
+  <div class="nav-shell">
     <a href="./index.html" class="logo">Attest<span>.</span></a>
-    <ul>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg>
+    </button>
+    <ul id="nav-links">
       <li><a href="./index.html">Home</a></li>
       <li><a href="./docs.html">Docs</a></li>
+      <li><a href="./mcp.html">MCP</a></li>
       <li><a href="./verify.html" class="active">Verify</a></li>
+      <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
       <li><a href="./demo.html" class="nav-cta">Demo</a></li>
+      <li style="display:inline-flex;align-items:center;"><button id="theme-toggle" aria-label="Toggle theme" style="background:none;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;padding:0.42rem;"><svg id="sun-icon" style="display:none;width:1.1rem;height:1.1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="moon-icon" style="display:none;width:1.1rem;height:1.1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button></li>
     </ul>
-  </nav>
+  </div>
+</nav>
 
   <main class="page">
     <section class="hero">
       <div class="hero-card">
         <div class="eyebrow">Public verification</div>
-        <h1>Drop in a packet. Verify it on site.</h1>
-        <p class="hero-copy">This page checks the canonical packet hash, RS256 signature, and append-only audit chain in your browser. If the packet includes org metadata, Attest can load the JWKS automatically.</p>
-        <div class="hero-bullets">
-          <span class="hero-pill">No dashboard required</span>
-          <span class="hero-pill">Web Crypto in-browser</span>
-          <span class="hero-pill">Works with exported JSON</span>
-          <span class="hero-pill">Optional custom JWKS</span>
+        <h1>Verify evidence packets in-browser.</h1>
+        <p class="hero-copy">Drop in a packet, resolve the org JWKS, and confirm the hash, signature, and audit chain still match what Attest signed. No dashboard session required.</p>
+        <div class="hero-actions">
+          <button class="hero-btn primary" type="button" id="hero-verify-btn">Jump to verifier</button>
+          <button class="hero-btn secondary" type="button" id="hero-sample-btn">Load sample packet</button>
+        </div>
+        <div class="hero-pills">
+          <span class="hero-pill">Hash checked locally</span>
+          <span class="hero-pill">Signature checked by <span class="mono">kid</span></span>
+          <span class="hero-pill">Audit chain validated</span>
+          <span class="hero-pill">No private keys leave the org</span>
         </div>
       </div>
 
-      <aside class="proof-card">
+      <aside class="rail-card">
         <div>
-          <div class="eyebrow" style="margin-bottom:0.55rem;">What this checks</div>
-          <div class="proof-title">Independent verification, not server trust.</div>
+          <div class="eyebrow" style="margin-bottom:0.45rem;">What this checks</div>
+          <div class="rail-title">Independent verification for exported evidence.</div>
         </div>
-        <p class="proof-copy">The verifier recomputes the packet hash locally, selects the signing key by <span class="mono">kid</span>, validates the signature, and checks the audit chain linkage in the event stream.</p>
-        <div class="proof-list">
-          <div class="proof-item">
-            <strong>Canonical packet hash</strong>
-            <span>Detects any mutation to the signed export artifact.</span>
+        <p class="rail-copy">The verifier recomputes the canonical packet hash, verifies the RS256 signature against JWKS, and checks the append-only event chain. If any one of those breaks, the page tells you exactly why.</p>
+        <div class="rail-grid">
+          <div class="mini-card">
+            <div class="label">1</div>
+            <div class="value">Hash</div>
+            <p>Detects mutations to the canonical export artifact.</p>
           </div>
-          <div class="proof-item">
-            <strong>JWKS-backed signature</strong>
-            <span>Uses the org public key set and the packet <span class="mono">signature_kid</span>.</span>
+          <div class="mini-card">
+            <div class="label">2</div>
+            <div class="value">JWKS</div>
+            <p>Picks the correct public key from <span class="mono">signature_kid</span>.</p>
           </div>
-          <div class="proof-item">
-            <strong>Append-only audit chain</strong>
-            <span>Checks that each event links to the previous event hash.</span>
+          <div class="mini-card">
+            <div class="label">3</div>
+            <div class="value">Chain</div>
+            <p>Confirms every event points back through the audit log.</p>
+          </div>
+          <div class="mini-card">
+            <div class="label">Use cases</div>
+            <div class="value">Audit, review, incidents</div>
+            <p>Share the packet. Verify it without a dashboard session.</p>
           </div>
         </div>
       </aside>
     </section>
 
-    <section class="workspace">
-      <div class="workspace-card">
-        <div class="card-head">
+    <section class="workflow">
+      <div class="panel">
+        <div class="section-head">
           <div>
-            <div class="card-kicker">Inputs</div>
-            <div class="card-title">Packet and verification material</div>
+            <div class="section-kicker">Inputs</div>
+            <div class="section-title">Load the packet, decide how to resolve JWKS, then run verification.</div>
           </div>
+          <div class="section-copy">Use exported evidence JSON from the dashboard, or start with the built-in sample if you just want to see the verification loop in action.</div>
         </div>
 
-        <div class="field-grid">
-          <div>
-            <label for="packet-file">Packet file</label>
-            <input type="file" id="packet-file" accept=".json,application/json" />
-            <div class="helper">Choose an exported evidence packet, or paste the JSON below.</div>
-          </div>
-
-          <div>
-            <label for="packet-input">Evidence packet JSON</label>
-            <textarea id="packet-input" placeholder='{"packet_type":"attest.evidence_packet", ...}'></textarea>
-          </div>
-
-          <div class="field-row">
-            <div>
-              <label for="jwks-url">JWKS URL</label>
-              <input type="url" id="jwks-url" placeholder="https://api.attestdev.com/orgs/org_xxx/jwks.json" />
-              <div class="helper">Leave blank to derive from <span class="mono">packet.org.id</span>.</div>
+        <div class="step-grid">
+          <section class="subpanel">
+            <div class="step-head">
+              <div class="step-title">
+                <div class="step-index">01</div>
+                <div>
+                  <strong>Load an evidence packet</strong>
+                  <span>Upload a JSON file or paste the exported packet directly.</span>
+                </div>
+              </div>
+              <div class="step-hint">The packet is the canonical artifact. Everything else hangs off it.</div>
             </div>
-            <div>
-              <label for="jwks-file">JWKS file</label>
-              <input type="file" id="jwks-file" accept=".json,application/json" />
-              <div class="helper">Optional override if you want to avoid a network fetch.</div>
+
+            <div class="field-grid">
+              <div class="file-shell">
+                <label for="packet-file">Packet file</label>
+                <input type="file" id="packet-file" accept=".json,application/json" />
+                <div class="helper">Choose an exported evidence packet from the dashboard, or skip the file picker and paste the JSON below.</div>
+              </div>
+
+              <div>
+                <label for="packet-input">Evidence packet JSON</label>
+                <textarea id="packet-input" placeholder='{"packet_type":"attest.evidence_packet", ...}'></textarea>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div>
-            <label for="jwks-input">JWKS JSON override</label>
-            <textarea id="jwks-input" placeholder='{"keys":[...]}' style="min-height: 150px;"></textarea>
-          </div>
-        </div>
+          <section class="subpanel">
+            <div class="step-head">
+              <div class="step-title">
+                <div class="step-index">02</div>
+                <div>
+                  <strong>Resolve the public keys</strong>
+                  <span>Use org metadata from the packet, paste JWKS, or point at a JWKS URL.</span>
+                </div>
+              </div>
+              <div class="step-hint">If the packet includes <span class="mono">org.id</span>, Attest can derive the default JWKS URL.</div>
+            </div>
 
-        <div class="btn-row">
-          <button class="btn btn-primary" id="verify-btn">Verify packet</button>
-          <button class="btn btn-secondary" id="load-sample-btn">Load sample</button>
-          <button class="btn btn-ghost" id="clear-btn">Clear</button>
+            <div class="field-grid">
+              <div class="field-row">
+                <div>
+                  <label for="jwks-url">JWKS URL</label>
+                  <input type="url" id="jwks-url" placeholder="https://api.attestdev.com/orgs/org_xxx/jwks.json" />
+                  <div class="helper">Leave blank to derive it automatically from <span class="mono">packet.org.id</span>.</div>
+                </div>
+                <div class="file-shell">
+                  <label for="jwks-file">JWKS file</label>
+                  <input type="file" id="jwks-file" accept=".json,application/json" />
+                  <div class="helper">Use this when you want to verify without a live network fetch.</div>
+                </div>
+              </div>
+
+              <div>
+                <label for="jwks-input">JWKS JSON override</label>
+                <textarea id="jwks-input" placeholder='{"keys":[...]}' style="min-height: 150px;"></textarea>
+              </div>
+            </div>
+          </section>
+
+          <section class="subpanel">
+            <div class="step-head">
+              <div class="step-title">
+                <div class="step-index">03</div>
+                <div>
+                  <strong>Run verification</strong>
+                  <span>Check the hash, signature, and append-only audit chain in-browser.</span>
+                </div>
+              </div>
+              <div class="step-hint">You can also load the sample packet first if you want a known-good reference.</div>
+            </div>
+
+            <div class="action-bar">
+              <button class="btn btn-primary" id="verify-btn">Verify packet</button>
+              <button class="btn btn-secondary" id="load-sample-btn">Load sample</button>
+              <button class="btn btn-ghost" id="clear-btn">Clear</button>
+            </div>
+          </section>
         </div>
       </div>
 
-      <aside class="workspace-card summary-panel">
-        <div class="card-head">
-          <div>
-            <div class="card-kicker">Results</div>
-            <div class="card-title">Verification status</div>
+      <aside class="panel summary-panel">
+        <div class="status-shell">
+          <div class="status-top">
+            <div>
+              <div class="section-kicker" style="margin-bottom:0.35rem;">Result</div>
+              <div class="status-title">Verification status</div>
+              <div class="status-line" id="status-line">Ready to verify</div>
+            </div>
+            <div class="status-chip status-idle" id="status-chip">Idle</div>
           </div>
-        </div>
 
-        <div class="summary-status">
-          <div>
-            <div class="card-kicker" style="margin-bottom:0.3rem;">Current state</div>
-            <div id="status-line">Ready to verify</div>
+          <div class="result-grid" id="result-grid">
+            <div class="result-item">
+              <div class="label">Packet hash</div>
+              <div class="value">Not checked yet</div>
+            </div>
+            <div class="result-item">
+              <div class="label">Signature</div>
+              <div class="value">Not checked yet</div>
+            </div>
+            <div class="result-item">
+              <div class="label">Audit chain</div>
+              <div class="value">Not checked yet</div>
+            </div>
           </div>
-          <div class="status-chip status-idle" id="status-chip">Idle</div>
-        </div>
 
-        <div class="result-grid" id="result-grid">
           <div class="result-item">
-            <div class="label">Packet hash</div>
-            <div class="value">Not checked yet</div>
+            <div class="label">Packet metadata</div>
+            <div class="value mono" id="meta-block">Load a packet to inspect its task ID, org, signature key, and JWKS source.</div>
           </div>
+
           <div class="result-item">
-            <div class="label">Signature</div>
-            <div class="value">Not checked yet</div>
+            <div class="label">Warnings</div>
+            <div class="value" id="warning-block">No warnings yet.</div>
           </div>
-          <div class="result-item">
-            <div class="label">Audit chain</div>
-            <div class="value">Not checked yet</div>
-          </div>
-        </div>
 
-        <div class="result-item">
-          <div class="label">Packet metadata</div>
-          <div class="value mono" id="meta-block">Load a packet to inspect its task ID, org, signature key, and JWKS source.</div>
+          <p class="notes">This page never signs anything and never needs private key material. It only uses the exported packet plus public JWKS to verify what Attest signed.</p>
         </div>
-
-        <div class="result-item">
-          <div class="label">Warnings</div>
-          <div class="value" id="warning-block">No warnings yet.</div>
-        </div>
-
-        <p class="notes">This verifier runs entirely in your browser. Private keys never touch this page. If a packet contains org metadata, the verifier will default to <span class="mono">https://api.attestdev.com/orgs/&lt;org_id&gt;/jwks.json</span> unless you override it.</p>
       </aside>
     </section>
   </main>
@@ -612,6 +882,8 @@
     document.getElementById('clear-btn').addEventListener('click', clearPage);
     document.getElementById('packet-file').addEventListener('change', event => loadFileIntoField(event, 'packet-input'));
     document.getElementById('jwks-file').addEventListener('change', event => loadFileIntoField(event, 'jwks-input'));
+    document.getElementById('hero-verify-btn').addEventListener('click', () => document.getElementById('verify-btn').click());
+    document.getElementById('hero-sample-btn').addEventListener('click', () => document.getElementById('load-sample-btn').click());
 
     async function loadFileIntoField(event, fieldId) {
       const file = event.target.files && event.target.files[0];
@@ -874,5 +1146,24 @@
       setTimeout(() => el.classList.remove('show'), 2600);
     }
   </script>
+<footer>
+  <div class="footer-links">
+    <a href="https://github.com/chudah1/attest-dev">GitHub</a>
+    <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
+    <a href="https://pypi.org/project/attest-sdk/">PyPI</a>
+    <a href="https://api.attestdev.com/health">API</a>
+  </div>
+  &copy; 2026 Attest
+</footer>
+
+<script>
+(function(){
+  var t=document.getElementById('theme-toggle'),s=document.getElementById('sun-icon'),m=document.getElementById('moon-icon');
+  function u(){var l=document.documentElement.getAttribute('data-theme')==='light';s.style.display=l?'block':'none';m.style.display=l?'none':'block';}
+  u();t&&t.addEventListener('click',function(){var l=document.documentElement.getAttribute('data-theme')==='light';document.documentElement.setAttribute('data-theme',l?'dark':'light');localStorage.setItem('attest-theme',l?'dark':'light');u();});
+  var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
+  nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
+})();
+</script>
 </body>
 </html>

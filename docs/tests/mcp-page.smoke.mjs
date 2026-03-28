@@ -26,7 +26,7 @@ function serveStatic(rootDir) {
     try {
       const url = new URL(req.url || '/', 'http://localhost');
       const pathname = decodeURIComponent(url.pathname);
-      const relative = pathname === '/' ? 'docs/verify.html' : pathname.replace(/^\/+/, '');
+      const relative = pathname === '/' ? 'docs/mcp.html' : pathname.replace(/^\/+/, '');
       const filePath = path.join(rootDir, relative);
 
       if (!filePath.startsWith(rootDir)) {
@@ -51,52 +51,26 @@ function serveStatic(rootDir) {
   });
 }
 
-async function withVerifyPage(t, fn) {
+test('mcp quickstart page loads the core onboarding path and links', async (t) => {
   const server = await serveStatic(repoRoot);
   const address = server.address();
   const port = address && typeof address === 'object' ? address.port : 0;
   const browser = await chromium.launch({ executablePath: chromePath, headless: true });
-  const context = await browser.newContext();
+  const page = await browser.newPage();
 
   t.after(async () => {
-    await context.close();
     await browser.close();
     await new Promise((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));
   });
 
-  const page = await context.newPage();
-  await page.goto(`http://localhost:${port}/docs/verify.html`);
-  await fn(page);
-}
+  await page.goto(`http://localhost:${port}/`);
 
-test('public verify page validates the sample evidence packet', async (t) => {
-  await withVerifyPage(t, async (page) => {
-    await page.locator('#load-sample-btn').click();
-    await page.getByText('Sample packet loaded').waitFor();
-    await page.getByRole('button', { name: /verify packet/i }).click();
+  await page.getByRole('heading', { name: /protect one mcp tool in minutes/i }).waitFor();
+  await page.getByText(/withAttest\(\)/i).waitFor();
 
-    await page.locator('#status-chip.status-pass').getByText('Verified').waitFor();
-    await page.locator('#result-grid').getByText('Matches canonical packet').waitFor();
-    await page.locator('#result-grid').getByText('RS256 signature valid').waitFor();
-    await page.locator('#result-grid').getByText('Append-only chain intact').waitFor();
-    await page.locator('#meta-block').getByText('org_test_fixture').waitFor();
-  });
-});
+  const dashboardHref = await page.getByRole('link', { name: /inspect the task tree/i }).getAttribute('href');
+  const verifyHref = await page.getByRole('link', { name: /verify the exported packet/i }).getAttribute('href');
 
-test('public verify page detects tampered packet content', async (t) => {
-  await withVerifyPage(t, async (page) => {
-    await page.locator('#load-sample-btn').click();
-    await page.getByText('Sample packet loaded').waitFor();
-
-    const packetArea = page.locator('#packet-input');
-    const packet = JSON.parse(await packetArea.inputValue());
-    packet.summary.result = 'revoked';
-    await packetArea.fill(JSON.stringify(packet, null, 2));
-
-    await page.getByRole('button', { name: /verify packet/i }).click();
-
-    await page.locator('#status-chip.status-fail').getByText('Issues').waitFor();
-    await page.locator('#result-grid').getByText('Hash mismatch detected').waitFor();
-    await page.locator('#result-grid').getByText('Signature invalid or missing').waitFor();
-  });
+  assert.equal(dashboardHref, 'https://api.attestdev.com/dashboard');
+  assert.equal(verifyHref, './verify.html');
 });

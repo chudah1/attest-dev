@@ -31,6 +31,9 @@ var schemaSQL string
 //go:embed migrate.sql
 var migrateSQL string
 
+//go:embed ui/dashboard.html
+var dashboardHTML []byte
+
 type config struct {
 	Port        string
 	DatabaseURL string
@@ -216,6 +219,16 @@ func main() {
 	r.Use(corsMiddleware)
 
 	r.With(ipRateLimitMiddleware(publicLimiter)).Get("/health", h.health)
+
+	// Admin UI
+	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(dashboardHTML)
+	})
+	r.Get("/dashboard", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(dashboardHTML)
+	})
 
 	// Public: org signup (IP rate-limited), per-org JWKS, and revocation check.
 	r.With(ipRateLimitMiddleware(signupLimiter)).Post("/v1/orgs", h.signup)
