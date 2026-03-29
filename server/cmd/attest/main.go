@@ -31,13 +31,11 @@ var schemaSQL string
 //go:embed migrate.sql
 var migrateSQL string
 
-//go:embed ui/dashboard.html
-var dashboardHTML []byte
-
 type config struct {
-	Port        string
-	DatabaseURL string
-	IssuerURI   string
+	Port         string
+	DatabaseURL  string
+	IssuerURI    string
+	DashboardURL string
 }
 
 func configFromEnv() config {
@@ -48,9 +46,10 @@ func configFromEnv() config {
 		return fallback
 	}
 	return config{
-		Port:        get("PORT", "8080"),
-		DatabaseURL: get("DATABASE_URL", ""),
-		IssuerURI:   get("ISSUER_URI", "https://api.attestdev.com"),
+		Port:         get("PORT", "8080"),
+		DatabaseURL:  get("DATABASE_URL", ""),
+		IssuerURI:    get("ISSUER_URI", "https://api.attestdev.com"),
+		DashboardURL: get("DASHBOARD_URL", ""),
 	}
 }
 
@@ -220,14 +219,24 @@ func main() {
 
 	r.With(ipRateLimitMiddleware(publicLimiter)).Get("/health", h.health)
 
-	// Admin UI
-	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(dashboardHTML)
+	dashboardURL := cfg.DashboardURL
+	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{
+			"service":   "attest-api",
+			"issuer":    cfg.IssuerURI,
+			"dashboard": dashboardURL,
+		})
 	})
-	r.Get("/dashboard", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(dashboardHTML)
+	r.Get("/dashboard", func(w http.ResponseWriter, r *http.Request) {
+		if dashboardURL == "" {
+			writeError(w, http.StatusNotFound, "dashboard is deployed separately; set DASHBOARD_URL or run dashboard-app locally")
+			return
+		}
+		target := dashboardURL
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 	})
 
 	// Public: org signup (IP rate-limited), per-org JWKS, and revocation check.

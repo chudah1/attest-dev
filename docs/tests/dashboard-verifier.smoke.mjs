@@ -29,8 +29,10 @@ function serveStatic(rootDir) {
       const pathname = decodeURIComponent(url.pathname);
       const relative =
         pathname === '/' || pathname === '/dashboard'
-          ? 'server/cmd/attest/ui/dashboard.html'
-          : pathname.replace(/^\/+/, '');
+          ? 'dashboard-app/dist/index.html'
+          : pathname.startsWith('/assets/')
+            ? `dashboard-app/dist/${pathname.replace(/^\/+/, '')}`
+            : pathname.replace(/^\/+/, '');
       const filePath = path.join(rootDir, relative);
 
       if (!filePath.startsWith(rootDir)) {
