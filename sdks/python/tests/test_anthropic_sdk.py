@@ -816,3 +816,217 @@ async def test_async_attest_tool_raises_scope_error():
             instruction="do a thing",
         ):
             await my_async_tool()
+
+
+# ---------------------------------------------------------------------------
+# Sync AttestSession — HITL approval delegation
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+def test_delegate_with_approval_handler_grants_hitl_token():
+    """delegate(require_approval=True) can use approval_handler to obtain HITL token."""
+    respx.post(f"{BASE_URL}/v1/credentials").mock(
+        return_value=httpx.Response(201, json=_issue_body(["deploy:prod"]))
+    )
+    respx.delete(f"{BASE_URL}/v1/credentials/jti-root-1").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    approval_route = respx.post(f"{BASE_URL}/v1/approvals").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_handler_1",
+            "status": "pending",
+        })
+    )
+
+    grant_route = respx.post(f"{BASE_URL}/v1/approvals/hitl_handler_1/grant").mock(
+        return_value=httpx.Response(200, json={
+            **_delegate_body(["deploy:prod"], jti="jti-hitl-granted", agent_id="deploy-agent"),
+            "claims": {
+                **_delegate_body(["deploy:prod"], jti="jti-hitl-granted", agent_id="deploy-agent")["claims"],
+                "att_hitl_req": "hitl_handler_1",
+                "att_hitl_uid": "usr_approver",
+                "att_hitl_iss": "https://idp.example.com",
+            },
+        })
+    )
+
+    seen_challenge_ids: list[str] = []
+
+    def approval_handler(challenge):
+        seen_challenge_ids.append(challenge.challenge_id)
+        return "oidc-id-token"
+
+    with AttestSession(
+        client=_sync_client(),
+        agent_id="test-agent",
+        user_id="usr_alice",
+        scope=["deploy:prod"],
+        instruction="do a thing",
+    ) as session:
+        child = session.delegate(
+            "deploy-agent",
+            ["deploy:prod"],
+            require_approval=True,
+            approval_handler=approval_handler,
+        )
+
+    assert approval_route.called
+    assert grant_route.called
+    assert seen_challenge_ids == ["hitl_handler_1"]
+    assert child.claims.att_hitl_req == "hitl_handler_1"
+    assert child.claims.att_hitl_uid == "usr_approver"
+
+
+@respx.mock
+def test_delegate_with_approval_polls_until_approved():
+    """delegate(require_approval=True) polls get_approval and delegates on approval."""
+
+    respx.post(f"{BASE_URL}/v1/credentials").mock(
+        return_value=httpx.Response(201, json=_issue_body(["web:read", "deploy:prod"]))
+    )
+    respx.delete(f"{BASE_URL}/v1/credentials/jti-root-1").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    # Mock the approval request endpoint.
+    approval_route = respx.post(f"{BASE_URL}/v1/approvals").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_anthro_1",
+            "status": "pending",
+        })
+    )
+
+    # Mock get_approval — first call returns pending, second returns approved.
+    poll_count = 0
+
+    def get_approval_response(request):
+        nonlocal poll_count
+        poll_count += 1
+        if poll_count >= 2:
+            return httpx.Response(200, json={
+                "challenge_id": "hitl_anthro_1",
+                "status": "approved",
+            })
+        return httpx.Response(200, json={
+            "challenge_id": "hitl_anthro_1",
+            "status": "pending",
+        })
+
+    respx.get(f"{BASE_URL}/v1/approvals/hitl_anthro_1").mock(
+        side_effect=get_approval_response,
+    )
+
+    # Mock delegate — called after approval confirmed.
+    delegate_route = respx.post(f"{BASE_URL}/v1/credentials/delegate").mock(
+        return_value=httpx.Response(201, json=_delegate_body(["deploy:prod"]))
+    )
+
+    with AttestSession(
+        client=_sync_client(),
+        agent_id="test-agent",
+        user_id="usr_alice",
+        scope=["web:read", "deploy:prod"],
+        instruction="do a thing",
+    ) as session, warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        child = session.delegate(
+            "deploy-agent",
+            ["deploy:prod"],
+            require_approval=True,
+            intent="Deploy to production",
+            poll_interval=0.01,  # fast for tests
+        )
+
+    assert approval_route.called
+    assert delegate_route.called
+    assert poll_count >= 2
+    assert child.claims.att_scope == ["deploy:prod"]
+    assert any("approval_handler" in str(w.message) for w in caught)
+
+
+@respx.mock
+def test_delegate_with_approval_raises_on_denial():
+    """delegate(require_approval=True) raises AttestApprovalDenied when rejected."""
+    from attest.client import AttestApprovalDenied
+
+    respx.post(f"{BASE_URL}/v1/credentials").mock(
+        return_value=httpx.Response(201, json=_issue_body(["deploy:prod"]))
+    )
+    respx.delete(f"{BASE_URL}/v1/credentials/jti-root-1").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    respx.post(f"{BASE_URL}/v1/approvals").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_denied_2",
+            "status": "pending",
+        })
+    )
+
+    respx.get(f"{BASE_URL}/v1/approvals/hitl_denied_2").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_denied_2",
+            "status": "rejected",
+        })
+    )
+
+    with pytest.raises(AttestApprovalDenied):
+        with AttestSession(
+            client=_sync_client(),
+            agent_id="test-agent",
+            user_id="usr_alice",
+            scope=["deploy:prod"],
+            instruction="do a thing",
+        ) as session:
+            session.delegate(
+                "deploy-agent",
+                ["deploy:prod"],
+                require_approval=True,
+                poll_interval=0.01,
+            )
+
+
+@respx.mock
+def test_delegate_with_approval_raises_on_timeout():
+    """delegate(require_approval=True) raises AttestApprovalTimeout on timeout."""
+    from attest.client import AttestApprovalTimeout
+
+    respx.post(f"{BASE_URL}/v1/credentials").mock(
+        return_value=httpx.Response(201, json=_issue_body(["deploy:prod"]))
+    )
+    respx.delete(f"{BASE_URL}/v1/credentials/jti-root-1").mock(
+        return_value=httpx.Response(200, json={})
+    )
+
+    respx.post(f"{BASE_URL}/v1/approvals").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_timeout_1",
+            "status": "pending",
+        })
+    )
+
+    # Always return pending — never approve.
+    respx.get(f"{BASE_URL}/v1/approvals/hitl_timeout_1").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_timeout_1",
+            "status": "pending",
+        })
+    )
+
+    with pytest.raises(AttestApprovalTimeout):
+        with AttestSession(
+            client=_sync_client(),
+            agent_id="test-agent",
+            user_id="usr_alice",
+            scope=["deploy:prod"],
+            instruction="do a thing",
+        ) as session:
+            session.delegate(
+                "deploy-agent",
+                ["deploy:prod"],
+                require_approval=True,
+                poll_interval=0.01,
+                poll_timeout=0.05,  # very short for test
+            )

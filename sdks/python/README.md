@@ -206,6 +206,20 @@ child = session.delegate(
 
 This path waits for a human approval challenge to resolve before continuing with the narrowed child credential.
 
+For production-grade HITL provenance in Anthropic flows, pass an `approval_handler` that exchanges the challenge for the actual approved credential:
+
+```python
+child = session.delegate(
+    "deploy-agent",
+    ["deploy:prod"],
+    require_approval=True,
+    intent="Deploy the approved release to production",
+    approval_handler=lambda challenge: get_id_token_from_your_ui(challenge.challenge_id),
+)
+```
+
+Without `approval_handler`, the session can still wait for external approval, but it resumes by issuing a fresh narrowed credential rather than returning the original HITL-stamped token.
+
 ## Offline verification note
 
 Once you have fetched the JWKS with `client.fetch_jwks()`, you can verify

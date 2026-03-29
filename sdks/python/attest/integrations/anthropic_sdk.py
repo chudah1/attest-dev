@@ -55,7 +55,14 @@ from attest.client import (
     AttestScopeError,
 )
 from attest.scope import is_subset
-from attest.types import AttestClaims, AttestToken, DelegateParams, DelegatedToken, IssueParams
+from attest.types import (
+    ApprovalChallenge,
+    AttestClaims,
+    AttestToken,
+    DelegateParams,
+    DelegatedToken,
+    IssueParams,
+)
 
 # ---------------------------------------------------------------------------
 # ContextVar — ambient session for the currently executing Attest context.
@@ -235,6 +242,7 @@ class AttestSession:
         intent: str = "",
         poll_interval: float = 2.0,
         poll_timeout: float = 300.0,
+        approval_handler: Any | None = None,
     ) -> DelegatedToken:
         """Issue a delegated credential for a child agent.
 
@@ -259,6 +267,15 @@ class AttestSession:
         poll_timeout:
             Maximum seconds to wait for approval before raising
             ``AttestApprovalTimeout`` (default 300s / 5 min).
+        approval_handler:
+            Optional callable that receives the ``ApprovalChallenge`` and
+            returns one of:
+            - an OIDC ``id_token`` string
+            - a ``DelegatedToken`` already obtained elsewhere
+            - a dict like ``{"id_token": "..."}`` or ``{"denied": True}``
+
+            Use this in production if you want the exact HITL-stamped
+            delegated credential via ``grant_approval()``.
 
         Returns
         -------
@@ -297,6 +314,19 @@ class AttestSession:
             requested_scope=child_scope,
         )
 
+        if approval_handler is not None:
+            approved = _resolve_sync_approval_handler(approval_handler, challenge)
+            if isinstance(approved, DelegatedToken):
+                return approved
+            if approved.get("denied"):
+                raise AttestApprovalDenied(challenge.challenge_id)
+            id_token = str(approved.get("id_token") or "").strip()
+            if not id_token:
+                raise RuntimeError(
+                    "approval_handler must return an id_token, DelegatedToken, or {'denied': True}"
+                )
+            return self._client.grant_approval(challenge.challenge_id, id_token)
+
         # Today the external approval surface confirms the gate, then the
         # session issues a narrowed child credential to continue execution.
         # This keeps the orchestration flow simple even when the human approves
@@ -305,6 +335,14 @@ class AttestSession:
             challenge.challenge_id,
             poll_interval=poll_interval,
             timeout=poll_timeout,
+        )
+        warnings.warn(
+            "AttestSession.delegate(require_approval=True) resumed from an external approval "
+            "without an approval_handler, so it is issuing a fresh delegated credential "
+            "rather than returning the original HITL-stamped token. Pass approval_handler "
+            "to preserve att_hitl_* provenance in-process.",
+            RuntimeWarning,
+            stacklevel=2,
         )
         return self._client.delegate(
             DelegateParams(
@@ -454,6 +492,7 @@ class AsyncAttestSession:
         intent: str = "",
         poll_interval: float = 2.0,
         poll_timeout: float = 300.0,
+        approval_handler: Any | None = None,
     ) -> DelegatedToken:
         """Issue a delegated credential for a child agent (async).
 
@@ -474,6 +513,13 @@ class AsyncAttestSession:
             Seconds between polls (default 2s).
         poll_timeout:
             Max seconds to wait (default 300s).
+        approval_handler:
+            Optional callable that receives the ``ApprovalChallenge`` and
+            returns one of:
+            - an OIDC ``id_token`` string
+            - a ``DelegatedToken`` already obtained elsewhere
+            - a dict like ``{"id_token": "..."}`` or ``{"denied": True}``
+            It may be sync or async.
 
         Returns
         -------
@@ -514,10 +560,31 @@ class AsyncAttestSession:
             requested_scope=child_scope,
         )
 
+        if approval_handler is not None:
+            approved = await _resolve_async_approval_handler(approval_handler, challenge)
+            if isinstance(approved, DelegatedToken):
+                return approved
+            if approved.get("denied"):
+                raise AttestApprovalDenied(challenge.challenge_id)
+            id_token = str(approved.get("id_token") or "").strip()
+            if not id_token:
+                raise RuntimeError(
+                    "approval_handler must return an id_token, DelegatedToken, or {'denied': True}"
+                )
+            return await self._client.grant_approval(challenge.challenge_id, id_token)
+
         await self._client.wait_for_approval(
             challenge.challenge_id,
             poll_interval=poll_interval,
             timeout=poll_timeout,
+        )
+        warnings.warn(
+            "AsyncAttestSession.async_delegate(require_approval=True) resumed from an external "
+            "approval without an approval_handler, so it is issuing a fresh delegated credential "
+            "rather than returning the original HITL-stamped token. Pass approval_handler to "
+            "preserve att_hitl_* provenance in-process.",
+            RuntimeWarning,
+            stacklevel=2,
         )
         return await self._client.delegate(
             DelegateParams(
@@ -527,6 +594,44 @@ class AsyncAttestSession:
                 ttl_seconds=ttl_seconds,
             )
         )
+
+
+def _resolve_sync_approval_handler(
+    approval_handler: Any,
+    challenge: ApprovalChallenge,
+) -> DelegatedToken | dict[str, Any]:
+    if not callable(approval_handler):
+        raise TypeError("approval_handler must be callable")
+    result = approval_handler(challenge)
+    if inspect.isawaitable(result):
+        raise TypeError("approval_handler for AttestSession.delegate() must be synchronous")
+    return _normalise_approval_handler_result(result)
+
+
+async def _resolve_async_approval_handler(
+    approval_handler: Any,
+    challenge: ApprovalChallenge,
+) -> DelegatedToken | dict[str, Any]:
+    if not callable(approval_handler):
+        raise TypeError("approval_handler must be callable")
+    result = approval_handler(challenge)
+    if inspect.isawaitable(result):
+        result = await result
+    return _normalise_approval_handler_result(result)
+
+
+def _normalise_approval_handler_result(
+    result: Any,
+) -> DelegatedToken | dict[str, Any]:
+    if isinstance(result, DelegatedToken):
+        return result
+    if isinstance(result, str):
+        return {"id_token": result}
+    if isinstance(result, dict):
+        return result
+    raise TypeError(
+        "approval_handler must return a DelegatedToken, id_token string, or dict response"
+    )
 
 
 # ---------------------------------------------------------------------------
