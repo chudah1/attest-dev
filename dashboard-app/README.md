@@ -41,7 +41,7 @@ The production assets are written to `dashboard-app/dist`.
 Recommended follow-up configuration:
 
 - Add a custom domain such as `app.attestdev.com`.
-- Set the backend env var `CORS_ORIGIN=https://app.attestdev.com`.
+- Set the backend env var `CORS_ORIGINS=https://www.attestdev.com,https://app.attestdev.com`.
 - Set the backend env var `DASHBOARD_URL=https://app.attestdev.com` so `https://api.attestdev.com/dashboard` redirects to the standalone app.
 
 ## Notes

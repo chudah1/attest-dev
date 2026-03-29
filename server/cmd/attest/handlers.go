@@ -137,13 +137,13 @@ func requestBaseURL(r *http.Request) string {
 
 // corsMiddleware allows browser requests from the dashboard.
 func corsMiddleware(next http.Handler) http.Handler {
-	allowed := os.Getenv("CORS_ORIGIN")
+	allowedOrigins := allowedCORSOrigins()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin == "http://localhost" || strings.HasPrefix(origin, "http://localhost:") {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-		} else if allowed != "" && origin == allowed {
-			w.Header().Set("Access-Control-Allow-Origin", allowed)
+		} else if isAllowedOrigin(origin, allowedOrigins) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
@@ -154,6 +154,28 @@ func corsMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func allowedCORSOrigins() map[string]struct{} {
+	allowed := make(map[string]struct{})
+	for _, raw := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
+		origin := strings.TrimSpace(raw)
+		if origin != "" {
+			allowed[origin] = struct{}{}
+		}
+	}
+	if single := strings.TrimSpace(os.Getenv("CORS_ORIGIN")); single != "" {
+		allowed[single] = struct{}{}
+	}
+	return allowed
+}
+
+func isAllowedOrigin(origin string, allowed map[string]struct{}) bool {
+	if origin == "" {
+		return false
+	}
+	_, ok := allowed[origin]
+	return ok
 }
 
 // GET /v1/org
