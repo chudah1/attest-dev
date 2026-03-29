@@ -79,9 +79,9 @@ import inspect
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from attest.client import AttestClient, AttestScopeError
+from attest.client import AttestClient, AttestApprovalDenied, AttestScopeError
 from attest.scope import is_subset
-from attest.types import DelegateParams, IssueParams, AttestClaims
+from attest.types import DelegateParams, DelegatedToken, IssueParams, AttestClaims
 
 if TYPE_CHECKING:
     # These imports are only used for type annotations and are never executed
@@ -471,6 +471,116 @@ class AttestNodes:
 
         return node
 
+    @staticmethod
+    def gated_delegate(
+        client: AttestClient,
+        parent_agent_id: str,
+        child_agent_id: str,
+        child_scope: list[str],
+        intent: str = "",
+        ttl_seconds: int | None = None,
+    ) -> Callable[[dict], dict]:
+        """Return a node that pauses the graph for human approval before delegating.
+
+        Uses LangGraph's ``interrupt()`` primitive to pause execution.  The
+        interrupt payload contains the Attest approval challenge details so
+        the caller (dashboard, Slack bot, API) can present them to a human.
+
+        After the human approves (via the Attest dashboard or API), the caller
+        resumes the graph with::
+
+            graph.invoke(
+                Command(resume={"challenge_id": "hitl_xxx", "id_token": "..."}),
+                config={"configurable": {"thread_id": thread_id}},
+            )
+
+        The node then calls ``client.grant_approval()`` to obtain a delegated
+        credential with HITL claims (``att_hitl_req/uid/iss``) baked in.
+
+        Parameters
+        ----------
+        client:
+            A sync ``AttestClient``.
+        parent_agent_id:
+            Agent ID of the parent credential in ``state["attest_tokens"]``.
+        child_agent_id:
+            Agent ID for the delegated (child) credential.
+        child_scope:
+            Scope list for the child credential.
+        intent:
+            Human-readable description of what the child will do (shown in
+            the approval UI).
+        ttl_seconds:
+            Optional TTL cap for the delegated credential.
+        """
+
+        def node(state: dict) -> dict:
+            tokens: dict[str, str] = state.get("attest_tokens") or {}
+            parent_token = tokens.get(parent_agent_id)
+            if not parent_token:
+                raise RuntimeError(
+                    f"AttestNodes.gated_delegate: no credential found for parent agent "
+                    f"'{parent_agent_id}' in state['attest_tokens']"
+                )
+
+            from langgraph.types import interrupt  # lazy import
+            import jwt as _jwt
+
+            # Decode parent to get task_id for the approval request.
+            try:
+                payload: dict = _jwt.decode(
+                    parent_token,
+                    options={"verify_signature": False, "verify_exp": False},
+                    algorithms=["RS256"],
+                )
+                task_id = payload.get("att_tid", "")
+            except Exception:
+                task_id = ""
+
+            # Create the approval challenge on the server.
+            challenge = client.request_approval(
+                parent_token=parent_token,
+                agent_id=child_agent_id,
+                task_id=task_id,
+                intent=intent or f"Delegate to {child_agent_id}",
+                requested_scope=child_scope,
+            )
+
+            # Pause the graph — the interrupt payload goes to the caller.
+            human_response = interrupt({
+                "attest_approval": {
+                    "challenge_id": challenge.challenge_id,
+                    "status": challenge.status,
+                    "child_agent_id": child_agent_id,
+                    "child_scope": child_scope,
+                    "intent": intent or f"Delegate to {child_agent_id}",
+                },
+            })
+
+            # --- Graph resumes here after human decision ---
+            if not isinstance(human_response, dict):
+                raise RuntimeError(
+                    "AttestNodes.gated_delegate: expected dict from Command(resume=...), "
+                    f"got {type(human_response).__name__}"
+                )
+
+            if human_response.get("denied"):
+                raise AttestApprovalDenied(challenge.challenge_id)
+
+            # Grant the approval — server returns the delegated credential
+            # with att_hitl_req/uid/iss stamped in.
+            id_token = human_response.get("id_token", "")
+            dt: DelegatedToken = client.grant_approval(
+                challenge.challenge_id, id_token
+            )
+
+            updated_tokens = dict(tokens)
+            updated_tokens[child_agent_id] = dt.token
+
+            return {"attest_tokens": updated_tokens}
+
+        return node
+
 
 # ---------------------------------------------------------------------------
 # AttestStateGraph — drop-in StateGraph replacement with automatic delegation
@@ -541,7 +651,7 @@ class AttestStateGraph:
         self,
         state_schema: Any,
         client: AttestClient,
-        scope_map: dict[str, list[str]] | None = None,
+        scope_map: dict[str, list[str] | dict[str, Any]] | None = None,
         parent_agent_id: str | None = None,
         skip_nodes: set[str] | None = None,
         **kwargs: Any,
@@ -557,7 +667,19 @@ class AttestStateGraph:
 
         self._graph = _StateGraph(state_schema, **kwargs)
         self._client = client
-        self._scope_map = scope_map or {}
+        # Normalise scope_map entries: accept both list[str] and dict forms.
+        # Dict form: {"scope": [...], "require_approval": True, "intent": "..."}
+        self._scope_map: dict[str, list[str]] = {}
+        self._approval_map: dict[str, dict[str, Any]] = {}  # nodes requiring HITL
+        for name, value in (scope_map or {}).items():
+            if isinstance(value, dict):
+                self._scope_map[name] = list(value.get("scope", [f"tool:{name}"]))
+                if value.get("require_approval"):
+                    self._approval_map[name] = {
+                        "intent": value.get("intent", f"Execute {name}"),
+                    }
+            else:
+                self._scope_map[name] = list(value)
         self._parent_agent_id = parent_agent_id
         self._skip_nodes: set[str] = skip_nodes if skip_nodes is not None else {"__start__", "issue"}
 
@@ -583,6 +705,10 @@ class AttestStateGraph:
         client = self._client
         scope = self._scope_map.get(node_name) or [f"tool:{node_name}"]
         parent_agent_id = self._parent_agent_id
+        approval_config = self._approval_map.get(node_name)
+
+        if approval_config:
+            return self._wrap_gated_node(node_name, fn, scope, approval_config)
 
         if inspect.iscoroutinefunction(fn):
             @functools.wraps(fn)
@@ -662,6 +788,103 @@ class AttestStateGraph:
             return fn(state, *args, **kwargs)
 
         return sync_wrapped
+
+    def _wrap_gated_node(
+        self, node_name: str, fn: Callable, scope: list[str], config: dict[str, Any]
+    ) -> Callable:
+        """Wrap a node function with an interrupt()-based HITL approval gate.
+
+        When the node executes for the first time (no existing credential in
+        state), the wrapper:
+        1. Creates an approval challenge via ``client.request_approval()``
+        2. Calls ``interrupt()`` to pause the graph with the challenge payload
+        3. On resume, reads the human's response from ``Command(resume=...)``
+        4. Calls ``client.grant_approval()`` to obtain a HITL credential
+        5. Runs the original node function with the HITL credential active
+        """
+        client = self._client
+        parent_agent_id = self._parent_agent_id
+        intent = config.get("intent", f"Execute {node_name}")
+
+        @functools.wraps(fn)
+        def gated_sync(state: dict, *args: Any, **kwargs: Any) -> Any:
+            from langgraph.types import interrupt  # lazy import
+            import jwt as _jwt
+
+            # Dedup: reuse existing credential if this node already has one.
+            existing_tokens: dict[str, str] = state.get("attest_tokens") or {}
+            if node_name in existing_tokens:
+                tok_var = current_attest_token.set(existing_tokens[node_name])
+                try:
+                    return fn(state, *args, **kwargs)
+                finally:
+                    current_attest_token.reset(tok_var)
+
+            token_str = _pick_parent_token(state, parent_agent_id)
+            if not token_str:
+                return fn(state, *args, **kwargs)
+
+            # Decode the parent to get the task ID.
+            try:
+                payload: dict = _jwt.decode(
+                    token_str,
+                    options={"verify_signature": False, "verify_exp": False},
+                    algorithms=["RS256"],
+                )
+                task_id = payload.get("att_tid", "")
+            except Exception:
+                task_id = ""
+
+            # Create approval challenge.
+            challenge = client.request_approval(
+                parent_token=token_str,
+                agent_id=node_name,
+                task_id=task_id,
+                intent=intent,
+                requested_scope=scope,
+            )
+
+            # Pause until human responds.
+            human_response = interrupt({
+                "attest_approval": {
+                    "challenge_id": challenge.challenge_id,
+                    "status": challenge.status,
+                    "node_name": node_name,
+                    "child_scope": scope,
+                    "intent": intent,
+                },
+            })
+
+            if not isinstance(human_response, dict):
+                raise RuntimeError(
+                    f"AttestStateGraph gated node '{node_name}': expected dict from "
+                    f"Command(resume=...), got {type(human_response).__name__}"
+                )
+
+            if human_response.get("denied"):
+                raise AttestApprovalDenied(challenge.challenge_id)
+
+            # Grant and obtain the HITL credential.
+            id_token = human_response.get("id_token", "")
+            dt: DelegatedToken = client.grant_approval(
+                challenge.challenge_id, id_token
+            )
+
+            updated_tokens = dict(existing_tokens)
+            updated_tokens[node_name] = dt.token
+            state = {**state, "attest_tokens": updated_tokens}
+
+            tok_var = current_attest_token.set(dt.token)
+            try:
+                result = fn(state, *args, **kwargs)
+            finally:
+                current_attest_token.reset(tok_var)
+
+            if isinstance(result, dict):
+                result.setdefault("attest_tokens", updated_tokens)
+            return result
+
+        return gated_sync
 
     # ------------------------------------------------------------------
     # Proxy everything else to the underlying StateGraph

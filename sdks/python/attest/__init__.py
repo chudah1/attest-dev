@@ -22,6 +22,8 @@ from attest.checksum import compute_agent_checksum
 from attest.client import (
     AsyncAttestClient,
     AttestAPIError,
+    AttestApprovalDenied,
+    AttestApprovalTimeout,
     AttestClient,
     AttestError,
     AttestScopeError,
@@ -73,6 +75,8 @@ __all__ = [
     # Errors
     "AttestError",
     "AttestAPIError",
+    "AttestApprovalDenied",
+    "AttestApprovalTimeout",
     "AttestScopeError",
     "AttestVerifyError",
     # Types

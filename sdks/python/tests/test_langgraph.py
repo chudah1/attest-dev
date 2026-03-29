@@ -637,3 +637,127 @@ def test_attest_state_is_typeddict():
     assert "attest_tokens" in annotations
     assert "attest_task_id" in annotations
     assert "attest_user_id" in annotations
+
+
+# ---------------------------------------------------------------------------
+# AttestNodes.gated_delegate()
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+def test_gated_delegate_creates_approval_and_calls_interrupt(monkeypatch):
+    """gated_delegate() creates an approval challenge then calls interrupt()."""
+    parent_token = _fake_token(["web:read", "deploy:prod"], agent_id="orchestrator")
+
+    # Mock the approval endpoint.
+    approval_route = respx.post(f"{BASE_URL}/v1/approvals").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_test_123",
+            "status": "pending",
+        })
+    )
+
+    # Mock interrupt() to capture its payload and simulate human response.
+    captured_payloads: list[dict] = []
+
+    def fake_interrupt(payload):
+        captured_payloads.append(payload)
+        # Simulate human approving with an id_token.
+        return {"challenge_id": "hitl_test_123", "id_token": "fake-oidc-token"}
+
+    # Patch the lazy import of langgraph.types.interrupt.
+    import types as _types
+    fake_module = _types.ModuleType("langgraph.types")
+    fake_module.interrupt = fake_interrupt  # type: ignore[attr-defined]
+    import sys
+    monkeypatch.setitem(sys.modules, "langgraph.types", fake_module)
+
+    # Mock the grant endpoint (returns a credential).
+    grant_route = respx.post(f"{BASE_URL}/v1/approvals/hitl_test_123/grant").mock(
+        return_value=httpx.Response(200, json=_delegate_body(
+            ["deploy:prod"],
+            jti="jti-hitl-child",
+            agent_id="deployer",
+            parent_jti="jti-root-1",
+        ))
+    )
+
+    node = AttestNodes.gated_delegate(
+        client=_sync_client(),
+        parent_agent_id="orchestrator",
+        child_agent_id="deployer",
+        child_scope=["deploy:prod"],
+        intent="Deploy to production",
+    )
+
+    state = {"attest_tokens": {"orchestrator": parent_token}}
+    result = node(state)
+
+    # Approval was requested.
+    assert approval_route.called
+    sent_body = json.loads(approval_route.calls[0].request.content)
+    assert sent_body["agent_id"] == "deployer"
+    assert sent_body["requested_scope"] == ["deploy:prod"]
+    assert sent_body["intent"] == "Deploy to production"
+
+    # interrupt() was called with the challenge payload.
+    assert len(captured_payloads) == 1
+    payload = captured_payloads[0]
+    assert payload["attest_approval"]["challenge_id"] == "hitl_test_123"
+    assert payload["attest_approval"]["child_agent_id"] == "deployer"
+
+    # Grant was called.
+    assert grant_route.called
+
+    # Result has the HITL credential stored.
+    assert "deployer" in result["attest_tokens"]
+    assert result["attest_tokens"]["deployer"]  # non-empty JWT
+
+
+@respx.mock
+def test_gated_delegate_raises_on_denial(monkeypatch):
+    """gated_delegate() raises AttestApprovalDenied when human denies."""
+    from attest.client import AttestApprovalDenied
+
+    parent_token = _fake_token(["deploy:prod"], agent_id="orchestrator")
+
+    respx.post(f"{BASE_URL}/v1/approvals").mock(
+        return_value=httpx.Response(200, json={
+            "challenge_id": "hitl_denied_1",
+            "status": "pending",
+        })
+    )
+
+    def fake_interrupt(payload):
+        return {"denied": True}
+
+    import types as _types
+    import sys
+    fake_module = _types.ModuleType("langgraph.types")
+    fake_module.interrupt = fake_interrupt  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "langgraph.types", fake_module)
+
+    node = AttestNodes.gated_delegate(
+        client=_sync_client(),
+        parent_agent_id="orchestrator",
+        child_agent_id="deployer",
+        child_scope=["deploy:prod"],
+    )
+
+    state = {"attest_tokens": {"orchestrator": parent_token}}
+    with pytest.raises(AttestApprovalDenied):
+        node(state)
+
+
+def test_gated_delegate_raises_when_parent_missing():
+    """gated_delegate() raises RuntimeError if parent token is missing."""
+    node = AttestNodes.gated_delegate(
+        client=_sync_client(),
+        parent_agent_id="missing-parent",
+        child_agent_id="deployer",
+        child_scope=["deploy:prod"],
+    )
+
+    state: dict = {"attest_tokens": {}}
+    with pytest.raises(RuntimeError, match="no credential found for parent agent"):
+        node(state)
