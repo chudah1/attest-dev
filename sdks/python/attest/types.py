@@ -301,7 +301,7 @@ class ApprovalStatus:
     @classmethod
     def from_dict(cls, d: dict) -> "ApprovalStatus":
         return cls(
-            id=d.get("id", ""),
+            id=d.get("id") or d.get("challenge_id", ""),
             agent_id=d.get("agent_id", ""),
             att_tid=d.get("att_tid", ""),
             intent=d.get("intent", ""),

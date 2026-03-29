@@ -133,6 +133,38 @@ graph.add_node("cleanup", AttestNodes.revoke(
 ))
 ```
 
+## LangGraph HITL approval
+
+For high-risk handoffs, use `AttestNodes.gated_delegate(...)` so the graph pauses on a LangGraph `interrupt()` until a human approves:
+
+```python
+from attest.integrations.langgraph import AttestNodes
+
+graph.add_node("approve_prod_deploy", AttestNodes.gated_delegate(
+    client=client,
+    parent_agent_id="orchestrator-v1",
+    child_agent_id="deploy-agent",
+    child_scope=["deploy:prod"],
+    intent="Deploy the approved release to production",
+))
+```
+
+If you are using `AttestStateGraph`, you can also require approval declaratively in `scope_map`:
+
+```python
+graph = AttestStateGraph(
+    MyState,
+    client=client,
+    scope_map={
+        "deploy_node": {
+            "scope": ["deploy:prod"],
+            "require_approval": True,
+            "intent": "Deploy the approved release to production",
+        },
+    },
+)
+```
+
 ## Anthropic SDK integration
 
 ```python
@@ -160,6 +192,19 @@ with AttestSession(
 
 # Exiting revokes the root credential and all descendants
 ```
+
+For approval-gated delegation:
+
+```python
+child = session.delegate(
+    "deploy-agent",
+    ["deploy:prod"],
+    require_approval=True,
+    intent="Deploy the approved release to production",
+)
+```
+
+This path waits for a human approval challenge to resolve before continuing with the narrowed child credential.
 
 ## Offline verification note
 

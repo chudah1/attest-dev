@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import TYPE_CHECKING
 
 import urllib.parse
@@ -71,6 +72,23 @@ class AttestScopeError(AttestError):
             f"Tool '{tool}' requires scope '{required_scope}'; "
             f"credential {jti} only grants {granted_scope}"
         )
+
+
+class AttestApprovalDenied(AttestError):
+    """Raised when a HITL approval challenge is denied."""
+
+    def __init__(self, challenge_id: str) -> None:
+        self.challenge_id = challenge_id
+        super().__init__(f"Approval {challenge_id} was denied")
+
+
+class AttestApprovalTimeout(AttestError):
+    """Raised when polling for HITL approval exceeds the timeout."""
+
+    def __init__(self, challenge_id: str, timeout: float) -> None:
+        self.challenge_id = challenge_id
+        self.timeout = timeout
+        super().__init__(f"Approval {challenge_id} timed out after {timeout}s")
 
 
 # ---------------------------------------------------------------------------
@@ -312,25 +330,51 @@ class AttestClient:
             status=data["status"],
         )
 
-    def grant_approval(self, challenge_id: str, id_token: str) -> None:
-        """Grant a pending approval challenge using an OIDC identity token."""
+    def grant_approval(self, challenge_id: str, id_token: str) -> DelegatedToken:
+        """Grant a pending approval challenge using an OIDC identity token.
+
+        Returns the delegated credential issued by the server with HITL claims
+        (``att_hitl_req``, ``att_hitl_uid``, ``att_hitl_iss``) baked in.
+        """
         cid = urllib.parse.quote(challenge_id)
         resp = self._http.post(f"/v1/approvals/{cid}/grant", json={"id_token": id_token})
         _raise_for_status(resp)
+        result = _parse_token_response(resp.json(), delegated=True)
+        assert isinstance(result, DelegatedToken)
+        return result
 
-    def get_approval(self, challenge_id: str) -> ApprovalChallenge:
-        """Get the status of an approval challenge."""
+    def get_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Get the full status of an approval challenge."""
         cid = urllib.parse.quote(challenge_id)
         resp = self._http.get(f"/v1/approvals/{cid}")
         _raise_for_status(resp)
-        return ApprovalChallenge(**resp.json())
+        return ApprovalStatus.from_dict(resp.json())
 
-    def deny_approval(self, challenge_id: str) -> None:
-        """Deny an approval challenge."""
+    def deny_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Deny an approval challenge and return the resolved status."""
         cid = urllib.parse.quote(challenge_id)
         resp = self._http.post(f"/v1/approvals/{cid}/deny", json={})
         _raise_for_status(resp)
         return ApprovalStatus.from_dict(resp.json())
+
+    def wait_for_approval(
+        self,
+        challenge_id: str,
+        *,
+        poll_interval: float = 2.0,
+        timeout: float = 300.0,
+    ) -> ApprovalStatus:
+        """Poll an approval challenge until it resolves or times out."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            status = self.get_approval(challenge_id)
+            if status.status == "approved":
+                return status
+            if status.status in ("rejected", "expired"):
+                raise AttestApprovalDenied(challenge_id)
+            time.sleep(poll_interval)
+
+        raise AttestApprovalTimeout(challenge_id, timeout)
 
     def revoke(self, jti: str, revoked_by: str | None = None) -> None:
         """Revoke a credential by its JTI."""
@@ -528,25 +572,53 @@ class AsyncAttestClient:
             status=data["status"],
         )
 
-    async def grant_approval(self, challenge_id: str, id_token: str) -> None:
-        """Grant a pending approval challenge using an OIDC identity token."""
+    async def grant_approval(self, challenge_id: str, id_token: str) -> DelegatedToken:
+        """Grant a pending approval challenge using an OIDC identity token.
+
+        Returns the delegated credential issued by the server with HITL claims
+        (``att_hitl_req``, ``att_hitl_uid``, ``att_hitl_iss``) baked in.
+        """
         cid = urllib.parse.quote(challenge_id)
         resp = await self._http.post(f"/v1/approvals/{cid}/grant", json={"id_token": id_token})
         _raise_for_status(resp)
+        result = _parse_token_response(resp.json(), delegated=True)
+        assert isinstance(result, DelegatedToken)
+        return result
 
-    async def get_approval(self, challenge_id: str) -> ApprovalChallenge:
-        """Get the status of an approval challenge."""
+    async def get_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Get the full status of an approval challenge."""
         cid = urllib.parse.quote(challenge_id)
         resp = await self._http.get(f"/v1/approvals/{cid}")
         _raise_for_status(resp)
-        return ApprovalChallenge(**resp.json())
+        return ApprovalStatus.from_dict(resp.json())
 
-    async def deny_approval(self, challenge_id: str) -> None:
-        """Deny an approval challenge."""
+    async def deny_approval(self, challenge_id: str) -> ApprovalStatus:
+        """Deny an approval challenge and return the resolved status."""
         cid = urllib.parse.quote(challenge_id)
         resp = await self._http.post(f"/v1/approvals/{cid}/deny", json={})
         _raise_for_status(resp)
         return ApprovalStatus.from_dict(resp.json())
+
+    async def wait_for_approval(
+        self,
+        challenge_id: str,
+        *,
+        poll_interval: float = 2.0,
+        timeout: float = 300.0,
+    ) -> ApprovalStatus:
+        """Poll an approval challenge until it resolves or times out."""
+        import asyncio as _asyncio
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            status = await self.get_approval(challenge_id)
+            if status.status == "approved":
+                return status
+            if status.status in ("rejected", "expired"):
+                raise AttestApprovalDenied(challenge_id)
+            await _asyncio.sleep(poll_interval)
+
+        raise AttestApprovalTimeout(challenge_id, timeout)
 
     async def revoke(self, jti: str, revoked_by: str | None = None) -> None:
         """Revoke a credential by its JTI."""

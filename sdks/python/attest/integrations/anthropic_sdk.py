@@ -42,11 +42,18 @@ from __future__ import annotations
 import contextvars
 import functools
 import inspect
+import time
 import warnings
 from typing import Any
 
 from attest.checksum import compute_agent_checksum
-from attest.client import AsyncAttestClient, AttestClient, AttestScopeError
+from attest.client import (
+    AsyncAttestClient,
+    AttestApprovalDenied,
+    AttestApprovalTimeout,
+    AttestClient,
+    AttestScopeError,
+)
 from attest.scope import is_subset
 from attest.types import AttestClaims, AttestToken, DelegateParams, DelegatedToken, IssueParams
 
@@ -224,6 +231,10 @@ class AttestSession:
         child_agent: str,
         child_scope: list[str],
         ttl_seconds: int | None = None,
+        require_approval: bool = False,
+        intent: str = "",
+        poll_interval: float = 2.0,
+        poll_timeout: float = 300.0,
     ) -> DelegatedToken:
         """Issue a delegated credential for a child agent.
 
@@ -236,6 +247,18 @@ class AttestSession:
             session's scope.
         ttl_seconds:
             Optional TTL cap for the delegated credential.
+        require_approval:
+            If ``True``, create a HITL approval challenge and poll until
+            a human approves or denies it.  The resulting credential will
+            carry ``att_hitl_req/uid/iss`` claims.
+        intent:
+            Human-readable description of what the child will do.  Shown
+            in the approval UI when ``require_approval=True``.
+        poll_interval:
+            Seconds between polls when waiting for approval (default 2s).
+        poll_timeout:
+            Maximum seconds to wait for approval before raising
+            ``AttestApprovalTimeout`` (default 300s / 5 min).
 
         Returns
         -------
@@ -245,11 +268,44 @@ class AttestSession:
         ------
         RuntimeError
             If called outside of the ``with`` block.
+        AttestApprovalDenied
+            If the human denies the approval.
+        AttestApprovalTimeout
+            If polling exceeds *poll_timeout*.
         """
         if not self._active or self._token_obj is None:
             raise RuntimeError(
                 "AttestSession.delegate() called outside of 'with' block"
             )
+
+        if not require_approval:
+            return self._client.delegate(
+                DelegateParams(
+                    parent_token=self._token_obj.token,
+                    child_agent=child_agent,
+                    child_scope=child_scope,
+                    ttl_seconds=ttl_seconds,
+                )
+            )
+
+        # --- HITL approval path ---
+        challenge = self._client.request_approval(
+            parent_token=self._token_obj.token,
+            agent_id=child_agent,
+            task_id=self._token_obj.claims.att_tid,
+            intent=intent or f"Delegate to {child_agent}",
+            requested_scope=child_scope,
+        )
+
+        # Today the external approval surface confirms the gate, then the
+        # session issues a narrowed child credential to continue execution.
+        # This keeps the orchestration flow simple even when the human approves
+        # outside the current process.
+        self._client.wait_for_approval(
+            challenge.challenge_id,
+            poll_interval=poll_interval,
+            timeout=poll_timeout,
+        )
         return self._client.delegate(
             DelegateParams(
                 parent_token=self._token_obj.token,
@@ -394,6 +450,10 @@ class AsyncAttestSession:
         child_agent: str,
         child_scope: list[str],
         ttl_seconds: int | None = None,
+        require_approval: bool = False,
+        intent: str = "",
+        poll_interval: float = 2.0,
+        poll_timeout: float = 300.0,
     ) -> DelegatedToken:
         """Issue a delegated credential for a child agent (async).
 
@@ -405,6 +465,15 @@ class AsyncAttestSession:
             Narrowed scope for the child.
         ttl_seconds:
             Optional TTL cap.
+        require_approval:
+            If ``True``, create a HITL approval challenge and poll until
+            a human approves or denies.
+        intent:
+            Description of the child's task (shown in approval UI).
+        poll_interval:
+            Seconds between polls (default 2s).
+        poll_timeout:
+            Max seconds to wait (default 300s).
 
         Returns
         -------
@@ -414,11 +483,42 @@ class AsyncAttestSession:
         ------
         RuntimeError
             If called outside of the ``async with`` block.
+        AttestApprovalDenied
+            If the approval is denied.
+        AttestApprovalTimeout
+            If polling exceeds *poll_timeout*.
         """
         if not self._active or self._token_obj is None:
             raise RuntimeError(
                 "AsyncAttestSession.async_delegate() called outside of 'async with' block"
             )
+
+        if not require_approval:
+            return await self._client.delegate(
+                DelegateParams(
+                    parent_token=self._token_obj.token,
+                    child_agent=child_agent,
+                    child_scope=child_scope,
+                    ttl_seconds=ttl_seconds,
+                )
+            )
+
+        # --- HITL approval path ---
+        import asyncio as _asyncio
+
+        challenge = await self._client.request_approval(
+            parent_token=self._token_obj.token,
+            agent_id=child_agent,
+            task_id=self._token_obj.claims.att_tid,
+            intent=intent or f"Delegate to {child_agent}",
+            requested_scope=child_scope,
+        )
+
+        await self._client.wait_for_approval(
+            challenge.challenge_id,
+            poll_interval=poll_interval,
+            timeout=poll_timeout,
+        )
         return await self._client.delegate(
             DelegateParams(
                 parent_token=self._token_obj.token,
