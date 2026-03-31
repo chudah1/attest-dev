@@ -208,7 +208,6 @@
 
     .workspace {
       display: grid;
-      grid-template-columns: minmax(0, 1.06fr) minmax(320px, 0.94fr);
       gap: 28px;
     }
 
@@ -571,9 +570,144 @@
       text-align: center;
     }
 
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      align-items: start;
+    }
+
+    .scenario-card {
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+      min-height: 100%;
+    }
+
+    .scenario-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .scenario-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+
+    .scenario-kicker::before {
+      content: "";
+      width: 20px;
+      height: 1px;
+      background: currentColor;
+      opacity: 0.55;
+    }
+
+    .scenario-card h3 {
+      font-size: 1.35rem;
+      letter-spacing: -0.03em;
+      margin-top: 4px;
+    }
+
+    .scenario-card p {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .scenario-card.before {
+      border-color: rgba(239, 68, 68, 0.28);
+      background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), var(--surface));
+    }
+
+    .scenario-card.after {
+      border-color: rgba(99, 102, 241, 0.35);
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.06), var(--surface));
+    }
+
+    .scenario-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .summary-chip {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 14px 12px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .summary-chip strong {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .summary-chip span {
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .risk-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .risk-item {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .risk-item strong {
+      font-size: 0.84rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .risk-item p {
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .comparison-banner {
+      margin-top: 18px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .comparison-banner strong {
+      font-size: 0.84rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .comparison-banner p {
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
     @media (max-width: 1024px) {
       .hero,
-      .workspace {
+      .scenario-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -591,7 +725,8 @@
       }
 
       .stats,
-      .credential-grid {
+      .credential-grid,
+      .scenario-summary {
         grid-template-columns: 1fr;
       }
 
@@ -641,43 +776,39 @@
     <section class="hero">
       <div class="panel hero-copy">
         <div class="eyebrow">Interactive Demo</div>
-        <h1>Authorize every handoff. Prove every tool call.</h1>
+        <h1>What happens when the orchestrator is compromised?</h1>
         <p>
-          This demo shows the product moment Attest is built for: a human authorizes a task,
-          an orchestrator delegates narrower authority to a sub-agent, the tool call is enforced,
-          and the full chain can still be verified later.
-        </p>
-        <p>
-          No mock dashboard theatre. Just the chain of authority, visible end to end.
+          This runs two copies of the same three-agent pipeline side by side. One has no credential scoping.
+          The other uses Attest. You compromise the orchestrator and see what each one does.
         </p>
         <div class="hero-points">
-          <span class="pill">Intent hash preserved</span>
-          <span class="pill">Scope narrows on delegation</span>
-          <span class="pill">Blocked calls are explicit</span>
-          <span class="pill">Revocation cascades</span>
+          <span class="pill">Compromised orchestrator</span>
+          <span class="pill">Inherited vs narrowed scope</span>
+          <span class="pill">No audit trail vs signed evidence</span>
+          <span class="pill">No cascade revoke vs full shutdown</span>
         </div>
       </div>
 
       <aside class="panel hero-side">
         <div class="proof-card">
-          <h2>What this proves</h2>
+          <h2>What this shows</h2>
           <p>
-            Attest is not just an audit log. It is evidence that a specific tool action
-            came from a bounded chain of delegated authority rooted in a human instruction.
+            Whether child agents keep running with broad access after a compromise, whether out-of-scope
+            actions go through, and whether revoking the root actually stops the children.
           </p>
         </div>
         <div class="stats">
           <div class="stat">
-            <strong>1</strong>
-            <span>root credential</span>
+            <strong>2</strong>
+            <span>pipelines compared</span>
           </div>
           <div class="stat">
             <strong>1</strong>
-            <span>delegated child</span>
+            <span>compromise event</span>
           </div>
           <div class="stat">
-            <strong>3</strong>
-            <span>runtime outcomes</span>
+            <strong>4</strong>
+            <span>failure checks</span>
           </div>
         </div>
       </aside>
@@ -685,10 +816,9 @@
 
     <section class="workspace">
       <div class="panel controls">
-        <h2 class="section-title">Run the authority chain</h2>
+        <h2 class="section-title">Pipeline controls</h2>
         <p class="section-copy">
-          Start with a human instruction and choose the scopes the orchestrator is allowed to hold.
-          The child agent will receive only the minimum it needs.
+          Launch the pipeline, then step through a compromise. Both sides update at the same time.
         </p>
 
         <div class="form-grid">
@@ -703,7 +833,7 @@
           </div>
 
           <div class="field">
-            <label>Root scopes</label>
+            <label>Requested root scopes</label>
             <div class="scope-row" id="scope-row">
               <label class="scope-chip active"><input type="checkbox" value="research:read" checked /> research:read</label>
               <label class="scope-chip active"><input type="checkbox" value="email:send" checked /> email:send</label>
@@ -713,109 +843,159 @@
           </div>
 
           <div class="button-row">
-            <button class="btn-primary" id="run-btn">Issue root + delegate child</button>
-            <button class="btn-secondary" id="allowed-btn" disabled>Run allowed tool</button>
-            <button class="btn-secondary" id="blocked-btn" disabled>Attempt blocked tool</button>
-            <button class="btn-secondary" id="revoke-btn" disabled>Revoke task tree</button>
-            <button class="btn-secondary" id="verify-btn" disabled>Verify intent hash</button>
+            <button class="btn-primary" id="run-btn">Launch both pipelines</button>
+            <button class="btn-secondary" id="allowed-btn" disabled>Run expected child action</button>
+            <button class="btn-secondary" id="blocked-btn" disabled>Compromised orchestrator pivots</button>
+            <button class="btn-secondary" id="revoke-btn" disabled>Try shutdown / revoke</button>
+            <button class="btn-secondary" id="verify-btn" disabled>Generate contrast summary</button>
           </div>
         </div>
 
         <p class="mini-caption">
-          The child agent in this demo receives only <span class="mono">email:send</span>.
-          If the root lacks that scope, delegation fails.
+          Left side: children inherit the parent's full scope. Right side: each child gets only
+          <span class="mono">research:read</span> or <span class="mono">email:send</span>.
         </p>
 
-        <div class="credential-grid">
-          <article class="credential">
-            <h3>
-              Root credential
-              <span class="badge badge-off" id="root-status">Not issued</span>
-            </h3>
-            <div class="meta" id="root-meta">
-              <div><strong>Agent</strong><span>orchestrator-v1</span></div>
-              <div><strong>Scope</strong><span>Pick scopes, then run the flow.</span></div>
-              <div><strong>JTI</strong><span class="mono">-</span></div>
-              <div><strong>Intent</strong><span class="mono">-</span></div>
-            </div>
-          </article>
-
-          <article class="credential">
-            <h3>
-              Child credential
-              <span class="badge badge-off" id="child-status">Not delegated</span>
-            </h3>
-            <div class="meta" id="child-meta">
-              <div><strong>Agent</strong><span>email-agent-v1</span></div>
-              <div><strong>Scope</strong><span>Delegation has not happened yet.</span></div>
-              <div><strong>JTI</strong><span class="mono">-</span></div>
-              <div><strong>Chain</strong><span class="mono">-</span></div>
-            </div>
-          </article>
+        <div class="comparison-banner" id="comparison-banner">
+          <strong>What to watch for</strong>
+          <p>
+            After the compromise step: does the child agent's CRM write go through? Is there a record of
+            who authorized what? Does killing the root actually stop the children?
+          </p>
         </div>
       </div>
 
-      <aside class="panel timeline">
-        <h2 class="section-title">Audit timeline</h2>
-        <p class="section-copy">
-          Each step adds an event to the task timeline. The important moments are not only what succeeds,
-          but also what gets blocked and when revocation changes the runtime state.
-        </p>
-
-        <div class="timeline-list" id="timeline-list"></div>
-
-        <div class="verify-panel" id="verify-panel">
-          <h3>Verification state</h3>
-          <p id="verify-text">
-            Issue a credential first, then recompute the instruction hash to show that the original human intent is still bound to the chain.
-          </p>
-          <div class="mono" id="verify-hash">intent_hash: -</div>
-        </div>
-
-        <div class="evidence-panel">
-          <h3>Evidence packet</h3>
+      <div class="scenario-grid">
+        <aside class="panel scenario-card before">
+          <div class="scenario-head">
+            <div>
+              <div class="scenario-kicker">Before Attest</div>
+              <h3>No scoped delegation</h3>
+            </div>
+            <span class="badge badge-off" id="before-status">Exposed</span>
+          </div>
           <p>
-            Generate an exportable artifact that bundles the instruction hash, delegation chain, runtime events, and verification result into one audit-ready packet.
+            Children inherit the orchestrator's full access. No delegation chain, no scope narrowing.
           </p>
-          <div class="evidence-grid" id="evidence-grid">
-            <div class="evidence-row"><strong>Status</strong><span>Not generated</span></div>
-            <div class="evidence-row"><strong>Packet hash</strong><span class="mono">-</span></div>
-            <div class="evidence-row"><strong>Tree summary</strong><span>Root, child, events, and verification state will appear here.</span></div>
-          </div>
-          <div class="packet-box" id="packet-box">Generate the packet to view the JSON evidence export.</div>
-          <div class="evidence-actions">
-            <button class="btn-primary" id="packet-btn" disabled>Generate evidence packet</button>
-            <button class="btn-secondary" id="copy-packet-btn" disabled>Copy packet JSON</button>
-            <button class="btn-secondary" id="download-packet-btn" disabled>Download packet</button>
-          </div>
-        </div>
 
-        <div class="footer-actions">
-          <a class="pill" href="https://api.attestdev.com/dashboard">Open dashboard</a>
-          <a class="pill" href="./verify.html">Verify a packet</a>
-          <a class="pill" href="https://github.com/chudah1/attest-dev">View repo</a>
-        </div>
-      </aside>
+          <div class="scenario-summary" id="before-summary">
+            <div class="summary-chip"><strong>Child scopes</strong><span>Not started</span></div>
+            <div class="summary-chip"><strong>Audit trail</strong><span>None</span></div>
+            <div class="summary-chip"><strong>Shutdown</strong><span>Unknown</span></div>
+          </div>
+
+          <div class="risk-list">
+            <div class="risk-item">
+              <strong>Pipeline state</strong>
+              <p id="before-state">Launch the demo to show the insecure pipeline.</p>
+            </div>
+            <div class="risk-item">
+              <strong>Blast radius</strong>
+              <p id="before-radius">The compromised orchestrator has not tried to pivot yet.</p>
+            </div>
+            <div class="risk-item">
+              <strong>Visibility</strong>
+              <p id="before-visibility">No audit evidence has been generated.</p>
+            </div>
+          </div>
+
+          <div class="timeline-list" id="before-timeline"></div>
+        </aside>
+
+        <aside class="panel scenario-card after">
+          <div class="scenario-head">
+            <div>
+              <div class="scenario-kicker">With Attest</div>
+              <h3>Scoped delegation with Attest</h3>
+            </div>
+            <span class="badge badge-ok" id="after-status">Controlled</span>
+          </div>
+          <p>
+            Each child gets a signed credential with only the scope it needs. Out-of-scope calls are blocked.
+          </p>
+
+          <div class="scenario-summary" id="after-summary">
+            <div class="summary-chip"><strong>Child scopes</strong><span>Not started</span></div>
+            <div class="summary-chip"><strong>Evidence</strong><span>Pending</span></div>
+            <div class="summary-chip"><strong>Shutdown</strong><span>Pending</span></div>
+          </div>
+
+          <div class="risk-list">
+            <div class="risk-item">
+              <strong>Pipeline state</strong>
+              <p id="after-state">Launch the demo to issue the root and delegated children.</p>
+            </div>
+            <div class="risk-item">
+              <strong>Containment</strong>
+              <p id="after-radius">The compromised orchestrator has not tried to exceed delegated scope yet.</p>
+            </div>
+            <div class="risk-item">
+              <strong>Verification</strong>
+              <p id="after-visibility">Evidence packet not generated yet.</p>
+            </div>
+          </div>
+
+          <div class="timeline-list" id="after-timeline"></div>
+
+          <div class="verify-panel" id="verify-panel">
+            <h3>Contrast summary</h3>
+            <p id="verify-text">
+              Trigger the compromise and shutdown steps to summarize the difference between broad inherited permissions and Attest-protected delegation.
+            </p>
+            <div class="mono" id="verify-hash">intent_hash: -</div>
+          </div>
+
+          <div class="evidence-panel">
+            <h3>Evidence packet</h3>
+            <p>
+              Exportable JSON containing the instruction hash, delegation chain, blocked actions, and revocation state.
+            </p>
+            <div class="evidence-grid" id="evidence-grid">
+              <div class="evidence-row"><strong>Status</strong><span>Not generated</span></div>
+              <div class="evidence-row"><strong>Packet hash</strong><span class="mono">-</span></div>
+              <div class="evidence-row"><strong>Tree summary</strong><span>Launch the Attest pipeline to build a packet.</span></div>
+            </div>
+            <div class="packet-box" id="packet-box">Generate the packet to view the Attest evidence export.</div>
+            <div class="evidence-actions">
+              <button class="btn-primary" id="packet-btn" disabled>Generate evidence packet</button>
+              <button class="btn-secondary" id="copy-packet-btn" disabled>Copy packet JSON</button>
+              <button class="btn-secondary" id="download-packet-btn" disabled>Download packet</button>
+            </div>
+          </div>
+        </aside>
+      </div>
     </section>
 
     <p class="note">
-      Demo note: this page simulates Attest's product flow in the browser so the proof is visible immediately.
-      The production implementation lives in the server and SDKs.
+      Demo note: this page simulates both pipelines in-browser so the before/after failure mode is visible immediately.
+      The production implementation lives in the server, dashboard app, and SDKs.
     </p>
   </div>
 
   <script>
     const state = {
-      root: null,
-      child: null,
-      revoked: false,
-      issuedAt: null,
-      events: [],
-      verifyText: "",
+      intentHash: "",
       packet: null,
+      before: {
+        launched: false,
+        compromised: false,
+        revoked: false,
+        childrenActive: false,
+        events: [],
+      },
+      after: {
+        launched: false,
+        compromised: false,
+        revoked: false,
+        root: null,
+        children: [],
+        events: [],
+      },
+      verifyText: "",
     };
 
-    const timelineList = document.getElementById("timeline-list");
+    const beforeTimeline = document.getElementById("before-timeline");
+    const afterTimeline = document.getElementById("after-timeline");
     const verifyText = document.getElementById("verify-text");
     const verifyHash = document.getElementById("verify-hash");
     const evidenceGrid = document.getElementById("evidence-grid");
@@ -847,60 +1027,96 @@
       const rootScopes = getSelectedScopes();
 
       if (!instruction || rootScopes.length === 0) {
-        addEvent("blocked", "Issuance blocked", "A root credential needs an instruction and at least one scope.");
+        addEvent("before", "blocked", "Launch blocked", "The comparison needs a human instruction and at least one requested scope.");
+        addEvent("after", "blocked", "Launch blocked", "Attest refused to issue the root because the request was incomplete.");
         render();
         return;
       }
 
       resetRuntime();
 
-      const intentHash = await sha256(instruction);
+      state.intentHash = await sha256(instruction);
+
+      state.before.launched = true;
+      state.before.childrenActive = true;
+      addEvent(
+        "before",
+        "issued",
+        "Pipeline launched",
+        "Orchestrator spawned research-agent-v1 and email-agent-v1. Both got the parent's full scope.",
+        `child_scope=${rootScopes.join(", ")}`
+      );
+      addEvent(
+        "before",
+        "allowed",
+        "Normal operations",
+        'research-agent-v1 pulled competitor notes. email-agent-v1 prepared the outbound summary.'
+      );
+
       const rootJti = makeId("root");
       const rootTid = makeId("tid");
-
-      state.root = {
+      state.after.launched = true;
+      state.after.root = {
         jti: rootJti,
         tid: rootTid,
         userId,
         agentId: "orchestrator-v1",
         scope: rootScopes,
-        intentHash,
-        chain: [rootJti],
+        intentHash: state.intentHash,
       };
-
-      state.issuedAt = new Date();
       addEvent(
+        "after",
         "issued",
         "Root credential issued",
-        `Attest bound the instruction to ${shortHash(intentHash)} and issued a root credential to orchestrator-v1.`,
+        `Issued scoped credential to orchestrator-v1. Instruction hashed as ${shortHash(state.intentHash)}.`,
         `scope=${rootScopes.join(", ")}`
       );
 
-      if (!rootScopes.includes("email:send")) {
-        state.child = null;
+      const delegatedChildren = [];
+      if (rootScopes.includes("research:read")) {
+        delegatedChildren.push({
+          agentId: "research-agent-v1",
+          scope: ["research:read"],
+          jti: makeId("child"),
+        });
+      }
+      if (rootScopes.includes("email:send")) {
+        delegatedChildren.push({
+          agentId: "email-agent-v1",
+          scope: ["email:send"],
+          jti: makeId("child"),
+        });
+      }
+
+      if (delegatedChildren.length === 0) {
         addEvent(
+          "after",
           "blocked",
           "Delegation blocked",
-          "The child agent requires email:send, but the root credential does not include it. Scope cannot expand during delegation."
+          "Attest would not launch child agents because none of the requested scopes could be safely delegated as minimum-scope children."
         );
         render();
         return;
       }
 
-      const childJti = makeId("child");
-      state.child = {
-        jti: childJti,
-        agentId: "email-agent-v1",
-        scope: ["email:send"],
-        chain: [rootJti, childJti],
+      state.after.children = delegatedChildren.map((child) => ({
+        ...child,
+        chain: [rootJti, child.jti],
         parent: rootJti,
-      };
+      }));
 
       addEvent(
+        "after",
         "delegated",
-        "Child credential delegated",
-        "The orchestrator delegated a narrower credential to email-agent-v1.",
-        `child_scope=email:send`
+        "Children delegated",
+        "Each child received a credential with only its required scope.",
+        state.after.children.map((child) => `${child.agentId}:${child.scope.join(",")}`).join(" | ")
+      );
+      addEvent(
+        "after",
+        "allowed",
+        "Normal operations",
+        'research-agent-v1 used research:read. email-agent-v1 used email:send.'
       );
 
       setEnabled(["allowed-btn", "blocked-btn", "revoke-btn", "verify-btn", "packet-btn"], true);
@@ -908,82 +1124,134 @@
     }
 
     function runAllowedTool() {
-      if (!state.child || state.revoked) return;
+      if (!state.before.launched || !state.after.launched) return;
 
       addEvent(
+        "before",
         "allowed",
-        "Allowed tool call",
-        'email-agent-v1 called "send_email" with email:send. The tool executed because the delegated scope covered it.',
-        `jti=${state.child.jti}`
+        "Child action",
+        'email-agent-v1 sent the leadership summary. Looks the same as the Attest side — broad access only matters when something goes wrong.'
+      );
+      const emailChild = state.after.children.find((child) => child.agentId === "email-agent-v1");
+      addEvent(
+        "after",
+        "allowed",
+        "Child action",
+        'email-agent-v1 sent the leadership summary using its delegated email:send credential.',
+        emailChild ? `jti=${emailChild.jti}` : ""
       );
       render();
     }
 
     function runBlockedTool() {
-      if (!state.child || state.revoked) return;
+      if (!state.before.launched || !state.after.launched) return;
+
+      state.before.compromised = true;
+      state.after.compromised = true;
 
       addEvent(
-        "blocked",
-        "Blocked tool call",
-        'email-agent-v1 attempted "crm_update_record". The call was denied because the child credential only grants email:send.',
+        "before",
+        "allowed",
+        "Pivot succeeded",
+        'Compromised orchestrator called crm_update_record through email-agent-v1. It went through — the child has the parent\'s full scope.',
         `required_scope=crm:write`
+      );
+      addEvent(
+        "before",
+        "blocked",
+        "No audit trail",
+        "The CRM was modified. There's no delegation record showing whether the child was supposed to have crm:write."
+      );
+      addEvent(
+        "after",
+        "blocked",
+        "Pivot blocked",
+        'Same crm_update_record call through email-agent-v1. Rejected — child credential only has email:send.',
+        `required_scope=crm:write`
+      );
+      addEvent(
+        "after",
+        "issued",
+        "Denial recorded",
+        "The blocked action, requested scope, and child credential are captured in the task evidence."
       );
       render();
     }
 
     function revokeTree() {
-      if (!state.root || state.revoked) return;
+      if (!state.before.launched || !state.after.launched) return;
 
-      state.revoked = true;
+      state.before.revoked = true;
+      state.before.childrenActive = true;
       addEvent(
+        "before",
+        "blocked",
+        "Shutdown failed",
+        "Orchestrator session killed, but both children kept running. No delegation chain to revoke."
+      );
+      state.after.revoked = true;
+      addEvent(
+        "after",
         "revoked",
-        "Task tree revoked",
-        "Revoking the root invalidated the full descendant chain immediately, including the child credential.",
-        `root_jti=${state.root.jti}`
+        "Tree revoked",
+        "Root revocation cascaded. Both child credentials are now invalid.",
+        state.after.root ? `root_jti=${state.after.root.jti}` : ""
       );
 
       setEnabled(["allowed-btn", "blocked-btn", "revoke-btn"], false);
       render();
     }
 
-    async function verifyIntent() {
-      if (!state.root) return;
+    function verifyIntent() {
+      if (!state.after.root) return;
 
-      const instruction = document.getElementById("instruction").value.trim();
-      const recomputed = await sha256(instruction);
-      const matches = recomputed === state.root.intentHash;
+      const childrenLabel = state.after.children.length
+        ? state.after.children.map((child) => `${child.agentId}:${child.scope.join(",")}`).join(" | ")
+        : "none";
 
-      state.verifyText = matches
-        ? "The recomputed hash matches the value embedded in the credential chain. Months later, this is the proof that the action path still maps back to the original human instruction."
-        : "The recomputed hash does not match. That means the instruction text changed and no longer matches the original authority chain.";
-
+      state.verifyText =
+        "Without scoping: CRM write went through, no audit trail, children survived shutdown. With Attest: pivot blocked, denial recorded, revoke cascaded.";
       verifyText.textContent = state.verifyText;
-      verifyHash.textContent = `intent_hash: ${recomputed}`;
+      verifyHash.textContent = `intent_hash: ${state.intentHash} | delegated=${childrenLabel}`;
 
       addEvent(
-        matches ? "allowed" : "blocked",
-        matches ? "Intent verified" : "Intent mismatch",
-        state.verifyText
+        "after",
+        "allowed",
+        "Contrast summary generated",
+        "The comparison now clearly shows the difference between inherited permissions and delegated authority.",
+        `delegated=${childrenLabel}`
       );
 
       render();
     }
 
     function resetRuntime() {
-      state.root = null;
-      state.child = null;
-      state.revoked = false;
-      state.events = [];
+      state.intentHash = "";
+      state.before = {
+        launched: false,
+        compromised: false,
+        revoked: false,
+        childrenActive: false,
+        events: [],
+      };
+      state.after = {
+        launched: false,
+        compromised: false,
+        revoked: false,
+        root: null,
+        children: [],
+        events: [],
+      };
       state.verifyText = "";
       state.packet = null;
-      verifyText.textContent = "Issue a credential first, then recompute the instruction hash to show that the original human intent is still bound to the chain.";
+      verifyText.textContent = "Trigger the compromise and shutdown steps to summarize the difference between broad inherited permissions and Attest-protected delegation.";
       verifyHash.textContent = "intent_hash: -";
       evidenceGrid.innerHTML = `
         <div class="evidence-row"><strong>Status</strong><span>Not generated</span></div>
         <div class="evidence-row"><strong>Packet hash</strong><span class="mono">-</span></div>
-        <div class="evidence-row"><strong>Tree summary</strong><span>Root, child, events, and verification state will appear here.</span></div>
+        <div class="evidence-row"><strong>Tree summary</strong><span>Launch the Attest pipeline to build a packet.</span></div>
       `;
-      packetBox.textContent = "Generate the packet to view the JSON evidence export.";
+      packetBox.textContent = "Generate the packet to view the Attest evidence export.";
       setEnabled(["allowed-btn", "blocked-btn", "revoke-btn", "verify-btn", "packet-btn", "copy-packet-btn", "download-packet-btn"], false);
     }
 
@@ -997,8 +1265,8 @@
       return Array.from(document.querySelectorAll(".scope-chip input:checked")).map((el) => el.value);
     }
 
-    function addEvent(kind, title, body, meta = "") {
-      state.events.unshift({
+    function addEvent(side, kind, title, body, meta = "") {
+      state[side].events.unshift({
         kind,
         title,
         body,
@@ -1008,25 +1276,22 @@
     }
 
     function render() {
-      renderCredential("root", state.root, state.revoked);
-      renderCredential("child", state.child, state.revoked);
+      renderBefore();
+      renderAfter();
       renderPacket();
-
-      timelineList.innerHTML = state.events.length
-        ? state.events.map(renderEvent).join("")
-        : `<div class="event"><div class="event-head"><div class="event-title">No events yet</div><div class="event-time">waiting</div></div><p>Run the flow to issue a credential, delegate a child, and inspect the audit sequence.</p></div>`;
     }
 
     async function generatePacket() {
-      if (!state.root) return;
+      if (!state.after.root) return;
 
       const packet = await buildPacket();
       state.packet = packet;
-      state.verifyText = state.verifyText || "The packet is ready for export and contains the authority chain plus the runtime evidence.";
+      state.verifyText = state.verifyText || "The packet is ready for export and contains the delegated children, blocked pivot attempt, and cascade revoke state.";
       addEvent(
+        "after",
         "issued",
         "Evidence packet generated",
-        "The demo packaged the full task tree into an exportable audit artifact.",
+        "The demo packaged the full Attest task tree into an exportable audit artifact.",
         `packet_hash=${packet.packet_hash}`
       );
       render();
@@ -1038,22 +1303,26 @@
         schema_version: "1.0",
         generated_at: new Date().toISOString(),
         human: {
-          user_id: state.root.userId,
+          user_id: state.after.root.userId,
           instruction: document.getElementById("instruction").value.trim(),
-          instruction_hash: state.root.intentHash,
+          instruction_hash: state.after.root.intentHash,
         },
         authority_chain: {
-          root_jti: state.root.jti,
-          child_jti: state.child ? state.child.jti : null,
-          scopes: state.root.scope,
-          delegated_scopes: state.child ? state.child.scope : [],
-          revoked: state.revoked,
+          root_jti: state.after.root.jti,
+          child_jtis: state.after.children.map((child) => child.jti),
+          scopes: state.after.root.scope,
+          delegated_scopes: state.after.children.map((child) => ({
+            agent_id: child.agentId,
+            scope: child.scope,
+          })),
+          revoked: state.after.revoked,
         },
         verification: {
-          intent_matches: state.verifyText ? state.verifyText.toLowerCase().includes("matches") : false,
-          task_tree_valid: Boolean(state.root && state.child),
+          compromised_orchestrator_contained: state.after.compromised,
+          revoke_cascaded: state.after.revoked,
+          contrast_summary_generated: Boolean(state.verifyText),
         },
-        events: state.events
+        events: state.after.events
           .filter((event) => event.title !== "Evidence packet generated")
           .map((event) => ({
             kind: event.kind,
@@ -1090,9 +1359,9 @@
       const packet = state.packet;
       const summary = [
         `Root: ${packet.authority_chain.root_jti}`,
-        `Child: ${packet.authority_chain.child_jti || "n/a"}`,
+        `Children: ${packet.authority_chain.child_jtis.length}`,
         `Scopes: ${packet.authority_chain.scopes.join(", ")}`,
-        `Verified: ${packet.verification.intent_matches ? "yes" : "no"}`,
+        `Contained: ${packet.verification.compromised_orchestrator_contained ? "yes" : "no"}`,
         `Revoked: ${packet.authority_chain.revoked ? "yes" : "no"}`,
       ].join(" | ");
 
@@ -1134,34 +1403,51 @@
       URL.revokeObjectURL(url);
     }
 
-    function renderCredential(prefix, credential, revoked) {
-      const statusEl = document.getElementById(`${prefix}-status`);
-      const metaEl = document.getElementById(`${prefix}-meta`);
+    function renderBefore() {
+      document.getElementById("before-status").textContent = state.before.revoked ? "Still exposed" : state.before.compromised ? "Compromised" : state.before.launched ? "Running" : "Exposed";
+      document.getElementById("before-summary").innerHTML = `
+        <div class="summary-chip"><strong>Child scopes</strong><span>${state.before.launched ? getSelectedScopes().join(", ") : "Not started"}</span></div>
+        <div class="summary-chip"><strong>Audit trail</strong><span>${state.before.compromised ? "Partial at best" : "None"}</span></div>
+        <div class="summary-chip"><strong>Shutdown</strong><span>${state.before.revoked ? "Children still live" : "Unknown"}</span></div>
+      `;
+      document.getElementById("before-state").textContent = state.before.launched
+        ? "research-agent-v1 and email-agent-v1 both inherited the orchestrator's full requested scope."
+        : "Launch the demo to show the insecure pipeline.";
+      document.getElementById("before-radius").textContent = state.before.compromised
+        ? "The attacker successfully pivoted into crm:write through email-agent-v1 because the child kept broad inherited access."
+        : "The compromised orchestrator has not tried to pivot yet.";
+      document.getElementById("before-visibility").textContent = state.before.revoked
+        ? "Killing the orchestrator did not prove which children should stop. Operators still cannot trust the surviving runtime state."
+        : state.before.compromised
+          ? "There is still no delegated credential chain or exportable evidence packet tying the action back to bounded authority."
+          : "No audit evidence has been generated.";
+      beforeTimeline.innerHTML = state.before.events.length
+        ? state.before.events.map(renderEvent).join("")
+        : `<div class="event"><div class="event-head"><div class="event-title">No events yet</div><div class="event-time">waiting</div></div><p>Launch the insecure pipeline to show how inherited permissions behave under compromise.</p></div>`;
+    }
 
-      if (!credential) {
-        statusEl.className = "badge badge-off";
-        statusEl.textContent = prefix === "root" ? "Not issued" : "Not delegated";
-        return;
-      }
-
-      statusEl.className = revoked ? "badge badge-off" : "badge badge-ok";
-      statusEl.textContent = revoked ? "Revoked" : "Active";
-
-      if (prefix === "root") {
-        metaEl.innerHTML = `
-          <div><strong>Agent</strong><span>${credential.agentId}</span></div>
-          <div><strong>Scope</strong><span>${credential.scope.join(", ")}</span></div>
-          <div><strong>JTI</strong><span class="mono">${credential.jti}</span></div>
-          <div><strong>Intent</strong><span class="mono">${shortHash(credential.intentHash)}</span></div>
-        `;
-      } else {
-        metaEl.innerHTML = `
-          <div><strong>Agent</strong><span>${credential.agentId}</span></div>
-          <div><strong>Scope</strong><span>${credential.scope.join(", ")}</span></div>
-          <div><strong>JTI</strong><span class="mono">${credential.jti}</span></div>
-          <div><strong>Chain</strong><span class="mono">${credential.chain.join(" -> ")}</span></div>
-        `;
-      }
+    function renderAfter() {
+      document.getElementById("after-status").className = state.after.revoked ? "badge badge-off" : "badge badge-ok";
+      document.getElementById("after-status").textContent = state.after.revoked ? "Revoked" : state.after.compromised ? "Contained" : state.after.launched ? "Protected" : "Controlled";
+      document.getElementById("after-summary").innerHTML = `
+        <div class="summary-chip"><strong>Child scopes</strong><span>${state.after.children.length ? state.after.children.map((child) => child.scope.join(", ")).join(" | ") : "Not started"}</span></div>
+        <div class="summary-chip"><strong>Evidence</strong><span>${state.packet ? "Ready" : state.after.launched ? "Runtime captured" : "Pending"}</span></div>
+        <div class="summary-chip"><strong>Shutdown</strong><span>${state.after.revoked ? "Cascade complete" : "Pending"}</span></div>
+      `;
+      document.getElementById("after-state").textContent = state.after.launched
+        ? `Root ${state.after.root.agentId} delegated ${state.after.children.length} minimum-scope child credentials.`
+        : "Launch the demo to issue the root and delegated children.";
+      document.getElementById("after-radius").textContent = state.after.compromised
+        ? "The same pivot attempt was blocked because no child ever held crm:write."
+        : "The compromised orchestrator has not tried to exceed delegated scope yet.";
+      document.getElementById("after-visibility").textContent = state.packet
+        ? "The packet now contains the instruction hash, child chain, blocked pivot attempt, and cascade revoke result."
+        : state.after.compromised
+          ? "The denied pivot and delegated child scopes are already recorded in the task timeline."
+          : "Evidence packet not generated yet.";
+      afterTimeline.innerHTML = state.after.events.length
+        ? state.after.events.map(renderEvent).join("")
+        : `<div class="event"><div class="event-head"><div class="event-title">No events yet</div><div class="event-time">waiting</div></div><p>Launch the Attest pipeline to show scoped delegation, blocked pivots, and cascade revoke.</p></div>`;
     }
 
     function renderEvent(event) {
