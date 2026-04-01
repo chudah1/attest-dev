@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MCP quickstart — Attest</title>
-  <meta name="description" content="Protect one MCP tool with Attest in minutes: wrap the server, expose scopes, issue the right credential, and prove allow/block behavior end to end." />
+  <meta name="description" content="Protect one MCP tool with Attest: wrap the server, issue the right scope, block the wrong call, and leave behind proof you can verify later." />
   <meta property="og:title" content="MCP quickstart — Attest" />
-  <meta property="og:description" content="Protect one MCP tool with Attest in minutes. Wrap your server, expose scopes, issue credentials, and prove allow/block behavior." />
+  <meta property="og:description" content="Protect one MCP tool with Attest. Wrap your server, issue the right scope, block the wrong call, and leave behind proof." />
   <meta property="og:type" content="website" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
   <style>
@@ -574,8 +574,8 @@
     <section class="hero">
       <div class="hero-card">
         <div class="eyebrow">MCP quickstart</div>
-        <h1>Protect one MCP tool in minutes.</h1>
-        <p class="hero-copy">This is the fastest real path into Attest: wrap an existing MCP server with <code>withAttest()</code>, expose the scopes it needs, issue only those scopes, and prove one allowed call plus one blocked call end to end.</p>
+        <h1>Protect one MCP tool. See the result immediately.</h1>
+        <p class="hero-copy">This is the shortest real path into Attest: wrap an existing MCP server with <code>withAttest()</code>, issue only the scope that tool needs, watch one valid call go through, then block one that should never have been allowed.</p>
         <div class="hero-actions">
           <a class="hero-btn primary" href="#step-1">Start the quickstart</a>
           <a class="hero-btn secondary" href="./demo.html">See the product moment first</a>
@@ -591,21 +591,21 @@
       <aside class="side-card">
         <div>
           <div class="eyebrow" style="margin-bottom:0.45rem;">What success looks like</div>
-          <div class="side-title">You protect a real tool call, not just read about the protocol.</div>
+          <div class="side-title">You leave this page with one real protected tool call.</div>
         </div>
         <p class="side-copy">By the end of this page, your MCP server is credential-gated, the required scope is discoverable from the server itself, and the same task can flow into audit, evidence export, and verification.</p>
         <div class="success-list">
           <div class="success-item">
             <strong>Allowed tool call succeeds</strong>
-            <span>A credential with <code>email:send</code> reaches the handler.</span>
+            <span>A credential with <code>email:send</code> reaches the handler and does the work you expected.</span>
           </div>
           <div class="success-item">
             <strong>Out-of-scope tool call is blocked</strong>
-            <span>A credential missing the required scope gets a structured error.</span>
+            <span>A credential missing the required scope gets stopped before the handler runs.</span>
           </div>
           <div class="success-item">
-            <strong>Evidence exists immediately after</strong>
-            <span>The same task can be opened in the dashboard or verified from a packet.</span>
+            <strong>There is proof afterward</strong>
+            <span>The same task can be opened in the dashboard, exported as evidence, or verified from a packet.</span>
           </div>
         </div>
       </aside>
@@ -616,7 +616,7 @@
         <div class="section-head">
           <div>
             <div class="section-kicker">Activation path</div>
-            <div class="section-title">Copy the path that gets you to the first protected MCP tool fastest.</div>
+            <div class="section-title">Follow the path that gets you to a real protected MCP tool as fast as possible.</div>
           </div>
         </div>
 
@@ -626,7 +626,7 @@
               <div class="step-title">
                 <div class="step-index">01</div>
                 <div>
-                  <strong>Install the SDK and wrap the MCP server</strong>
+                  <strong>Wrap the server you already have</strong>
                   <span>Keep your existing tool registration flow. Attest sits in front of it.</span>
                 </div>
               </div>
@@ -650,8 +650,8 @@ protectedServer.tool("send_email", schema, handler);</code></pre>
               <div class="step-title">
                 <div class="step-index">02</div>
                 <div>
-                  <strong>Expose scopes from the server, then issue only what it needs</strong>
-                  <span>The MCP server should be the source of truth for required scopes.</span>
+                  <strong>Let the server declare its own scopes</strong>
+                  <span>The MCP server should be the source of truth for what each tool actually needs.</span>
                 </div>
               </div>
             </div>
@@ -684,8 +684,8 @@ curl -X POST https://api.attestdev.com/v1/credentials \
               <div class="step-title">
                 <div class="step-index">03</div>
                 <div>
-                  <strong>Prove the protected-tool moment</strong>
-                  <span>Run one allowed call, one blocked call, then inspect the result.</span>
+                  <strong>Run one good call and one bad one</strong>
+                  <span>Make the allowed path succeed, then prove the blocked path fails for the right reason.</span>
                 </div>
               </div>
             </div>
@@ -718,8 +718,8 @@ curl -X POST https://api.attestdev.com/v1/credentials \
         <div class="rail-block">
           <h3>Use this page when…</h3>
           <ul>
-            <li>you already have an MCP server and want the shortest path to a protected tool</li>
-            <li>you want to demo Attest with a real allow/block example</li>
+            <li>you already have an MCP server and want the fastest path to a protected tool</li>
+            <li>you want to show a real allow/block example instead of a protocol walkthrough</li>
             <li>you need a cleaner onboarding link than a full API reference</li>
           </ul>
         </div>

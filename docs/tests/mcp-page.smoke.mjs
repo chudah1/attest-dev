@@ -65,7 +65,7 @@ test('mcp quickstart page loads the core onboarding path and links', async (t) =
 
   await page.goto(`http://localhost:${port}/`);
 
-  await page.getByRole('heading', { name: /protect one mcp tool in minutes/i }).waitFor();
+  await page.getByRole('heading', { name: /protect one mcp tool\. see the result immediately\./i }).waitFor();
   await page.getByText(/withAttest\(\)/i).waitFor();
 
   const dashboardHref = await page.getByRole('link', { name: /inspect the task tree/i }).getAttribute('href');
