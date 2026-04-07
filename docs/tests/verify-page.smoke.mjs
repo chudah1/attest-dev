@@ -28,7 +28,7 @@ function serveStatic(rootDir) {
       const pathname = decodeURIComponent(url.pathname);
       let filePath;
       if (pathname.startsWith('/testdata/')) {
-        filePath = path.join(rootDir, pathname.replace(/^\/+/, ''));
+        filePath = path.join(rootDir, 'docs', pathname.replace(/^\/+/, ''));
       } else {
         let relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
         if (relative.endsWith('/')) relative += 'index.html';

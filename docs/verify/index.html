@@ -898,8 +898,8 @@
     async function loadSamplePacket() {
       try {
         const [packetRes, jwksRes] = await Promise.all([
-          fetch('../testdata/evidence/packet.json'),
-          fetch('../testdata/evidence/jwks.json'),
+          fetch('/testdata/evidence/packet.json'),
+          fetch('/testdata/evidence/jwks.json'),
         ]);
         document.getElementById('packet-input').value = await packetRes.text();
         document.getElementById('jwks-input').value = await jwksRes.text();
