@@ -26,8 +26,9 @@ function serveStatic(rootDir) {
     try {
       const url = new URL(req.url || '/', 'http://localhost');
       const pathname = decodeURIComponent(url.pathname);
-      const relative = pathname === '/' ? 'docs/mcp.html' : pathname.replace(/^\/+/, '');
-      const filePath = path.join(rootDir, relative);
+      let relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+      if (relative.endsWith('/')) relative += 'index.html';
+      const filePath = path.join(rootDir, 'docs', relative);
 
       if (!filePath.startsWith(rootDir)) {
         res.writeHead(403);
@@ -63,7 +64,7 @@ test('mcp quickstart page loads the core onboarding path and links', async (t) =
     await new Promise((resolve, reject) => server.close((err) => err ? reject(err) : resolve()));
   });
 
-  await page.goto(`http://localhost:${port}/`);
+  await page.goto(`http://localhost:${port}/mcp/`);
 
   await page.getByRole('heading', { name: /protect one mcp tool\. see the result immediately\./i }).waitFor();
   await page.getByText(/withAttest\(\)/i).waitFor();
@@ -72,5 +73,5 @@ test('mcp quickstart page loads the core onboarding path and links', async (t) =
   const verifyHref = await page.getByRole('link', { name: /verify the exported packet/i }).getAttribute('href');
 
   assert.equal(dashboardHref, 'https://api.attestdev.com/dashboard');
-  assert.equal(verifyHref, './verify.html');
+  assert.equal(verifyHref, '../verify/');
 });

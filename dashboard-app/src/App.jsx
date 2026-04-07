@@ -701,7 +701,7 @@ function OverviewPage({ org, apiKey, showKey, setShowKey, onCopyKey, onGoAudit, 
         <div className="quick-actions">
           <button className="btn btn-ghost btn-sm" type="button" onClick={onGoAudit}>Inspect task tree</button>
           <button className="btn btn-ghost btn-sm" type="button" onClick={onGoRevoke}>Revoke chain</button>
-          <a className="btn btn-ghost btn-sm" href="https://attestdev.com/demo.html">Open demo</a>
+          <a className="btn btn-ghost btn-sm" href="https://attestdev.com/demo/">Open demo</a>
         </div>
       </div>
     </section>

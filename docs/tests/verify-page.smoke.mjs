@@ -26,8 +26,14 @@ function serveStatic(rootDir) {
     try {
       const url = new URL(req.url || '/', 'http://localhost');
       const pathname = decodeURIComponent(url.pathname);
-      const relative = pathname === '/' ? 'docs/verify.html' : pathname.replace(/^\/+/, '');
-      const filePath = path.join(rootDir, relative);
+      let filePath;
+      if (pathname.startsWith('/testdata/')) {
+        filePath = path.join(rootDir, pathname.replace(/^\/+/, ''));
+      } else {
+        let relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+        if (relative.endsWith('/')) relative += 'index.html';
+        filePath = path.join(rootDir, 'docs', relative);
+      }
 
       if (!filePath.startsWith(rootDir)) {
         res.writeHead(403);
@@ -65,7 +71,7 @@ async function withVerifyPage(t, fn) {
   });
 
   const page = await context.newPage();
-  await page.goto(`http://localhost:${port}/docs/verify.html`);
+  await page.goto(`http://localhost:${port}/verify/`);
   await fn(page);
 }
 

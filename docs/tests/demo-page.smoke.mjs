@@ -25,8 +25,9 @@ function serveStatic(rootDir) {
     try {
       const url = new URL(req.url || '/', 'http://localhost');
       const pathname = decodeURIComponent(url.pathname);
-      const relative = pathname === '/' ? 'docs/demo.html' : pathname.replace(/^\/+/, '');
-      const filePath = path.join(rootDir, relative);
+      let relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+      if (relative.endsWith('/')) relative += 'index.html';
+      const filePath = path.join(rootDir, 'docs', relative);
 
       if (!filePath.startsWith(rootDir)) {
         res.writeHead(403);
@@ -64,7 +65,7 @@ async function withDemoPage(t, fn) {
   });
 
   const page = await context.newPage();
-  await page.goto(`http://localhost:${port}/docs/demo.html`);
+  await page.goto(`http://localhost:${port}/demo/`);
   await fn(page);
 }
 

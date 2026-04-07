@@ -132,7 +132,7 @@ token = client.issue(
 
 Attest provides a drop-in MCP (Model Context Protocol) server wrapper that enforces credential-based authorization on every tool call. The wrapper intercepts `tools/call` requests, checks the credential's scope against the requested tool, and produces evidence for every allow/block decision.
 
-Quickstart guide: https://attestdev.com/mcp.html
+Quickstart guide: https://attestdev.com/mcp/
 
 ## Credential format
 
@@ -153,10 +153,10 @@ Attest is specified as an IETF Internet-Draft: `draft-yakung-oauth-agent-attesta
 ## Links
 
 - Homepage: https://attestdev.com
-- API docs: https://attestdev.com/docs.html
-- MCP quickstart: https://attestdev.com/mcp.html
-- Evidence verifier: https://attestdev.com/verify.html
-- Interactive demo: https://attestdev.com/demo.html
+- API docs: https://attestdev.com/docs/
+- MCP quickstart: https://attestdev.com/mcp/
+- Evidence verifier: https://attestdev.com/verify/
+- Interactive demo: https://attestdev.com/demo/
 - GitHub: https://github.com/chudah1/attest-dev
 - npm SDK: https://www.npmjs.com/package/@attest-dev/sdk
 - PyPI SDK: https://pypi.org/project/attest-sdk/
