@@ -622,7 +622,6 @@ function App() {
       <nav className="top-nav">
         <div className="nav-brand">
           <div className="nav-logo">Attest<span>.</span></div>
-          <div className="nav-context">Dashboard</div>
         </div>
         <div className="nav-right">
           <div className="org-chip">Workspace: <strong>{orgView.name}</strong></div>
