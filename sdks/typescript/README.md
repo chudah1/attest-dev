@@ -112,6 +112,28 @@ This verifier checks:
 - the RS256 packet signature against the org JWKS
 - the audit `prev_hash -> entry_hash` chain
 
+## List recent task trees
+
+Use the task listing API when you need to recover recent work without already knowing the `att_tid`.
+
+```ts
+const recentTasks = await client.listTasks({
+  userId: "usr_alice",
+  status: "active",
+  limit: 10,
+});
+
+for (const task of recentTasks) {
+  console.log(task.att_tid, task.root_agent_id, task.last_event_type, task.revoked);
+}
+```
+
+You can filter by:
+- `userId`
+- `agentId`
+- `status` (`active` or `revoked`)
+- `limit`
+
 ## MCP middleware
 
 Enforce Attest credentials on every tool call in an MCP server — two lines:

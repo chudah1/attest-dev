@@ -249,3 +249,26 @@ print(verified.warnings)
 
 This verifier checks the packet hash, the RS256 packet signature, and the
 append-only audit hash chain.
+
+## List recent task trees
+
+Use task listing when you need to recover recent work without already knowing the `att_tid`.
+
+```python
+from attest import TaskListParams
+
+tasks = client.list_tasks(TaskListParams(
+    user_id="usr_alice",
+    status="active",
+    limit=10,
+))
+
+for task in tasks:
+    print(task.task_id, task.root_agent_id, task.last_event_type, task.revoked)
+```
+
+You can filter by:
+- `user_id`
+- `agent_id`
+- `status` (`active` or `revoked`)
+- `limit`
