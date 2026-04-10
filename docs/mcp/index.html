@@ -8,43 +8,29 @@
   <meta property="og:title" content="MCP quickstart — Attest" />
   <meta property="og:description" content="Protect one MCP tool with Attest. Wrap your server, issue the right scope, block the wrong call, and leave behind proof." />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='12' width='100' height='100' fill='%23111'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0a0a0f;
-      --surface: rgba(17, 17, 24, 0.84);
-      --surface-2: rgba(17, 17, 24, 0.95);
-      --surface-3: rgba(255, 255, 255, 0.05);
-      --line: #1e1e2e;
-      --line-strong: #2a2a3c;
-      --text: #e2e2f0;
-      --muted: #7b7b9a;
-      --accent: #6366f1;
-      --accent-2: #818cf8;
-      --green: #22c55e;
-      --red: #ef4444;
-      --amber: #f59e0b;
-      --shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
-      --radius-xl: 24px;
-      --radius-lg: 16px;
-      --radius-md: 12px;
-      --radius-sm: 8px;
-    }
-
-    [data-theme='light'] {
-      --bg: #f8fafc;
-      --surface: rgba(255, 255, 255, 0.84);
-      --surface-2: rgba(255, 255, 255, 0.95);
-      --surface-3: rgba(0, 0, 0, 0.03);
-      --line: #e2e8f0;
-      --line-strong: #cbd5e1;
-      --text: #0f172a;
-      --muted: #64748b;
-      --accent: #4f46e5;
-      --accent-2: #4338ca;
-      --shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+      --bg: #fafaf9;
+      --surface: #f0f0ee;
+      --surface-2: #fafaf9;
+      --surface-3: rgba(0, 0, 0, 0.02);
+      --line: #e0e0dd;
+      --line-strong: #ccccc8;
+      --text: #1a1a1a;
+      --muted: #606060;
+      --accent: #1a1a1a;
+      --accent-2: #444;
+      --green: #16a34a;
+      --red: #dc2626;
+      --amber: #d97706;
+      --shadow: 0 1px 3px rgba(0,0,0,0.05);
+      --radius-xl: 8px;
+      --radius-lg: 6px;
+      --radius-md: 6px;
+      --radius-sm: 4px;
     }
 
     body {
@@ -61,14 +47,13 @@
     nav {
       border-bottom: 1px solid var(--line);
       background: var(--surface-2);
-      backdrop-filter: blur(14px);
       position: sticky;
       top: 0;
       z-index: 20;
     }
 
     .nav-shell {
-      max-width: 1240px;
+      max-width: 980px;
       margin: 0 auto;
       padding: 0.65rem 2rem;
       display: flex;
@@ -84,8 +69,6 @@
       letter-spacing: -0.03em;
     }
 
-    .logo span { color: var(--accent-2); }
-
     nav ul {
       display: flex;
       list-style: none;
@@ -98,31 +81,17 @@
       color: var(--muted);
       font-size: 0.86rem;
       padding: 0.42rem 0.62rem;
-      border-radius: 999px;
+      border-radius: 6px;
     }
 
     nav ul a.active,
     nav ul a:hover {
       color: var(--text);
       text-decoration: none;
-      background: rgba(255, 255, 255, 0.025);
     }
-
-    .nav-cta {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.42rem;
-      padding: 0.42rem 0.8rem;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      background: var(--accent);
-      color: #fff !important;
-    }
-
-    .nav-cta:hover { background: var(--accent-2); text-decoration: none; }
     .nav-toggle { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 0.4rem; }
 
-    @media (max-width: 720px) {
+    @media (max-width: 860px) {
       .nav-toggle { display: flex; }
       nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 1rem 2rem; gap: 0.5rem; }
       nav ul.open { display: flex; }
@@ -161,17 +130,6 @@
       padding: 1.75rem 1.9rem;
       position: relative;
       overflow: hidden;
-    }
-
-    .hero-card::after {
-      content: "";
-      position: absolute;
-      inset: auto -9% -38% auto;
-      width: 280px;
-      height: 280px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.14), transparent 60%);
-      pointer-events: none;
     }
 
     .side-card {
@@ -215,7 +173,7 @@
       align-items: center;
       gap: 0.45rem;
       padding: 0.72rem 0.98rem;
-      border-radius: 999px;
+      border-radius: 6px;
       border: 1px solid transparent;
       font-size: 0.86rem;
       font-weight: 600;
@@ -223,9 +181,9 @@
     }
 
     .hero-btn.primary {
-      background: var(--accent);
+      background: var(--text);
       border-color: transparent;
-      color: #fff;
+      color: var(--bg);
     }
 
     .hero-btn.secondary {
@@ -243,7 +201,7 @@
       display: inline-flex;
       align-items: center;
       padding: 0.36rem 0.76rem;
-      border-radius: 999px;
+      border-radius: 6px;
       border: 1px solid var(--line-strong);
       background: var(--surface-3);
       color: var(--text);
@@ -353,9 +311,9 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: rgba(99, 102, 241, 0.12);
-      border: 1px solid rgba(99, 102, 241, 0.18);
-      color: var(--accent);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--muted);
       font: 700 0.84rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       flex-shrink: 0;
     }
@@ -464,15 +422,15 @@
       align-items: center;
       padding: 0.8rem 0.9rem;
       border-radius: var(--radius-md);
-      border: 1px solid rgba(142, 201, 255, 0.1);
-      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      background: var(--surface-3);
       color: var(--text);
     }
 
     .rail-link:hover {
       text-decoration: none;
-      border-color: rgba(99, 102, 241, 0.22);
-      background: rgba(99, 102, 241, 0.08);
+      border-color: var(--line-strong);
+      background: var(--surface);
     }
 
     .rail-link small {
@@ -508,7 +466,7 @@
     }
 
     footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.84rem; }
-    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; }
+    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
     footer a { color: var(--muted); text-decoration: none; }
     footer a:hover { color: var(--text); }
 
@@ -531,7 +489,7 @@
       .side-card,
       .panel,
       .subpanel {
-        border-radius: 22px;
+        border-radius: 8px;
       }
 
       .hero-card,
@@ -551,21 +509,20 @@
     }
   </style>
 
-<script>(function(){var s=localStorage.getItem('attest-theme');if(s==='light'||(!s&&window.matchMedia('(prefers-color-scheme: light)').matches))document.documentElement.setAttribute('data-theme','light');})();</script>
 </head>
 <body>
   <nav>
     <div class="nav-shell">
-      <a href="../" class="logo">Attest<span>.</span></a>
+      <a href="../" class="logo">Attest</a>
       <button class="nav-toggle" id="nav-toggle" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg></button>
       <ul id="nav-links">
         <li><a href="../">Home</a></li>
         <li><a href="../docs/">Docs</a></li>
         <li><a href="../mcp/" class="active">MCP</a></li>
         <li><a href="../verify/">Verify</a></li>
+        <li><a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a></li>
         <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-        <li><a href="../demo/" class="nav-cta">Demo</a></li>
-        <li style="display:inline-flex;align-items:center;"><button id="theme-toggle" aria-label="Toggle theme" style="background:none;border:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;padding:0.42rem;"><svg id="sun-icon" style="display:none;width:1.1rem;height:1.1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="moon-icon" style="display:none;width:1.1rem;height:1.1rem;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button></li>
+        <li><a href="../demo/">Demo</a></li>
       </ul>
     </div>
   </nav>
@@ -734,7 +691,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
               </div>
               <strong>↗</strong>
             </a>
-            <a class="rail-link" href="https://api.attestdev.com/dashboard">
+            <a class="rail-link" href="https://api.attestdev.com/dashboard" data-dashboard-link>
               <div>
                 <small>Ops surface</small>
                 <span>Inspect the task tree</span>
@@ -761,6 +718,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
 
 <footer>
   <div class="footer-links">
+    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a>
     <a href="https://github.com/chudah1/attest-dev">GitHub</a>
     <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
     <a href="https://pypi.org/project/attest-sdk/">PyPI</a>
@@ -771,11 +729,12 @@ curl -X POST https://api.attestdev.com/v1/credentials \
 
 <script>
 (function(){
-  var t=document.getElementById('theme-toggle'),s=document.getElementById('sun-icon'),m=document.getElementById('moon-icon');
-  function u(){var l=document.documentElement.getAttribute('data-theme')==='light';s.style.display=l?'block':'none';m.style.display=l?'none':'block';}
-  u();t&&t.addEventListener('click',function(){var l=document.documentElement.getAttribute('data-theme')==='light';document.documentElement.setAttribute('data-theme',l?'dark':'light');localStorage.setItem('attest-theme',l?'dark':'light');u();});
   var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
   nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
+  var isLocalHost=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+  var dashboardOverride=new URLSearchParams(window.location.search).get('dashboard_url')||window.localStorage.getItem('attest-dashboard-url');
+  var dashboardUrl=dashboardOverride||(isLocalHost?new URL('/dashboard',window.location.origin).toString():'https://api.attestdev.com/dashboard');
+  document.querySelectorAll('[data-dashboard-link]').forEach(function(link){link.setAttribute('href',dashboardUrl);});
 })();
 </script>
 </body>

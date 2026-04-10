@@ -72,6 +72,6 @@ test('mcp quickstart page loads the core onboarding path and links', async (t) =
   const dashboardHref = await page.getByRole('link', { name: /inspect the task tree/i }).getAttribute('href');
   const verifyHref = await page.getByRole('link', { name: /verify the exported packet/i }).getAttribute('href');
 
-  assert.equal(dashboardHref, 'https://api.attestdev.com/dashboard');
+  assert.equal(dashboardHref, `http://localhost:${port}/dashboard`);
   assert.equal(verifyHref, '../verify/');
 });

@@ -2,20 +2,24 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API = import.meta.env.VITE_API_BASE_URL || 'https://api.attestdev.com';
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
-const THEME_KEY = 'attest-theme';
 const KEY_STORAGE = 'attest_key';
+const SITE_URL_STORAGE = 'attest-site-url';
+const IS_LOCAL_HOST =
+  typeof window !== 'undefined' &&
+  /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
+const SITE_OVERRIDE =
+  typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('site_url') || window.localStorage.getItem(SITE_URL_STORAGE) || ''
+    : '';
+const SITE_BASE_URL = (SITE_OVERRIDE || import.meta.env.VITE_SITE_BASE_URL || (IS_LOCAL_HOST ? new URL('/docs', window.location.origin).toString() : 'https://attestdev.com')).replace(/\/$/, '');
+const SITE_HOME_URL = `${SITE_BASE_URL}/`;
+const SITE_DEMO_URL = `${SITE_BASE_URL}/demo/`;
 const PAGES = [
   { key: 'overview', label: 'Overview', icon: '◉' },
   { key: 'audit', label: 'Audit Log', icon: '≡' },
   { key: 'revoke', label: 'Revoke', icon: '✕' },
   { key: 'settings', label: 'Settings', icon: '⚙' },
 ];
-
-function getStoredTheme() {
-  const stored = localStorage.getItem(THEME_KEY);
-  if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-}
 
 function pick(obj, lower, upper, fallback = '—') {
   return obj?.[lower] ?? obj?.[upper] ?? fallback;
@@ -235,28 +239,7 @@ function downloadBlob(name, blob) {
   URL.revokeObjectURL(url);
 }
 
-function ThemeIcon({ theme }) {
-  return theme === 'light' ? (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  ) : (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="5" />
-      <line x1="12" y1="1" x2="12" y2="3" />
-      <line x1="12" y1="21" x2="12" y2="23" />
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-      <line x1="1" y1="12" x2="3" y2="12" />
-      <line x1="21" y1="12" x2="23" y2="12" />
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-    </svg>
-  );
-}
-
 function App() {
-  const [theme, setTheme] = useState(() => getStoredTheme());
   const [page, setPage] = useState('overview');
   const [apiKey, setApiKey] = useState('');
   const [org, setOrg] = useState(null);
@@ -277,11 +260,6 @@ function App() {
   const [revokeJti, setRevokeJti] = useState('');
   const [revokeBy, setRevokeBy] = useState('');
   const toastTimer = useRef(null);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
 
   useEffect(() => {
     const saved = localStorage.getItem(KEY_STORAGE);
@@ -586,12 +564,13 @@ function App() {
   return (
     <>
       <nav className="top-nav">
-        <div className="nav-logo">Attest<span>.</span></div>
+        <div className="nav-brand">
+          <div className="nav-logo">Attest<span>.</span></div>
+          <div className="nav-context">Dashboard</div>
+        </div>
         <div className="nav-right">
           <div className="org-chip">Workspace: <strong>{orgView.name}</strong></div>
-          <button className="icon-btn" type="button" aria-label="Toggle theme" onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>
-            <ThemeIcon theme={theme} />
-          </button>
+          <a className="btn btn-ghost btn-sm" href={SITE_HOME_URL} target="_blank" rel="noreferrer">Site</a>
           <button className="btn btn-ghost btn-sm" type="button" onClick={handleLogout}>Sign out</button>
         </div>
       </nav>
@@ -669,8 +648,77 @@ function App() {
 function OverviewPage({ org, apiKey, showKey, setShowKey, onCopyKey, onGoAudit, onGoRevoke }) {
   return (
     <section className="page-section">
-      <div className="page-title">Overview</div>
-      <div className="page-subtitle">Manage delegated authority for this workspace. Review active credentials, inspect evidence, and revoke a task tree when needed.</div>
+      <div className="page-header">
+        <div className="page-kicker">Workspace control plane</div>
+        <div className="page-title">Overview</div>
+        <div className="page-subtitle">Manage delegated authority for this workspace. Review active credentials, inspect evidence, and revoke a task tree when needed.</div>
+      </div>
+
+      <div className="hero-shell overview-hero">
+        <div className="hero-card-main">
+          <div className="hero-card-label">Control posture</div>
+          <h2 className="hero-card-title">Keep agent authority readable, narrow, and easy to shut down.</h2>
+          <p className="hero-card-copy">
+            This dashboard is the operator surface for Attest. Look up a task tree, inspect the evidence packet, verify it in-browser, and revoke the full chain when something should stop immediately.
+          </p>
+          <div className="hero-card-pills">
+            <span className="hero-pill">Signed evidence</span>
+            <span className="hero-pill">Delegation history</span>
+            <span className="hero-pill">On-site verification</span>
+            <span className="hero-pill">Cascade revoke</span>
+          </div>
+          <div className="hero-action-grid">
+            <button className="action-tile" type="button" onClick={onGoAudit}>
+              <span className="action-tile-kicker">Review</span>
+              <strong>Inspect task tree</strong>
+              <span>Search a task ID, load the packet, and check the full authority timeline.</span>
+            </button>
+            <button className="action-tile" type="button" onClick={onGoRevoke}>
+              <span className="action-tile-kicker">Contain</span>
+              <strong>Revoke chain</strong>
+              <span>Invalidate a credential and its descendants from one operator action.</span>
+            </button>
+            <a className="action-tile" href={SITE_DEMO_URL}>
+              <span className="action-tile-kicker">Walkthrough</span>
+              <strong>Open demo</strong>
+              <span>Show the before-and-after failure mode for compromised orchestrators.</span>
+            </a>
+          </div>
+        </div>
+
+        <div className="hero-rail">
+          <div className="rail-panel">
+            <div className="card-title">Workspace snapshot</div>
+            <div className="mini-stat-grid">
+              <div className="mini-stat">
+                <span className="stat-label">Authority state</span>
+                <strong className="stat-value green">Active</strong>
+              </div>
+              <div className="mini-stat">
+                <span className="stat-label">Workspace ID</span>
+                <strong className="mono-inline">{shortValue(org.id, 10, 8)}</strong>
+              </div>
+              <div className="mini-stat">
+                <span className="stat-label">Provisioned</span>
+                <strong>{formatDate(org.createdAt)}</strong>
+              </div>
+              <div className="mini-stat">
+                <span className="stat-label">Surface</span>
+                <strong>Audit-ready</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="rail-panel">
+            <div className="card-title">Operator notes</div>
+            <div className="rail-list">
+              <div className="rail-list-item">Use the audit view when you need the full event stream, packet hash, and report exports in one place.</div>
+              <div className="rail-list-item">Use revoke when a root credential should shut down the whole descendant tree immediately.</div>
+              <div className="rail-list-item">The public verifier and print report stay in sync with what you see here.</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="stats-grid">
         <div className="stat-card">
@@ -685,23 +733,30 @@ function OverviewPage({ org, apiKey, showKey, setShowKey, onCopyKey, onGoAudit, 
           <div className="stat-label">Provisioned</div>
           <div className="stat-value date">{formatDate(org.createdAt)}</div>
         </div>
-      </div>
-
-      <div className="card">
-        <div className="card-title">Access key</div>
-        <div className="key-row">
-          <div className="key-display">{showKey ? apiKey : maskKey(apiKey)}</div>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowKey((current) => !current)}>{showKey ? 'Hide' : 'Show'}</button>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={onCopyKey}>Copy</button>
+        <div className="stat-card">
+          <div className="stat-label">Control surface</div>
+          <div className="stat-value">Ready</div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-title">Quick actions</div>
-        <div className="quick-actions">
-          <button className="btn btn-ghost btn-sm" type="button" onClick={onGoAudit}>Inspect task tree</button>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={onGoRevoke}>Revoke chain</button>
-          <a className="btn btn-ghost btn-sm" href="https://attestdev.com/demo/">Open demo</a>
+      <div className="overview-grid">
+        <div className="card">
+          <div className="card-title">Access key</div>
+          <div className="key-row">
+            <div className="key-display">{showKey ? apiKey : maskKey(apiKey)}</div>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowKey((current) => !current)}>{showKey ? 'Hide' : 'Show'}</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={onCopyKey}>Copy</button>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">Quick actions</div>
+          <div className="quick-actions">
+            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoAudit}>Inspect task tree</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoRevoke}>Revoke chain</button>
+            <a className="btn btn-ghost btn-sm" href={SITE_DEMO_URL}>Open demo</a>
+          </div>
+          <p className="inline-note">Best next move: load a real task ID and verify the evidence packet in-browser before you share it.</p>
         </div>
       </div>
     </section>
@@ -737,8 +792,50 @@ function AuditPage({
 
   return (
     <section className="page-section">
-      <div className="page-title">Audit Log</div>
-      <div className="page-subtitle">Look up a task tree by `att_tid` and review the sequence of issued, delegated, and revoked events that prove authority.</div>
+      <div className="page-header">
+        <div className="page-kicker">Evidence review</div>
+        <div className="page-title">Audit Log</div>
+        <div className="page-subtitle">Look up a task tree by `att_tid` and review the sequence of issued, delegated, and revoked events that prove authority.</div>
+      </div>
+
+      <div className="audit-hero">
+        <div className="hero-card-main">
+          <div className="hero-card-label">Current workflow</div>
+          <h2 className="hero-card-title">Move from task ID to proof without leaving the dashboard.</h2>
+          <p className="hero-card-copy">
+            Search the task tree, load the signed packet, verify it on site, then open a readable report or export the canonical JSON artifact.
+          </p>
+          <div className="hero-card-pills">
+            <span className="hero-pill">Hash + signature</span>
+            <span className="hero-pill">Audit chain</span>
+            <span className="hero-pill">Report export</span>
+            <span className="hero-pill">Print-ready</span>
+          </div>
+        </div>
+        <div className="hero-rail">
+          <div className="rail-panel">
+            <div className="card-title">Loaded task</div>
+            <div className="mini-stat-grid">
+              <div className="mini-stat">
+                <span className="stat-label">Task ID</span>
+                <strong className="mono-inline">{task.att_tid ? shortValue(task.att_tid, 10, 8) : '—'}</strong>
+              </div>
+              <div className="mini-stat">
+                <span className="stat-label">Status</span>
+                <strong>{summary.result || 'Not loaded'}</strong>
+              </div>
+              <div className="mini-stat">
+                <span className="stat-label">Events</span>
+                <strong>{eventCount}</strong>
+              </div>
+              <div className="mini-stat">
+                <span className="stat-label">Integrity</span>
+                <strong>{evidencePacket ? (integrity.audit_chain_valid ? 'Valid' : 'Check packet') : 'Pending'}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="card">
         <div className="search-row">
@@ -993,8 +1090,11 @@ function DetailItem({ label, value, title, mono = false }) {
 function RevokePage({ revokeJti, revokeBy, setRevokeJti, setRevokeBy, onRevoke }) {
   return (
     <section className="page-section">
-      <div className="page-title">Revoke Credential</div>
-      <div className="page-subtitle">Revoking the root invalidates the full descendant tree. Use this when an agent should lose authority immediately.</div>
+      <div className="page-header">
+        <div className="page-kicker">Containment</div>
+        <div className="page-title">Revoke Credential</div>
+        <div className="page-subtitle">Revoking the root invalidates the full descendant tree. Use this when an agent should lose authority immediately.</div>
+      </div>
       <div className="card">
         <p className="muted-text">
           Revoking a credential invalidates it and all descendants in its chain immediately.
@@ -1018,8 +1118,11 @@ function RevokePage({ revokeJti, revokeBy, setRevokeJti, setRevokeBy, onRevoke }
 function SettingsPage({ org }) {
   return (
     <section className="page-section">
-      <div className="page-title">Settings</div>
-      <div className="page-subtitle">Workspace metadata and the current API endpoint. Nothing here changes the standalone behavior.</div>
+      <div className="page-header">
+        <div className="page-kicker">Workspace metadata</div>
+        <div className="page-title">Settings</div>
+        <div className="page-subtitle">Workspace metadata and the current API endpoint. Nothing here changes the standalone behavior.</div>
+      </div>
       <div className="card">
         <div className="card-title">Workspace</div>
         <table className="settings-table">
