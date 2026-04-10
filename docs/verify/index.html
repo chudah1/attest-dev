@@ -1138,7 +1138,8 @@
   nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
   var isLocalHost=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
   var dashboardOverride=new URLSearchParams(window.location.search).get('dashboard_url')||window.localStorage.getItem('attest-dashboard-url');
-  var dashboardUrl=dashboardOverride||(isLocalHost?new URL('/dashboard',window.location.origin).toString():'https://api.attestdev.com/dashboard');
+  function inferLocalDashboardUrl(){if(window.location.port==='8000')return'http://localhost:5173/';return new URL('/dashboard',window.location.origin).toString();}
+  var dashboardUrl=dashboardOverride||(isLocalHost?inferLocalDashboardUrl():'https://api.attestdev.com/dashboard');
   document.querySelectorAll('[data-dashboard-link]').forEach(function(link){link.setAttribute('href',dashboardUrl);});
 })();
 </script>

@@ -11,7 +11,14 @@ const SITE_OVERRIDE =
   typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('site_url') || window.localStorage.getItem(SITE_URL_STORAGE) || ''
     : '';
-const SITE_BASE_URL = (SITE_OVERRIDE || import.meta.env.VITE_SITE_BASE_URL || (IS_LOCAL_HOST ? new URL('/docs', window.location.origin).toString() : 'https://attestdev.com')).replace(/\/$/, '');
+function inferLocalSiteBaseUrl() {
+  if (typeof window === 'undefined') return 'https://attestdev.com';
+  const { origin, port } = window.location;
+  if (port === '5173') return 'http://localhost:8000/docs';
+  return new URL('/docs', origin).toString();
+}
+
+const SITE_BASE_URL = (SITE_OVERRIDE || import.meta.env.VITE_SITE_BASE_URL || (IS_LOCAL_HOST ? inferLocalSiteBaseUrl() : 'https://attestdev.com')).replace(/\/$/, '');
 const SITE_HOME_URL = `${SITE_BASE_URL}/`;
 const SITE_DEMO_URL = `${SITE_BASE_URL}/demo/`;
 const PAGES = [

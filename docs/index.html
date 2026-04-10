@@ -342,7 +342,11 @@ curl https://api.attestdev.com/health
   const dashboardOverride =
     new URLSearchParams(window.location.search).get('dashboard_url') ||
     window.localStorage.getItem('attest-dashboard-url');
-  const dashboardUrl = dashboardOverride || (isLocalHost ? new URL('/dashboard', window.location.origin).toString() : 'https://api.attestdev.com/dashboard');
+  function inferLocalDashboardUrl() {
+    if (window.location.port === '8000') return 'http://localhost:5173/';
+    return new URL('/dashboard', window.location.origin).toString();
+  }
+  const dashboardUrl = dashboardOverride || (isLocalHost ? inferLocalDashboardUrl() : 'https://api.attestdev.com/dashboard');
   document.querySelectorAll('[data-dashboard-link]').forEach((link) => {
     link.setAttribute('href', dashboardUrl);
   });
