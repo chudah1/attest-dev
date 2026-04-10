@@ -135,3 +135,73 @@ func (l *Log) Query(ctx context.Context, orgID string, taskID string) ([]attest.
 
 	return events, nil
 }
+
+// ListTasks returns recent task summaries for the given org.
+func (l *Log) ListTasks(ctx context.Context, orgID string, query TaskListQuery) ([]TaskSummary, error) {
+	limit := query.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	rows, err := l.db.Query(ctx, `
+		WITH task_rollups AS (
+			SELECT
+				att_tid,
+				att_uid,
+				(array_agg(agent_id ORDER BY created_at ASC, id ASC))[1] AS root_agent_id,
+				COUNT(*) AS event_count,
+				COUNT(DISTINCT jti) FILTER (WHERE event_type IN ('issued', 'delegated')) AS credential_count,
+				MIN(created_at) AS created_at,
+				MAX(created_at) AS last_event_at,
+				(array_agg(event_type ORDER BY created_at DESC, id DESC))[1] AS last_event_type,
+				BOOL_OR(event_type = 'revoked') AS revoked,
+				BOOL_OR(agent_id = $3) AS matches_agent
+			FROM audit_log
+			WHERE org_id = $1
+			GROUP BY att_tid, att_uid
+		)
+		SELECT att_tid, att_uid, root_agent_id, event_count, credential_count, created_at, last_event_at, last_event_type, revoked
+		FROM task_rollups
+		WHERE ($2 = '' OR att_uid = $2)
+		  AND ($3 = '' OR matches_agent)
+		  AND (
+			$4 = ''
+			OR ($4 = 'active' AND NOT revoked)
+			OR ($4 = 'revoked' AND revoked)
+		  )
+		ORDER BY last_event_at DESC
+		LIMIT $5
+	`, orgID, query.UserID, query.AgentID, query.Status, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var summaries []TaskSummary
+	for rows.Next() {
+		var summary TaskSummary
+		var lastEventType string
+		if err := rows.Scan(
+			&summary.TaskID,
+			&summary.UserID,
+			&summary.RootAgentID,
+			&summary.EventCount,
+			&summary.CredentialCount,
+			&summary.CreatedAt,
+			&summary.LastEventAt,
+			&lastEventType,
+			&summary.Revoked,
+		); err != nil {
+			return nil, fmt.Errorf("scan task summary: %w", err)
+		}
+		summary.LastEventType = attest.EventType(lastEventType)
+		summaries = append(summaries, summary)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate task summaries: %w", err)
+	}
+	return summaries, nil
+}

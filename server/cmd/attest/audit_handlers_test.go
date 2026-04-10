@@ -140,6 +140,7 @@ func (e *testEnv) makeRequest(t *testing.T, method, path string, body any) *http
 		r.Post("/audit/status", e.h.reportStatus)
 		r.Delete("/credentials/{jti}", e.h.revokeCredential)
 		r.Get("/revoked/{jti}", e.h.checkRevocation)
+		r.Get("/tasks", e.h.listTasks)
 		r.Get("/tasks/{tid}/evidence", e.h.getTaskEvidence)
 		r.Get("/tasks/{tid}/report", e.h.getTaskReport)
 	})
@@ -591,6 +592,147 @@ func TestGetTaskReport_MatchesEvidencePacket(t *testing.T) {
 	}
 	if !strings.Contains(reportBody, packetA.GeneratedAt.UTC().Format(time.RFC3339)) {
 		t.Fatalf("expected report to contain evidence generated_at timestamp")
+	}
+}
+
+func TestListTasks_ReturnsRecentTaskSummaries(t *testing.T) {
+	e := newTestEnv(t)
+
+	appendIssued := func(taskID, jti, userID, agentID string, createdOffset time.Duration) {
+		t.Helper()
+		if err := e.h.auditLog.Append(context.Background(), e.orgID, attest.AuditEvent{
+			EventType: attest.EventIssued,
+			JTI:       jti,
+			TaskID:    taskID,
+			UserID:    userID,
+			AgentID:   agentID,
+			Scope:     []string{"files:read"},
+		}); err != nil {
+			t.Fatalf("append issued event: %v", err)
+		}
+	}
+
+	appendAction := func(taskID, jti, userID, agentID, outcome string) {
+		t.Helper()
+		if err := e.h.auditLog.Append(context.Background(), e.orgID, attest.AuditEvent{
+			EventType: attest.EventAction,
+			JTI:       jti,
+			TaskID:    taskID,
+			UserID:    userID,
+			AgentID:   agentID,
+			Scope:     []string{"files:read"},
+			Meta:      map[string]string{"outcome": outcome},
+		}); err != nil {
+			t.Fatalf("append action event: %v", err)
+		}
+	}
+
+	appendRevoked := func(taskID, jti, userID, agentID string) {
+		t.Helper()
+		if err := e.h.auditLog.Append(context.Background(), e.orgID, attest.AuditEvent{
+			EventType: attest.EventRevoked,
+			JTI:       jti,
+			TaskID:    taskID,
+			UserID:    userID,
+			AgentID:   agentID,
+			Scope:     []string{"files:read"},
+		}); err != nil {
+			t.Fatalf("append revoked event: %v", err)
+		}
+	}
+
+	appendIssued("task-active", "jti-active-root", "alice", "planner", 0)
+	appendAction("task-active", "jti-active-root", "alice", "executor", "success")
+	appendIssued("task-revoked", "jti-revoked-root", "bob", "planner", 0)
+	appendRevoked("task-revoked", "jti-revoked-root", "bob", "planner")
+
+	rr := e.makeRequest(t, http.MethodGet, "/v1/tasks?limit=10", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var tasks []audit.TaskSummary
+	if err := json.Unmarshal(rr.Body.Bytes(), &tasks); err != nil {
+		t.Fatalf("decode task summaries: %v", err)
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(tasks))
+	}
+
+	var sawActive, sawRevoked bool
+	for _, task := range tasks {
+		switch task.TaskID {
+		case "task-active":
+			sawActive = true
+			if task.UserID != "alice" {
+				t.Fatalf("expected alice, got %q", task.UserID)
+			}
+			if task.RootAgentID != "planner" {
+				t.Fatalf("expected planner, got %q", task.RootAgentID)
+			}
+			if task.Revoked {
+				t.Fatalf("expected active task to not be revoked")
+			}
+		case "task-revoked":
+			sawRevoked = true
+			if !task.Revoked {
+				t.Fatalf("expected revoked task to be flagged revoked")
+			}
+		}
+	}
+	if !sawActive || !sawRevoked {
+		t.Fatalf("missing expected tasks in response: %+v", tasks)
+	}
+}
+
+func TestListTasks_FiltersByStatusAndUser(t *testing.T) {
+	e := newTestEnv(t)
+
+	if err := e.h.auditLog.Append(context.Background(), e.orgID, attest.AuditEvent{
+		EventType: attest.EventIssued,
+		JTI:       "jti-active",
+		TaskID:    "task-active",
+		UserID:    "alice",
+		AgentID:   "planner",
+		Scope:     []string{"files:read"},
+	}); err != nil {
+		t.Fatalf("append active event: %v", err)
+	}
+	if err := e.h.auditLog.Append(context.Background(), e.orgID, attest.AuditEvent{
+		EventType: attest.EventIssued,
+		JTI:       "jti-revoked",
+		TaskID:    "task-revoked",
+		UserID:    "bob",
+		AgentID:   "reviewer",
+		Scope:     []string{"files:read"},
+	}); err != nil {
+		t.Fatalf("append revoked issued event: %v", err)
+	}
+	if err := e.h.auditLog.Append(context.Background(), e.orgID, attest.AuditEvent{
+		EventType: attest.EventRevoked,
+		JTI:       "jti-revoked",
+		TaskID:    "task-revoked",
+		UserID:    "bob",
+		AgentID:   "reviewer",
+		Scope:     []string{"files:read"},
+	}); err != nil {
+		t.Fatalf("append revoked event: %v", err)
+	}
+
+	rr := e.makeRequest(t, http.MethodGet, "/v1/tasks?status=revoked&user_id=bob", nil)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var tasks []audit.TaskSummary
+	if err := json.Unmarshal(rr.Body.Bytes(), &tasks); err != nil {
+		t.Fatalf("decode task summaries: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(tasks))
+	}
+	if tasks[0].TaskID != "task-revoked" {
+		t.Fatalf("expected revoked task, got %q", tasks[0].TaskID)
 	}
 }
 

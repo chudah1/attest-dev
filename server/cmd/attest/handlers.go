@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -472,6 +473,41 @@ func (h *handlers) getAuditLog(w http.ResponseWriter, r *http.Request) {
 		events = []attest.AuditEvent{}
 	}
 	writeJSON(w, http.StatusOK, events)
+}
+
+// GET /v1/tasks
+func (h *handlers) listTasks(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	status := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("status")))
+	if status != "" && status != "active" && status != "revoked" {
+		writeError(w, http.StatusBadRequest, "status must be one of: active, revoked")
+		return
+	}
+
+	limit := 20
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			writeError(w, http.StatusBadRequest, "limit must be a positive integer")
+			return
+		}
+		limit = parsed
+	}
+
+	tasks, err := h.auditLog.ListTasks(r.Context(), o.ID, audit.TaskListQuery{
+		UserID:  strings.TrimSpace(r.URL.Query().Get("user_id")),
+		AgentID: strings.TrimSpace(r.URL.Query().Get("agent_id")),
+		Status:  status,
+		Limit:   limit,
+	})
+	if err != nil {
+		writeInternalError(w, "list tasks", err)
+		return
+	}
+	if tasks == nil {
+		tasks = []audit.TaskSummary{}
+	}
+	writeJSON(w, http.StatusOK, tasks)
 }
 
 func (h *handlers) buildSignedTaskEvidence(ctx context.Context, o *org.Org, tid string) (*attest.EvidencePacket, error) {

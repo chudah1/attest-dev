@@ -260,6 +260,7 @@ func main() {
 		r.Delete("/credentials/{jti}", h.revokeCredential)
 		r.Post("/audit/report", h.reportAction)
 		r.Post("/audit/status", h.reportStatus)
+		r.Get("/tasks", h.listTasks)
 		r.Get("/tasks/{tid}/audit", h.getAuditLog)
 		r.Get("/tasks/{tid}/evidence", h.getTaskEvidence)
 		r.Get("/tasks/{tid}/report", h.getTaskReport)

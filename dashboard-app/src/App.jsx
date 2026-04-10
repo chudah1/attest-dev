@@ -259,6 +259,14 @@ function App() {
   const [evidenceVerification, setEvidenceVerification] = useState(null);
   const [revokeJti, setRevokeJti] = useState('');
   const [revokeBy, setRevokeBy] = useState('');
+  const [taskList, setTaskList] = useState([]);
+  const [taskListLoading, setTaskListLoading] = useState(false);
+  const [taskListError, setTaskListError] = useState('');
+  const [taskListFilters, setTaskListFilters] = useState({
+    userId: '',
+    agentId: '',
+    status: 'all',
+  });
   const toastTimer = useRef(null);
 
   useEffect(() => {
@@ -305,6 +313,31 @@ function App() {
     return parseJSONOrError(res);
   }
 
+  async function fetchTaskList(filters = taskListFilters) {
+    if (!apiKey) return;
+
+    setTaskListLoading(true);
+    setTaskListError('');
+
+    try {
+      const params = new URLSearchParams({ limit: '12' });
+      if (filters.userId.trim()) params.set('user_id', filters.userId.trim());
+      if (filters.agentId.trim()) params.set('agent_id', filters.agentId.trim());
+      if (filters.status && filters.status !== 'all') params.set('status', filters.status);
+
+      const res = await fetch(`${API}/v1/tasks?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      const data = await parseJSONOrError(res);
+      setTaskList(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setTaskList([]);
+      setTaskListError(error.message || 'Failed to load recent tasks.');
+    } finally {
+      setTaskListLoading(false);
+    }
+  }
+
   const orgView = useMemo(() => {
     if (!org) return null;
     return {
@@ -347,7 +380,14 @@ function App() {
     setEvidenceVerification(null);
     setAuditError('');
     setTaskId('');
+    setTaskList([]);
+    setTaskListError('');
   }
+
+  useEffect(() => {
+    if (!apiKey) return;
+    fetchTaskList();
+  }, [apiKey]);
 
   async function fetchAudit(targetTaskId = taskId.trim()) {
     if (!targetTaskId) return;
@@ -510,10 +550,19 @@ function App() {
       }
       setRevokeJti('');
       setRevokeBy('');
+      fetchTaskList();
       showToast('Credential revoked', 'success');
     } catch (error) {
       showToast(error.message || 'Network error', 'error');
     }
+  }
+
+  function handleOpenTask(taskSummary) {
+    const targetTaskId = taskSummary?.att_tid || taskSummary?.task_id || taskSummary?.taskId || '';
+    if (!targetTaskId) return;
+    setTaskId(targetTaskId);
+    setPage('audit');
+    fetchAudit(targetTaskId);
   }
 
   function copyVerificationValue(kind) {
@@ -597,6 +646,13 @@ function App() {
               apiKey={apiKey}
               showKey={showKey}
               setShowKey={setShowKey}
+              taskList={taskList}
+              taskListLoading={taskListLoading}
+              taskListError={taskListError}
+              taskListFilters={taskListFilters}
+              setTaskListFilters={setTaskListFilters}
+              onRefreshTasks={() => fetchTaskList()}
+              onOpenTask={handleOpenTask}
               onCopyKey={() => copyText(apiKey, () => showToast('Access key copied', 'success'))}
               onGoAudit={() => setPage('audit')}
               onGoRevoke={() => setPage('revoke')}
@@ -615,6 +671,13 @@ function App() {
               evidencePacket={evidencePacket}
               evidenceVerification={evidenceVerification}
               verificationSnippets={verificationSnippets}
+              taskList={taskList}
+              taskListLoading={taskListLoading}
+              taskListError={taskListError}
+              taskListFilters={taskListFilters}
+              setTaskListFilters={setTaskListFilters}
+              onRefreshTasks={() => fetchTaskList()}
+              onOpenTask={handleOpenTask}
               onSearch={() => fetchAudit()}
               onVerify={handleVerifyOnSite}
               onOpenReport={() => handleOpenReport('view')}
@@ -645,7 +708,22 @@ function App() {
   );
 }
 
-function OverviewPage({ org, apiKey, showKey, setShowKey, onCopyKey, onGoAudit, onGoRevoke }) {
+function OverviewPage({
+  org,
+  apiKey,
+  showKey,
+  setShowKey,
+  taskList,
+  taskListLoading,
+  taskListError,
+  taskListFilters,
+  setTaskListFilters,
+  onRefreshTasks,
+  onOpenTask,
+  onCopyKey,
+  onGoAudit,
+  onGoRevoke,
+}) {
   return (
     <section className="page-section">
       <div className="page-header">
@@ -737,6 +815,10 @@ function OverviewPage({ org, apiKey, showKey, setShowKey, onCopyKey, onGoAudit, 
           <div className="stat-label">Control surface</div>
           <div className="stat-value">Ready</div>
         </div>
+        <div className="stat-card">
+          <div className="stat-label">Recent task trees</div>
+          <div className="stat-value">{taskList.length}</div>
+        </div>
       </div>
 
       <div className="overview-grid">
@@ -759,6 +841,18 @@ function OverviewPage({ org, apiKey, showKey, setShowKey, onCopyKey, onGoAudit, 
           <p className="inline-note">Best next move: load a real task ID and verify the evidence packet in-browser before you share it.</p>
         </div>
       </div>
+
+      <TaskInboxCard
+        title="Recent task trees"
+        subtitle="Recover recent work by user, agent, or revocation state without needing the original att_tid."
+        tasks={taskList}
+        loading={taskListLoading}
+        error={taskListError}
+        filters={taskListFilters}
+        onChangeFilters={setTaskListFilters}
+        onRefresh={onRefreshTasks}
+        onOpenTask={onOpenTask}
+      />
     </section>
   );
 }
@@ -774,6 +868,13 @@ function AuditPage({
   evidencePacket,
   evidenceVerification,
   verificationSnippets,
+  taskList,
+  taskListLoading,
+  taskListError,
+  taskListFilters,
+  setTaskListFilters,
+  onRefreshTasks,
+  onOpenTask,
   onSearch,
   onVerify,
   onOpenReport,
@@ -836,6 +937,19 @@ function AuditPage({
           </div>
         </div>
       </div>
+
+      <TaskInboxCard
+        title="Recent workspace tasks"
+        subtitle="Pick a recent task tree and jump straight into its packet, report, and timeline."
+        tasks={taskList}
+        loading={taskListLoading}
+        error={taskListError}
+        filters={taskListFilters}
+        onChangeFilters={setTaskListFilters}
+        onRefresh={onRefreshTasks}
+        onOpenTask={onOpenTask}
+        compact
+      />
 
       <div className="card">
         <div className="search-row">
@@ -986,6 +1100,102 @@ function AuditPage({
           ) : null}
         </div>
       </div>
+    </section>
+  );
+}
+
+function TaskInboxCard({
+  title,
+  subtitle,
+  tasks,
+  loading,
+  error,
+  filters,
+  onChangeFilters,
+  onRefresh,
+  onOpenTask,
+  compact = false,
+}) {
+  return (
+    <section className={`card task-inbox-card${compact ? ' compact' : ''}`}>
+      <div className="task-inbox-head">
+        <div>
+          <div className="card-title">{title}</div>
+          <div className="task-inbox-subtitle">{subtitle}</div>
+        </div>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={onRefresh}>
+          Refresh
+        </button>
+      </div>
+
+      <div className="task-filter-row">
+        <div className="toolbar-field">
+          <div className="toolbar-label">User</div>
+          <input
+            type="search"
+            value={filters.userId}
+            placeholder="alice@example.com"
+            onChange={(event) => onChangeFilters((current) => ({ ...current, userId: event.target.value }))}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') onRefresh();
+            }}
+          />
+        </div>
+        <div className="toolbar-field">
+          <div className="toolbar-label">Agent</div>
+          <input
+            type="search"
+            value={filters.agentId}
+            placeholder="planner"
+            onChange={(event) => onChangeFilters((current) => ({ ...current, agentId: event.target.value }))}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') onRefresh();
+            }}
+          />
+        </div>
+        <div className="toolbar-field">
+          <div className="toolbar-label">Status</div>
+          <select
+            value={filters.status}
+            onChange={(event) => onChangeFilters((current) => ({ ...current, status: event.target.value }))}
+          >
+            <option value="all">All tasks</option>
+            <option value="active">Active</option>
+            <option value="revoked">Revoked</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? <div className="empty">Loading recent tasks…</div> : null}
+      {!loading && error ? <div className="empty">{error}</div> : null}
+      {!loading && !error && !tasks.length ? <div className="empty">No task trees match the current filters.</div> : null}
+
+      {!loading && !error && tasks.length ? (
+        <div className="task-list">
+          {tasks.map((task) => (
+            <button key={task.att_tid} className="task-row" type="button" onClick={() => onOpenTask(task)}>
+              <div className="task-row-main">
+                <div className="task-row-topline">
+                  <strong className="mono-inline">{shortValue(task.att_tid, 10, 8)}</strong>
+                  <span className={`result-pill ${task.revoked ? 'result-revoked' : 'result-active'}`}>
+                    {task.revoked ? 'revoked' : 'active'}
+                  </span>
+                </div>
+                <div className="task-row-copy">
+                  <span>User {task.att_uid || '—'}</span>
+                  <span>Root agent {task.root_agent_id || '—'}</span>
+                  <span>{task.event_count || 0} events</span>
+                  <span>{task.credential_count || 0} credentials</span>
+                </div>
+              </div>
+              <div className="task-row-meta">
+                <span className="muted-text">{task.last_event_type || 'event'}</span>
+                <span>{formatDate(task.last_event_at, 'datetime')}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }

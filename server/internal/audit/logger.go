@@ -11,4 +11,5 @@ import (
 type Logger interface {
 	Append(ctx context.Context, orgID string, event attest.AuditEvent) error
 	Query(ctx context.Context, orgID string, taskID string) ([]attest.AuditEvent, error)
+	ListTasks(ctx context.Context, orgID string, query TaskListQuery) ([]TaskSummary, error)
 }

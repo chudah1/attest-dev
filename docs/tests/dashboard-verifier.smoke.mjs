@@ -186,6 +186,26 @@ async function withDashboard(t, packetMutator, fn) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(org) });
       return;
     }
+    if (url.pathname === '/v1/tasks') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            att_tid: packet.task.att_tid,
+            att_uid: packet.task.att_uid,
+            root_agent_id: packet.task.root_agent_id,
+            event_count: packet.task.event_count,
+            credential_count: packet.task.credential_count,
+            created_at: packet.generated_at,
+            last_event_at: packet.generated_at,
+            last_event_type: packet.events.at(-1)?.event_type || 'issued',
+            revoked: packet.task.revoked,
+          },
+        ]),
+      });
+      return;
+    }
     if (url.pathname.endsWith('/audit')) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(packet.events) });
       return;
