@@ -1,0 +1,30 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Attest trust palette concept">
+  <rect width="1200" height="760" fill="#0F1720"/>
+  <rect x="40" y="40" width="1120" height="680" rx="28" fill="#121C26" stroke="#253341"/>
+  <text x="88" y="108" fill="#F6F1E8" font-family="Georgia, serif" font-size="54" font-weight="700">Trust / Control / Evidence</text>
+  <text x="88" y="148" fill="#98A6B3" font-family="Arial, sans-serif" font-size="24">Deep navy, graphite, steel, and warm amber. Serious without feeling cold.</text>
+
+  <rect x="88" y="210" width="216" height="180" rx="18" fill="#0F1720"/>
+  <text x="108" y="350" fill="#F6F1E8" font-family="Arial, sans-serif" font-size="20" font-weight="700">Midnight Ink</text>
+  <text x="108" y="378" fill="#98A6B3" font-family="Courier New, monospace" font-size="18">#0F1720</text>
+
+  <rect x="326" y="210" width="216" height="180" rx="18" fill="#243444"/>
+  <text x="346" y="350" fill="#F6F1E8" font-family="Arial, sans-serif" font-size="20" font-weight="700">Steel Surface</text>
+  <text x="346" y="378" fill="#C8D1D8" font-family="Courier New, monospace" font-size="18">#243444</text>
+
+  <rect x="564" y="210" width="216" height="180" rx="18" fill="#E6A94A"/>
+  <text x="584" y="350" fill="#1B1A17" font-family="Arial, sans-serif" font-size="20" font-weight="700">Signal Amber</text>
+  <text x="584" y="378" fill="#4A3720" font-family="Courier New, monospace" font-size="18">#E6A94A</text>
+
+  <rect x="802" y="210" width="216" height="180" rx="18" fill="#F6F1E8"/>
+  <text x="822" y="350" fill="#1E2933" font-family="Arial, sans-serif" font-size="20" font-weight="700">Paper Light</text>
+  <text x="822" y="378" fill="#697886" font-family="Courier New, monospace" font-size="18">#F6F1E8</text>
+
+  <rect x="88" y="440" width="930" height="180" rx="22" fill="#0C131B" stroke="#2A3847"/>
+  <text x="120" y="500" fill="#F6F1E8" font-family="Georgia, serif" font-size="42" font-weight="700">Your agents can take action.</text>
+  <text x="120" y="548" fill="#F6F1E8" font-family="Georgia, serif" font-size="42" font-weight="700">Can you prove they were allowed to?</text>
+  <text x="120" y="594" fill="#98A6B3" font-family="Arial, sans-serif" font-size="22">Feels more like a control plane or audit product than a generic AI startup.</text>
+
+  <rect x="1044" y="440" width="82" height="180" rx="18" fill="#E6A94A"/>
+  <text x="1061" y="532" fill="#1B1A17" font-family="Arial, sans-serif" font-size="18" font-weight="700">CTA</text>
+</svg>

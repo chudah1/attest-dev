@@ -1,0 +1,30 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Attest editorial security palette concept">
+  <rect width="1200" height="760" fill="#151515"/>
+  <rect x="40" y="40" width="1120" height="680" rx="28" fill="#181818" stroke="#343434"/>
+  <text x="88" y="108" fill="#F3EBDD" font-family="Georgia, serif" font-size="54" font-weight="700">Editorial / Security / High Contrast</text>
+  <text x="88" y="148" fill="#AAA196" font-family="Arial, sans-serif" font-size="24">Charcoal, bone, and signal red. Strongest personality, but also the sharpest.</text>
+
+  <rect x="88" y="210" width="216" height="180" rx="18" fill="#151515"/>
+  <text x="108" y="350" fill="#F3EBDD" font-family="Arial, sans-serif" font-size="20" font-weight="700">Charcoal</text>
+  <text x="108" y="378" fill="#AAA196" font-family="Courier New, monospace" font-size="18">#151515</text>
+
+  <rect x="326" y="210" width="216" height="180" rx="18" fill="#F3EBDD"/>
+  <text x="346" y="350" fill="#1A1A1A" font-family="Arial, sans-serif" font-size="20" font-weight="700">Bone</text>
+  <text x="346" y="378" fill="#5D564C" font-family="Courier New, monospace" font-size="18">#F3EBDD</text>
+
+  <rect x="564" y="210" width="216" height="180" rx="18" fill="#D6553F"/>
+  <text x="584" y="350" fill="#FFF4EF" font-family="Arial, sans-serif" font-size="20" font-weight="700">Signal Red</text>
+  <text x="584" y="378" fill="#FFE1D7" font-family="Courier New, monospace" font-size="18">#D6553F</text>
+
+  <rect x="802" y="210" width="216" height="180" rx="18" fill="#5B5B5B"/>
+  <text x="822" y="350" fill="#F3EBDD" font-family="Arial, sans-serif" font-size="20" font-weight="700">Steel Gray</text>
+  <text x="822" y="378" fill="#E0D8CC" font-family="Courier New, monospace" font-size="18">#5B5B5B</text>
+
+  <rect x="88" y="440" width="930" height="180" rx="22" fill="#111111" stroke="#3D3D3D"/>
+  <text x="120" y="500" fill="#F3EBDD" font-family="Georgia, serif" font-size="42" font-weight="700">When an agent takes action,</text>
+  <text x="120" y="548" fill="#F3EBDD" font-family="Georgia, serif" font-size="42" font-weight="700">“we think it was allowed” is not enough.</text>
+  <text x="120" y="594" fill="#AAA196" font-family="Arial, sans-serif" font-size="22">This has the strongest personality, but it also pushes the product closer to a security editorial brand.</text>
+
+  <rect x="1044" y="440" width="82" height="180" rx="18" fill="#D6553F"/>
+  <text x="1061" y="532" fill="#FFF4EF" font-family="Arial, sans-serif" font-size="18" font-weight="700">CTA</text>
+</svg>

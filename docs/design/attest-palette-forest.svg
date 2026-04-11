@@ -1,0 +1,30 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Attest grounded enterprise palette concept">
+  <rect width="1200" height="760" fill="#F3EFE6"/>
+  <rect x="40" y="40" width="1120" height="680" rx="28" fill="#F8F4EB" stroke="#D5CCBC"/>
+  <text x="88" y="108" fill="#1E2B24" font-family="Georgia, serif" font-size="54" font-weight="700">Grounded / Enterprise / Calm</text>
+  <text x="88" y="148" fill="#67756C" font-family="Arial, sans-serif" font-size="24">Forest, stone, and cream. Less “AI”, more trusted system.</text>
+
+  <rect x="88" y="210" width="216" height="180" rx="18" fill="#1E2B24"/>
+  <text x="108" y="350" fill="#F8F4EB" font-family="Arial, sans-serif" font-size="20" font-weight="700">Forest Ink</text>
+  <text x="108" y="378" fill="#CBD3CB" font-family="Courier New, monospace" font-size="18">#1E2B24</text>
+
+  <rect x="326" y="210" width="216" height="180" rx="18" fill="#5E7365"/>
+  <text x="346" y="350" fill="#F8F4EB" font-family="Arial, sans-serif" font-size="20" font-weight="700">Moss Steel</text>
+  <text x="346" y="378" fill="#E2E8E3" font-family="Courier New, monospace" font-size="18">#5E7365</text>
+
+  <rect x="564" y="210" width="216" height="180" rx="18" fill="#C58D54"/>
+  <text x="584" y="350" fill="#21160C" font-family="Arial, sans-serif" font-size="20" font-weight="700">Warm Clay</text>
+  <text x="584" y="378" fill="#4A301A" font-family="Courier New, monospace" font-size="18">#C58D54</text>
+
+  <rect x="802" y="210" width="216" height="180" rx="18" fill="#F3EFE6"/>
+  <text x="822" y="350" fill="#1E2B24" font-family="Arial, sans-serif" font-size="20" font-weight="700">Cream Base</text>
+  <text x="822" y="378" fill="#6D746A" font-family="Courier New, monospace" font-size="18">#F3EFE6</text>
+
+  <rect x="88" y="440" width="930" height="180" rx="22" fill="#FBF8F0" stroke="#D5CCBC"/>
+  <text x="120" y="500" fill="#1E2B24" font-family="Georgia, serif" font-size="42" font-weight="700">Trust for action-taking agents.</text>
+  <text x="120" y="548" fill="#1E2B24" font-family="Georgia, serif" font-size="42" font-weight="700">Built for real workflows, not toy demos.</text>
+  <text x="120" y="594" fill="#67756C" font-family="Arial, sans-serif" font-size="22">Softer, calmer, and more differentiated than the default blue-purple AI look.</text>
+
+  <rect x="1044" y="440" width="82" height="180" rx="18" fill="#1E2B24"/>
+  <text x="1062" y="532" fill="#F8F4EB" font-family="Arial, sans-serif" font-size="18" font-weight="700">CTA</text>
+</svg>
