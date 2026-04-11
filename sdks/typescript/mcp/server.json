@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.chudah1/attest-mcp",
+  "description": "Credential enforcement middleware for MCP servers — import and wrap any McpServer to verify scoped Attest tokens on every tool call. Not a standalone server.",
+  "repository": {
+    "url": "https://github.com/chudah1/attest-dev",
+    "source": "github"
+  },
+  "version_detail": {
+    "version": "0.1.0",
+    "release_date": "2026-04-11"
+  },
+  "packages": [
+    {
+      "registry_name": "npm",
+      "name": "@attest-dev/mcp",
+      "version": "0.1.0",
+      "package_arguments": [],
+      "environment_variables": [
+        {
+          "name": "ATTEST_BASE_URL",
+          "description": "Base URL of the Attest server (passed to createAttestMcpServer options)",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

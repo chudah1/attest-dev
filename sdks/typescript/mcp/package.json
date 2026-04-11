@@ -32,7 +32,7 @@
     "jose": "^5.9.6"
   },
   "peerDependencies": {
-    "@attest-dev/sdk": "file:.."
+    "@attest-dev/sdk": ">=0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
@@ -40,5 +40,6 @@
   },
   "engines": {
     "node": ">=18"
-  }
+  },
+  "mcpName": "io.github.chudah1/attest-mcp"
 }
