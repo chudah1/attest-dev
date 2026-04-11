@@ -229,6 +229,27 @@ export interface ApprovalStatus {
   resolved_at?: string;
 }
 
+/** A task summary returned by the list tasks endpoint. */
+export interface TaskSummary {
+  att_tid: string;
+  att_uid: string;
+  root_agent_id: string;
+  event_count: number;
+  credential_count: number;
+  created_at: string;
+  last_event_at: string;
+  last_event_type: string;
+  revoked: boolean;
+}
+
+/** Query parameters for listing tasks. */
+export interface TaskListParams {
+  userId?: string;
+  agentId?: string;
+  status?: 'active' | 'revoked';
+  limit?: number;
+}
+
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
 // ── AttestClient ─────────────────────────────────────────────────────────────
@@ -456,6 +477,22 @@ export class AttestClient {
     );
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<{ id: string; status: string }>;
+  }
+
+  /** List task summaries with optional filters. */
+  async listTasks(params?: TaskListParams): Promise<TaskSummary[]> {
+    const query = new URLSearchParams();
+    if (params?.userId) query.set('user_id', params.userId);
+    if (params?.agentId) query.set('agent_id', params.agentId);
+    if (params?.status) query.set('status', params.status);
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const res = await fetch(
+      `${this.baseUrl}/v1/tasks${qs ? `?${qs}` : ''}`,
+      { headers: this.headers, signal: AbortSignal.timeout(this.timeoutMs) },
+    );
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<TaskSummary[]>;
   }
 }
 

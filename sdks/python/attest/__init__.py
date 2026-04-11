@@ -39,6 +39,8 @@ from attest.types import (
     DelegateParams,
     DelegatedToken,
     IssueParams,
+    TaskListParams,
+    TaskSummary,
     VerifyResult,
     AttestClaims,
     AttestToken,
@@ -92,6 +94,8 @@ __all__ = [
     "AuditEvent",
     "IssueParams",
     "DelegateParams",
+    "TaskListParams",
+    "TaskSummary",
     # Scope utilities
     "is_subset",
     "parse_scope",

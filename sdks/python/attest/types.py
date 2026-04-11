@@ -321,3 +321,43 @@ class DelegateParams:
     child_agent: str
     child_scope: list[str]
     ttl_seconds: int | None = None
+
+
+@dataclass
+class TaskSummary:
+    """Summary of a task tree returned by the list tasks endpoint."""
+
+    task_id: str
+    user_id: str
+    root_agent_id: str
+    event_count: int
+    credential_count: int
+    created_at: str
+    last_event_at: str
+    last_event_type: str
+    revoked: bool
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "TaskSummary":
+        """Construct TaskSummary from a dict (e.g. JSON response)."""
+        return cls(
+            task_id=d.get("att_tid", ""),
+            user_id=d.get("att_uid", ""),
+            root_agent_id=d.get("root_agent_id", ""),
+            event_count=int(d.get("event_count", 0)),
+            credential_count=int(d.get("credential_count", 0)),
+            created_at=d.get("created_at", ""),
+            last_event_at=d.get("last_event_at", ""),
+            last_event_type=d.get("last_event_type", ""),
+            revoked=bool(d.get("revoked", False)),
+        )
+
+
+@dataclass
+class TaskListParams:
+    """Query parameters for listing tasks."""
+
+    user_id: str | None = None
+    agent_id: str | None = None
+    status: str | None = None
+    limit: int | None = None

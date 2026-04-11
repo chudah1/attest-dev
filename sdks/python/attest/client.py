@@ -19,6 +19,8 @@ from attest.types import (
     DelegateParams,
     DelegatedToken,
     IssueParams,
+    TaskListParams,
+    TaskSummary,
     VerifyResult,
     AttestClaims,
     AttestToken,
@@ -454,6 +456,22 @@ class AttestClient:
             jwks = self.fetch_jwks(org_id)
         return _verify_token(token, jwks)
 
+    def list_tasks(self, params: TaskListParams | None = None) -> list[TaskSummary]:
+        """List task trees, optionally filtered by user, agent, or status."""
+        query: dict[str, str] = {}
+        if params is not None:
+            if params.user_id is not None:
+                query["user_id"] = params.user_id
+            if params.agent_id is not None:
+                query["agent_id"] = params.agent_id
+            if params.status is not None:
+                query["status"] = params.status
+            if params.limit is not None:
+                query["limit"] = str(params.limit)
+        resp = self._http.get("/v1/tasks", params=query)
+        _raise_for_status(resp)
+        return [TaskSummary.from_dict(item) for item in resp.json()]
+
     def verify_evidence_packet(
         self,
         packet: EvidencePacket | dict,
@@ -697,6 +715,22 @@ class AsyncAttestClient:
                 raise AttestError("org_id is required when jwks is not provided")
             jwks = await self.fetch_jwks(org_id)
         return _verify_token(token, jwks)
+
+    async def list_tasks(self, params: TaskListParams | None = None) -> list[TaskSummary]:
+        """List task trees, optionally filtered by user, agent, or status."""
+        query: dict[str, str] = {}
+        if params is not None:
+            if params.user_id is not None:
+                query["user_id"] = params.user_id
+            if params.agent_id is not None:
+                query["agent_id"] = params.agent_id
+            if params.status is not None:
+                query["status"] = params.status
+            if params.limit is not None:
+                query["limit"] = str(params.limit)
+        resp = await self._http.get("/v1/tasks", params=query)
+        _raise_for_status(resp)
+        return [TaskSummary.from_dict(item) for item in resp.json()]
 
     async def verify_evidence_packet(
         self,
