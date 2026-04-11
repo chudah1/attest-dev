@@ -245,6 +245,39 @@ select:focus {
   display: block;
 }
 
+.login-toggle {
+  display: block;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.create-org-success p {
+  margin-bottom: 0.75rem;
+}
+
+.created-key-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.created-key-display code {
+  font-size: 0.72rem;
+  word-break: break-all;
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
+
 .top-nav {
   display: flex;
   align-items: center;
@@ -893,6 +926,36 @@ select:focus {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
+}
+
+.manual-lookup-toggle {
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s;
+}
+
+.btn-link:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.audit-loaded-summary {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
 }
 
 .task-inbox-card {

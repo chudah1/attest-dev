@@ -254,6 +254,11 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [authLoading, setAuthLoading] = useState(true);
   const [loginPending, setLoginPending] = useState(false);
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const [createOrgName, setCreateOrgName] = useState('');
+  const [createOrgPending, setCreateOrgPending] = useState(false);
+  const [createOrgError, setCreateOrgError] = useState('');
+  const [createdKey, setCreatedKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [toast, setToast] = useState(null);
   const [taskId, setTaskId] = useState('');
@@ -371,6 +376,49 @@ function App() {
       setPage('overview');
     } catch {
       setLoginError('Invalid access key. Please try again.');
+    } finally {
+      setLoginPending(false);
+    }
+  }
+
+  async function handleCreateOrg(event) {
+    event?.preventDefault();
+    const name = createOrgName.trim();
+    if (!name) return;
+
+    setCreateOrgPending(true);
+    setCreateOrgError('');
+    try {
+      const res = await fetch(`${API}/v1/orgs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await parseJSONOrError(res);
+      const key = data.api_key;
+      if (!key) throw new Error('No API key returned');
+      setCreatedKey(key);
+    } catch (error) {
+      setCreateOrgError(error.message || 'Failed to create org.');
+    } finally {
+      setCreateOrgPending(false);
+    }
+  }
+
+  async function handleUseCreatedKey() {
+    const key = createdKey;
+    setLoginPending(true);
+    try {
+      const data = await loadOrg(key);
+      localStorage.setItem(KEY_STORAGE, key);
+      setApiKey(key);
+      setOrg(data);
+      setCreatedKey('');
+      setShowCreateOrg(false);
+      setCreateOrgName('');
+      setPage('overview');
+    } catch {
+      setLoginError('Failed to authenticate with new key.');
     } finally {
       setLoginPending(false);
     }
@@ -594,23 +642,69 @@ function App() {
   if (!orgView || !apiKey) {
     return (
       <div className="login-screen">
-        <form className="login-card" onSubmit={handleLogin}>
+        <div className="login-card">
           <div className="logo">Attest<span>.</span></div>
-          <p>Sign in with your org access key to inspect task trees, audit trails, and revocations.</p>
-          <label htmlFor="api-key-input">Access key</label>
-          <input
-            id="api-key-input"
-            type="password"
-            placeholder="att_live_..."
-            autoComplete="off"
-            value={loginKey}
-            onChange={(event) => setLoginKey(event.target.value)}
-          />
-          {loginError ? <div className="error-msg shown">{loginError}</div> : null}
-          <button className="btn btn-primary" type="submit" disabled={loginPending}>
-            {loginPending ? 'Verifying…' : 'Continue'}
-          </button>
-        </form>
+
+          {createdKey ? (
+            <div className="create-org-success">
+              <p><strong>Org created.</strong> Save this key now. It will not be shown again.</p>
+              <div className="created-key-display">
+                <code>{createdKey}</code>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { copyText(createdKey, () => showToast('API key copied', 'success')); }}
+                >
+                  Copy
+                </button>
+              </div>
+              {loginError ? <div className="error-msg shown">{loginError}</div> : null}
+              <button className="btn btn-primary" type="button" onClick={handleUseCreatedKey} disabled={loginPending}>
+                {loginPending ? 'Signing in…' : 'Continue to dashboard'}
+              </button>
+            </div>
+          ) : showCreateOrg ? (
+            <form onSubmit={handleCreateOrg}>
+              <p>Create a new org to get an API key.</p>
+              <label htmlFor="org-name-input">Org name</label>
+              <input
+                id="org-name-input"
+                type="text"
+                placeholder="my-company"
+                autoComplete="off"
+                value={createOrgName}
+                onChange={(event) => setCreateOrgName(event.target.value)}
+              />
+              {createOrgError ? <div className="error-msg shown">{createOrgError}</div> : null}
+              <button className="btn btn-primary" type="submit" disabled={createOrgPending}>
+                {createOrgPending ? 'Creating…' : 'Create org'}
+              </button>
+              <button type="button" className="btn-link login-toggle" onClick={() => setShowCreateOrg(false)}>
+                Already have a key? Sign in
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin}>
+              <p>Sign in with your org access key to inspect task trees, audit trails, and revocations.</p>
+              <label htmlFor="api-key-input">Access key</label>
+              <input
+                id="api-key-input"
+                type="password"
+                placeholder="att_live_..."
+                autoComplete="off"
+                value={loginKey}
+                onChange={(event) => setLoginKey(event.target.value)}
+              />
+              {loginError ? <div className="error-msg shown">{loginError}</div> : null}
+              <button className="btn btn-primary" type="submit" disabled={loginPending}>
+                {loginPending ? 'Verifying…' : 'Continue'}
+              </button>
+              <button type="button" className="btn-link login-toggle" onClick={() => setShowCreateOrg(true)}>
+                Don't have a key? Create an org
+              </button>
+            </form>
+          )}
+        </div>
       </div>
     );
   }
@@ -735,7 +829,58 @@ function OverviewPage({
       <div className="page-header">
         <div className="page-kicker">Workspace control plane</div>
         <div className="page-title">Overview</div>
-        <div className="page-subtitle">Manage delegated authority for this workspace. Review active credentials, inspect evidence, and revoke a task tree when needed.</div>
+        <div className="page-subtitle">Select a task tree to inspect its evidence packet, audit trail, and authority chain.</div>
+      </div>
+
+      <TaskInboxCard
+        title="Task trees"
+        subtitle="Select a task to load its audit log and evidence packet. Filter by user, agent, or revocation status."
+        tasks={taskList}
+        loading={taskListLoading}
+        error={taskListError}
+        filters={taskListFilters}
+        onChangeFilters={setTaskListFilters}
+        onRefresh={onRefreshTasks}
+        onOpenTask={onOpenTask}
+      />
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-label">Authority state</div>
+          <div className="stat-value green">Active</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Workspace ID</div>
+          <div className="stat-value mono-inline">{org.id}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Provisioned</div>
+          <div className="stat-value date">{formatDate(org.createdAt)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Task trees</div>
+          <div className="stat-value">{taskList.length}</div>
+        </div>
+      </div>
+
+      <div className="overview-grid">
+        <div className="card">
+          <div className="card-title">Access key</div>
+          <div className="key-row">
+            <div className="key-display">{showKey ? apiKey : maskKey(apiKey)}</div>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowKey((current) => !current)}>{showKey ? 'Hide' : 'Show'}</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={onCopyKey}>Copy</button>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">Quick actions</div>
+          <div className="quick-actions">
+            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoAudit}>Inspect task tree</button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoRevoke}>Revoke chain</button>
+            <a className="btn btn-ghost btn-sm" href={SITE_DEMO_URL}>Open demo</a>
+          </div>
+        </div>
       </div>
 
       <div className="hero-shell overview-hero">
@@ -803,62 +948,6 @@ function OverviewPage({
           </div>
         </div>
       </div>
-
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Authority state</div>
-          <div className="stat-value green">Active</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Workspace ID</div>
-          <div className="stat-value mono-inline">{org.id}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Provisioned</div>
-          <div className="stat-value date">{formatDate(org.createdAt)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Control surface</div>
-          <div className="stat-value">Ready</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Recent task trees</div>
-          <div className="stat-value">{taskList.length}</div>
-        </div>
-      </div>
-
-      <div className="overview-grid">
-        <div className="card">
-          <div className="card-title">Access key</div>
-          <div className="key-row">
-            <div className="key-display">{showKey ? apiKey : maskKey(apiKey)}</div>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowKey((current) => !current)}>{showKey ? 'Hide' : 'Show'}</button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={onCopyKey}>Copy</button>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Quick actions</div>
-          <div className="quick-actions">
-            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoAudit}>Inspect task tree</button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoRevoke}>Revoke chain</button>
-            <a className="btn btn-ghost btn-sm" href={SITE_DEMO_URL}>Open demo</a>
-          </div>
-          <p className="inline-note">Best next move: load a real task ID and verify the evidence packet in-browser before you share it.</p>
-        </div>
-      </div>
-
-      <TaskInboxCard
-        title="Recent task trees"
-        subtitle="Recover recent work by user, agent, or revocation state without needing the original att_tid."
-        tasks={taskList}
-        loading={taskListLoading}
-        error={taskListError}
-        filters={taskListFilters}
-        onChangeFilters={setTaskListFilters}
-        onRefresh={onRefreshTasks}
-        onOpenTask={onOpenTask}
-      />
     </section>
   );
 }
@@ -888,6 +977,7 @@ function AuditPage({
   onExport,
   onCopyVerification,
 }) {
+  const [showManualLookup, setShowManualLookup] = useState(false);
   const summary = evidencePacket?.summary || {};
   const task = evidencePacket?.task || {};
   const integrity = evidencePacket?.integrity || {};
@@ -896,119 +986,127 @@ function AuditPage({
   const observedScopes = collectObservedScopes(credentials);
   const eventCount = task.event_count || auditEvents.length || 0;
   const lastEvent = auditEvents[auditEvents.length - 1];
+  const hasLoadedTask = auditEvents.length > 0 && !auditLoading && !auditError;
 
   return (
     <section className="page-section">
       <div className="page-header">
         <div className="page-kicker">Evidence review</div>
         <div className="page-title">Audit Log</div>
-        <div className="page-subtitle">Look up a task tree by `att_tid` and review the sequence of issued, delegated, and revoked events that prove authority.</div>
+        <div className="page-subtitle">Select a task tree to review its evidence packet, authority timeline, and verification status.</div>
       </div>
 
-      <div className="audit-hero">
-        <div className="hero-card-main">
-          <div className="hero-card-label">Current workflow</div>
-          <h2 className="hero-card-title">Move from task ID to proof without leaving the dashboard.</h2>
-          <p className="hero-card-copy">
-            Search the task tree, load the signed packet, verify it on site, then open a readable report or export the canonical JSON artifact.
-          </p>
-          <div className="hero-card-pills">
-            <span className="hero-pill">Hash + signature</span>
-            <span className="hero-pill">Audit chain</span>
-            <span className="hero-pill">Report export</span>
-            <span className="hero-pill">Print-ready</span>
-          </div>
+      {!hasLoadedTask ? (
+        <TaskInboxCard
+          title="Select a task tree"
+          subtitle="Pick a task to load its audit log, evidence packet, and authority timeline."
+          tasks={taskList}
+          loading={taskListLoading}
+          error={taskListError}
+          filters={taskListFilters}
+          onChangeFilters={setTaskListFilters}
+          onRefresh={onRefreshTasks}
+          onOpenTask={onOpenTask}
+        />
+      ) : (
+        <TaskInboxCard
+          title="Recent workspace tasks"
+          subtitle="Switch to a different task tree."
+          tasks={taskList}
+          loading={taskListLoading}
+          error={taskListError}
+          filters={taskListFilters}
+          onChangeFilters={setTaskListFilters}
+          onRefresh={onRefreshTasks}
+          onOpenTask={onOpenTask}
+          compact
+        />
+      )}
+
+      {!hasLoadedTask ? (
+        <div className="manual-lookup-toggle">
+          <button className="btn-link muted-text" type="button" onClick={() => setShowManualLookup((v) => !v)}>
+            {showManualLookup ? 'Hide manual lookup' : 'Look up by task ID'}
+          </button>
         </div>
-        <div className="hero-rail">
-          <div className="rail-panel">
-            <div className="card-title">Loaded task</div>
-            <div className="mini-stat-grid">
-              <div className="mini-stat">
-                <span className="stat-label">Task ID</span>
-                <strong className="mono-inline">{task.att_tid ? shortValue(task.att_tid, 10, 8) : '—'}</strong>
-              </div>
-              <div className="mini-stat">
-                <span className="stat-label">Status</span>
-                <strong>{summary.result || 'Not loaded'}</strong>
-              </div>
-              <div className="mini-stat">
-                <span className="stat-label">Events</span>
-                <strong>{eventCount}</strong>
-              </div>
-              <div className="mini-stat">
-                <span className="stat-label">Integrity</span>
-                <strong>{evidencePacket ? (integrity.audit_chain_valid ? 'Valid' : 'Check packet') : 'Pending'}</strong>
+      ) : null}
+
+      {hasLoadedTask || showManualLookup ? (
+        <div className="card">
+          {hasLoadedTask ? (
+            <div className="audit-loaded-summary">
+              <div className="mini-stat-grid">
+                <div className="mini-stat">
+                  <span className="stat-label">Task ID</span>
+                  <strong className="mono-inline">{task.att_tid ? shortValue(task.att_tid, 10, 8) : '—'}</strong>
+                </div>
+                <div className="mini-stat">
+                  <span className="stat-label">Status</span>
+                  <strong>{summary.result || 'active'}</strong>
+                </div>
+                <div className="mini-stat">
+                  <span className="stat-label">Events</span>
+                  <strong>{eventCount}</strong>
+                </div>
+                <div className="mini-stat">
+                  <span className="stat-label">Integrity</span>
+                  <strong>{evidencePacket ? (integrity.audit_chain_valid ? 'Valid' : 'Check packet') : 'Pending'}</strong>
+                </div>
               </div>
             </div>
+          ) : null}
+
+          <div className="search-row">
+            <div className="search-input-shell">
+              <div className="search-input-label">Task tree</div>
+              <input
+                id="task-id-input"
+                type="search"
+                value={taskId}
+                onChange={(event) => setTaskId(event.target.value)}
+                placeholder="Paste att_tid from a credential or evidence packet"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') onSearch();
+                }}
+              />
+            </div>
+            <div className="toolbar-field">
+              <div className="toolbar-label">Report view</div>
+              <select id="report-template-select" value={reportTemplate} onChange={(event) => setReportTemplate(event.target.value)}>
+                <option value="audit">Audit report</option>
+                <option value="soc2">SOC 2 report</option>
+                <option value="incident">Incident report</option>
+              </select>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <TaskInboxCard
-        title="Recent workspace tasks"
-        subtitle="Pick a recent task tree and jump straight into its packet, report, and timeline."
-        tasks={taskList}
-        loading={taskListLoading}
-        error={taskListError}
-        filters={taskListFilters}
-        onChangeFilters={setTaskListFilters}
-        onRefresh={onRefreshTasks}
-        onOpenTask={onOpenTask}
-        compact
-      />
-
-      <div className="card">
-        <div className="search-row">
-          <div className="search-input-shell">
-            <div className="search-input-label">Task tree</div>
-            <input
-              id="task-id-input"
-              type="search"
-              value={taskId}
-              onChange={(event) => setTaskId(event.target.value)}
-              placeholder="Paste `att_tid` from a credential or evidence packet"
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') onSearch();
-              }}
-            />
+          <div className="toolbar-actions">
+            <button className="btn btn-toolbar-primary" type="button" onClick={onSearch}>
+              <span className="btn-mark">≡</span>
+              <span className="btn-text"><small>Timeline</small><span>{auditLoading ? 'Loading…' : 'Search events'}</span></span>
+            </button>
+            <button className="btn btn-toolbar-secondary" type="button" onClick={onVerify}>
+              <span className="btn-mark">✓</span>
+              <span className="btn-text"><small>On-site</small><span>Verify packet</span></span>
+            </button>
+            <button className="btn btn-toolbar-secondary" type="button" onClick={onOpenReport}>
+              <span className="btn-mark">↗</span>
+              <span className="btn-text"><small>Readable</small><span>Open report</span></span>
+            </button>
+            <button className="btn btn-toolbar-secondary" type="button" onClick={onPrint}>
+              <span className="btn-mark">⎙</span>
+              <span className="btn-text"><small>PDF-ready</small><span>Print report</span></span>
+            </button>
+            <button className="btn btn-toolbar-tertiary" type="button" onClick={onExport}>
+              <span className="btn-mark">↓</span>
+              <span className="btn-text"><small>Canonical</small><span>Export packet</span></span>
+            </button>
           </div>
-          <div className="toolbar-field">
-            <div className="toolbar-label">Report view</div>
-            <select id="report-template-select" value={reportTemplate} onChange={(event) => setReportTemplate(event.target.value)}>
-              <option value="audit">Audit report</option>
-              <option value="soc2">SOC 2 report</option>
-              <option value="incident">Incident report</option>
-            </select>
-          </div>
-        </div>
 
-        <div className="toolbar-actions">
-          <button className="btn btn-toolbar-primary" type="button" onClick={onSearch}>
-            <span className="btn-mark">≡</span>
-            <span className="btn-text"><small>Timeline</small><span>{auditLoading ? 'Loading…' : 'Search events'}</span></span>
-          </button>
-          <button className="btn btn-toolbar-secondary" type="button" onClick={onVerify}>
-            <span className="btn-mark">✓</span>
-            <span className="btn-text"><small>On-site</small><span>Verify packet</span></span>
-          </button>
-          <button className="btn btn-toolbar-secondary" type="button" onClick={onOpenReport}>
-            <span className="btn-mark">↗</span>
-            <span className="btn-text"><small>Readable</small><span>Open report</span></span>
-          </button>
-          <button className="btn btn-toolbar-secondary" type="button" onClick={onPrint}>
-            <span className="btn-mark">⎙</span>
-            <span className="btn-text"><small>PDF-ready</small><span>Print report</span></span>
-          </button>
-          <button className="btn btn-toolbar-tertiary" type="button" onClick={onExport}>
-            <span className="btn-mark">↓</span>
-            <span className="btn-text"><small>Canonical</small><span>Export packet</span></span>
-          </button>
-        </div>
-
-        <div className="audit-results">
-          {auditLoading ? <div className="empty">Loading…</div> : null}
-          {!auditLoading && auditError ? <div className="empty">{auditError}</div> : null}
-          {!auditLoading && !auditError && !auditEvents.length ? <div className="empty">Enter a task ID to view its evidence trail.</div> : null}
+          <div className="audit-results">
+            {auditLoading ? <div className="empty">Loading…</div> : null}
+            {!auditLoading && auditError ? <div className="empty">{auditError}</div> : null}
+            {!auditLoading && !auditError && !auditEvents.length ? <div className="empty">Select a task above or enter a task ID to view its evidence trail.</div> : null}
 
           {!auditLoading && !auditError && auditEvents.length ? (
             <div className="audit-stack">
@@ -1106,6 +1204,7 @@ function AuditPage({
           ) : null}
         </div>
       </div>
+      ) : null}
     </section>
   );
 }
