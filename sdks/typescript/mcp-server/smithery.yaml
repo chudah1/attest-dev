@@ -1,0 +1,23 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      attestApiKey:
+        type: string
+        description: "Attest org API key"
+      attestBaseUrl:
+        type: string
+        description: "Attest server URL"
+        default: "https://api.attestdev.com"
+    required:
+      - attestApiKey
+  commandFunction: |
+    (config) => ({
+      command: "npx",
+      args: ["-y", "@attest-dev/mcp-server"],
+      env: {
+        ATTEST_API_KEY: config.attestApiKey,
+        ATTEST_BASE_URL: config.attestBaseUrl || "https://api.attestdev.com"
+      }
+    })

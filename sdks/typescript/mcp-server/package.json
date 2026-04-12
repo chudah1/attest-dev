@@ -1,0 +1,38 @@
+{
+  "name": "@attest-dev/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing Attest credential management, audit, and approval tools",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "attest-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "attest",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "credentials",
+    "security",
+    "audit"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@attest-dev/sdk": "^0.1.0-beta.5",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "files": ["dist"],
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "mcpName": "io.github.chudah1/attest-mcp-server"
+}
