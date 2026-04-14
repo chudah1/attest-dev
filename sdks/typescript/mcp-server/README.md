@@ -55,9 +55,39 @@ Example MCP config:
 
 If you are reviewing this repository for MCP support, the server lives here:
 
-- package: [package.json](/Users/cyakung/Projects/warrant/sdks/typescript/mcp-server/package.json)
-- entrypoint: [src/index.ts](/Users/cyakung/Projects/warrant/sdks/typescript/mcp-server/src/index.ts)
-- metadata: [server.json](/Users/cyakung/Projects/warrant/sdks/typescript/mcp-server/server.json)
+- package: [package.json](./package.json)
+- entrypoint: [src/index.ts](./src/index.ts)
+- metadata: [server.json](./server.json)
+
+The tool implementations live in:
+
+- [src/tools/credentials.ts](./src/tools/credentials.ts)
+- [src/tools/tasks.ts](./src/tools/tasks.ts)
+- [src/tools/reporting.ts](./src/tools/reporting.ts)
+- [src/tools/approvals.ts](./src/tools/approvals.ts)
+
+## Implementation
+
+The server is built with the MCP SDK and registers real MCP tools before
+connecting to a stdio transport:
+
+```ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { AttestClient } from "@attest-dev/sdk";
+
+const client = new AttestClient({ baseUrl, apiKey });
+const server = new McpServer({ name: "attest", version: "0.1.0" });
+
+registerCredentialTools(server, client, baseUrl);
+registerTaskTools(server, client);
+registerReportingTools(server, client);
+registerApprovalTools(server, client);
+
+await server.connect(new StdioServerTransport());
+```
+
+That implementation is in [src/index.ts](./src/index.ts).
 
 ## What this is for
 
@@ -199,5 +229,5 @@ ATTEST_API_KEY=attest_live_xxx npm exec -- attest-mcp-server
 
 ## Related packages
 
-- [TypeScript SDK](/Users/cyakung/Projects/warrant/sdks/typescript/README.md)
-- [MCP middleware for protecting your own MCP server](/Users/cyakung/Projects/warrant/sdks/typescript/mcp/README.md)
+- [TypeScript SDK](../README.md)
+- [MCP middleware for protecting your own MCP server](../mcp/README.md)
