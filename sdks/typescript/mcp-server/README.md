@@ -1,15 +1,25 @@
 # @attest-dev/mcp-server
 
-Operate Attest from any MCP client.
+Attest MCP Server for the Model Context Protocol.
 
-This server exposes Attest control-plane and evidence tools over MCP so an
-agent host like Claude Desktop, Cursor, or Windsurf can:
+This is a real stdio MCP server built with `@modelcontextprotocol/sdk`.
+
+Agent hosts like Claude Desktop, Cursor, or Windsurf can connect to it and call
+Attest tools over MCP.
+
+It currently exposes MCP tools for:
 
 - issue scoped credentials for a task
 - delegate narrower credentials to sub-agents
 - request, approve, or deny human approvals
 - revoke a credential chain
 - inspect recent tasks, audit trails, and evidence packets
+
+It currently defines:
+
+- Tools: yes
+- Resources: none
+- Prompts: none
 
 ## Install
 
@@ -40,6 +50,14 @@ Example MCP config:
   }
 }
 ```
+
+## Repo location
+
+If you are reviewing this repository for MCP support, the server lives here:
+
+- package: [package.json](/Users/cyakung/Projects/warrant/sdks/typescript/mcp-server/package.json)
+- entrypoint: [src/index.ts](/Users/cyakung/Projects/warrant/sdks/typescript/mcp-server/src/index.ts)
+- metadata: [server.json](/Users/cyakung/Projects/warrant/sdks/typescript/mcp-server/server.json)
 
 ## What this is for
 
@@ -94,7 +112,7 @@ That is the practical shape of Attest:
 - recoverable audit history
 - evidence you can verify later
 
-## Core tools
+## MCP tools
 
 Credentials:
 

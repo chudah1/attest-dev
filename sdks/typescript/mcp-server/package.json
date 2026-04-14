@@ -1,7 +1,7 @@
 {
   "name": "@attest-dev/mcp-server",
   "version": "0.1.0",
-  "description": "MCP server exposing Attest credential management, audit, and approval tools",
+  "description": "A stdio MCP server for Attest that exposes credential, approval, audit, and evidence tools",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -15,6 +15,8 @@
     "attest",
     "mcp",
     "model-context-protocol",
+    "stdio",
+    "tools",
     "agent",
     "credentials",
     "security",

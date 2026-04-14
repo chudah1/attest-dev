@@ -4,6 +4,11 @@
 
 Attest is a cryptographic credentialing standard for AI agent pipelines. When an orchestrator spawns sub-agents to complete a task, Attest issues each agent a short-lived, scope-limited JWT that is cryptographically bound to the original human instruction via a SHA-256 intent hash. Every delegation narrows scope, cannot outlive the parent, and is recorded in an append-only, hash-chained audit log — so the full chain of authority from a human principal down to any tool call is provable, revocable in a single operation, and independently verifiable by any party with access to the public key.
 
+This repository also includes a standalone MCP server:
+
+- [TypeScript MCP server](/Users/cyakung/Projects/warrant/sdks/typescript/mcp-server/README.md) — a real stdio Model Context Protocol server that exposes Attest tools like `issue_credential`, `delegate_credential`, `list_tasks`, `get_audit_trail`, `get_evidence`, and approval actions.
+- [TypeScript MCP middleware](/Users/cyakung/Projects/warrant/sdks/typescript/mcp/README.md) — middleware for protecting your own MCP server with Attest.
+
 ---
 
 ## Quickstart (TypeScript)
