@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MCP quickstart — Attest</title>
-  <meta name="description" content="Protect one MCP tool with Attest: wrap the server, issue the right scope, block the wrong call, and leave behind proof you can verify later." />
+  <meta name="description" content="Protect MCP tools with Attest middleware, or let agents manage credentials directly via the Attest MCP server. Issue, delegate, revoke, and audit." />
   <meta property="og:title" content="MCP quickstart — Attest" />
   <meta property="og:description" content="Protect one MCP tool with Attest. Wrap your server, issue the right scope, block the wrong call, and leave behind proof." />
   <meta property="og:type" content="website" />
@@ -669,6 +669,53 @@ curl -X POST https://api.attestdev.com/v1/credentials \
 # - open /verify/ and validate the packet independently
 # - revoke the root with DELETE /v1/credentials/{jti}</code></pre>
           </section>
+
+          <section class="subpanel" id="mcp-server">
+            <div class="step-head">
+              <div class="step-title">
+                <div class="step-index" style="background:var(--surface);color:var(--muted);border:1px solid var(--line);">+</div>
+                <div>
+                  <strong>Manage credentials from inside MCP</strong>
+                  <span>A separate MCP server that lets agents issue, delegate, revoke, and audit. No SDK code needed.</span>
+                </div>
+              </div>
+            </div>
+
+            <p style="color:var(--muted);font-size:.88rem;margin-bottom:1rem;">The middleware above enforces credentials on tool calls. The <strong>MCP server</strong> below lets an orchestrator agent manage the credential lifecycle itself: issue tokens, delegate to sub-agents, revoke mid-task, and pull audit trails.</p>
+
+            <pre><code>{
+  "mcpServers": {
+    "attest": {
+      "command": "npx",
+      "args": ["-y", "@attest-dev/mcp-server"],
+      "env": {
+        "ATTEST_API_KEY": "att_live_...",
+        "ATTEST_BASE_URL": "https://api.attestdev.com"
+      }
+    }
+  }
+}</code></pre>
+
+            <p style="color:var(--muted);font-size:.85rem;margin:.75rem 0 .5rem;">14 tools available:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem .75rem;font-size:.82rem;color:var(--muted);margin-bottom:1rem;">
+              <span><code>issue_credential</code></span>
+              <span><code>list_tasks</code></span>
+              <span><code>delegate_credential</code></span>
+              <span><code>get_audit_trail</code></span>
+              <span><code>revoke_credential</code></span>
+              <span><code>get_evidence</code></span>
+              <span><code>verify_credential</code></span>
+              <span><code>report_action</code></span>
+              <span><code>check_revocation</code></span>
+              <span><code>report_status</code></span>
+              <span><code>request_approval</code></span>
+              <span><code>grant_approval</code></span>
+              <span><code>get_approval</code></span>
+              <span><code>deny_approval</code></span>
+            </div>
+
+            <p style="color:var(--muted);font-size:.85rem;">The middleware enforces. The MCP server manages. Use one or both. They work independently.</p>
+          </section>
         </div>
       </div>
 
@@ -711,7 +758,8 @@ curl -X POST https://api.attestdev.com/v1/credentials \
 
         <div class="rail-block">
           <h3>Reference</h3>
-          <p>The deeper MCP middleware details still live in <a href="../sdks/typescript/mcp/README.md">the TypeScript MCP README</a>, but this page is the shortest path to first value.</p>
+          <p style="margin-bottom:.5rem;"><strong>Middleware</strong> (<code>@attest-dev/sdk/mcp</code>): wraps your server to enforce credentials. <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a></p>
+          <p><strong>MCP server</strong> (<code>@attest-dev/mcp-server</code>): tools agents call to manage credentials. <a href="https://www.npmjs.com/package/@attest-dev/mcp-server">npm</a> · <a href="https://github.com/chudah1/attest-dev/tree/main/sdks/typescript/mcp-server">source</a></p>
         </div>
       </aside>
     </section>

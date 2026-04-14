@@ -86,6 +86,7 @@ context.md
 content/
 phase2.md
 .github/agents/*.agent.md
+examples/refund-workflow/
 
 # Logs
 *.log
