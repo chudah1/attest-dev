@@ -6,7 +6,7 @@ import { errorResult } from '../error.js';
 export function registerCredentialTools(server: McpServer, client: AttestClient, baseUrl: string): void {
   server.tool(
     'issue_credential',
-    'Issue a scoped credential for an agent',
+    'Issue a new root credential for a task. Use this at the start of a workflow when an orchestrator or top-level agent needs explicit scoped authority tied to a human user and instruction. Returns a signed JWT plus claims including the task tree ID; use delegate_credential for child agents instead of issuing multiple unrelated root credentials.',
     {
       agent_id: z.string().describe('Agent identifier'),
       user_id: z.string().describe('Human principal who authorized the task'),
@@ -33,7 +33,7 @@ export function registerCredentialTools(server: McpServer, client: AttestClient,
 
   server.tool(
     'delegate_credential',
-    'Narrow a parent credential for a child agent',
+    'Create a narrower child credential from an existing parent credential. Use this when handing work to a sub-agent or isolated step that should receive only a subset of the parent scope. The server enforces that child_scope is a subset of the parent; if you need the original root authority, use issue_credential instead.',
     {
       parent_token: z.string().describe('Parent JWT credential'),
       child_agent: z.string().describe('Child agent identifier'),
@@ -58,7 +58,7 @@ export function registerCredentialTools(server: McpServer, client: AttestClient,
 
   server.tool(
     'revoke_credential',
-    'Revoke a credential and cascade to all descendants',
+    'Revoke one credential and cascade that revocation through all of its descendants in the same task tree. Use this when a workflow should be stopped or contained; this is a state-changing operation, not a dry run. Returns a confirmation object, and later checks should use check_revocation or list_tasks rather than calling revoke_credential again.',
     {
       jti: z.string().describe('Credential unique ID'),
       revoked_by: z.string().optional().describe('Who initiated revocation'),
@@ -75,7 +75,7 @@ export function registerCredentialTools(server: McpServer, client: AttestClient,
 
   server.tool(
     'verify_credential',
-    'Check if a token is valid (signature, expiry, structure)',
+    'Perform an offline-style validity check for one credential using the org JWKS fetched from Attest. Use this to inspect a token before acting on it or when debugging why a credential was rejected; for revocation-only checks use check_revocation instead. Requires the org_id that issued the token and returns validity, decoded claims, and warning details.',
     {
       token: z.string().describe('JWT credential to verify'),
       org_id: z.string().describe('Organization ID (needed to fetch JWKS)'),
@@ -93,7 +93,7 @@ export function registerCredentialTools(server: McpServer, client: AttestClient,
 
   server.tool(
     'check_revocation',
-    'Check if a credential JTI has been revoked',
+    'Check whether a specific credential JTI is currently revoked. Use this for a one-time revocation lookup when you already know the credential ID; it does not verify signature, expiry, or task history. Returns a small revocation status object, and network or API failures are returned as MCP errors.',
     {
       jti: z.string().describe('Credential unique ID'),
     },

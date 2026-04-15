@@ -6,7 +6,7 @@ import { errorResult } from '../error.js';
 export function registerTaskTools(server: McpServer, client: AttestClient): void {
   server.tool(
     'list_tasks',
-    'List task trees with optional filters',
+    'List recent Attest task trees for the authenticated organization, optionally filtered by user, agent, status, or limit. Use this to recover recent workflows when you do not already know the task ID; use get_audit_trail or get_evidence once you have a specific task_id. This is a read operation that returns task summaries only and does not mutate task state.',
     {
       user_id: z.string().optional().describe('Filter by user ID'),
       agent_id: z.string().optional().describe('Filter by agent ID'),
@@ -30,7 +30,7 @@ export function registerTaskTools(server: McpServer, client: AttestClient): void
 
   server.tool(
     'get_audit_trail',
-    'Get the full event chain for a task',
+    'Fetch the full audit event chain for a single task tree. Use this when you already know the task_id and need detailed chronology for issuance, delegation, actions, lifecycle events, approvals, or revocations; use list_tasks first if you need to discover candidate tasks. Returns the raw Attest audit events for that task and does not change state.',
     {
       task_id: z.string().describe('Task tree ID'),
     },
@@ -46,7 +46,7 @@ export function registerTaskTools(server: McpServer, client: AttestClient): void
 
   server.tool(
     'get_evidence',
-    'Get a signed evidence packet for compliance and verification',
+    'Fetch the signed evidence packet for one task tree. Use this when you need a portable proof artifact for compliance review, incident analysis, or independent verification; use get_audit_trail for a simpler raw event timeline. Returns the full evidence packet produced by Attest and does not mutate any task state.',
     {
       task_id: z.string().describe('Task tree ID'),
     },

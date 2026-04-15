@@ -1,6 +1,6 @@
 {
   "name": "@attest-dev/mcp-server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A stdio MCP server for Attest that exposes credential, approval, audit, and evidence tools",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,7 +24,7 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
-    "@attest-dev/sdk": "^0.1.0-beta.5",
+    "@attest-dev/sdk": "^0.1.0-beta.6",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.25.76"
   },

@@ -6,7 +6,7 @@ import { errorResult } from '../error.js';
 export function registerReportingTools(server: McpServer, client: AttestClient): void {
   server.tool(
     'report_action',
-    'Log a tool execution outcome',
+    'Append a tool execution outcome to the Attest audit log for the credential in use. Use this after a meaningful business action such as sending email, updating billing, or calling an internal API; it records side effects rather than authorizing them. Returns a small confirmation object, and callers should use report_status for lifecycle transitions like started or completed.',
     {
       token: z.string().describe('Credential JWT'),
       tool: z.string().describe('Tool name that was executed'),
@@ -31,7 +31,7 @@ export function registerReportingTools(server: McpServer, client: AttestClient):
 
   server.tool(
     'report_status',
-    'Log an agent lifecycle event',
+    'Append an agent lifecycle event such as started, completed, or failed to the Attest audit log. Use this to mark step boundaries or overall task progress; use report_action for concrete tool outcomes instead. Returns a confirmation object and does not mint, verify, or revoke credentials.',
     {
       token: z.string().describe('Credential JWT'),
       status: z.enum(['started', 'completed', 'failed']).describe('Agent lifecycle status'),
