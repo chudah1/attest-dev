@@ -140,8 +140,11 @@ func main() {
 	slog.SetDefault(logger)
 
 	cfg := configFromEnv()
+	if cfg.DatabaseURL == "" {
+		slog.Error("DATABASE_URL is required; start the local stack with docker compose up or set DATABASE_URL explicitly")
+		os.Exit(1)
+	}
 
-	// Wire storage backends: Postgres when DATABASE_URL is set, in-memory otherwise.
 	var (
 		orgStore org.Store
 		revStore revocation.Revoker
@@ -149,43 +152,30 @@ func main() {
 		appStore approval.Store
 	)
 
-	if cfg.DatabaseURL != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-		pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
-		if err != nil {
-			slog.Error("failed to connect to database", "err", err)
-			os.Exit(1)
-		}
-		defer pool.Close()
-
-		if _, err := pool.Exec(ctx, migrateSQL); err != nil {
-			slog.Warn("migration step skipped or failed (ok on fresh db)", "err", err.Error())
-		}
-		if _, err := pool.Exec(ctx, schemaSQL); err != nil {
-			slog.Error("failed to apply schema", "err", err, "detail", err.Error())
-			os.Exit(1)
-		}
-		slog.Info("schema applied")
-
-		slog.Info("storage: postgres")
-		orgStore = org.NewPostgresStore(pool)
-		revStore = revocation.NewStore(pool)
-		auditLog = audit.NewLog(pool)
-		appStore = approval.NewPostgresStore(pool)
-	} else {
-		slog.Warn("DATABASE_URL not set — using in-memory storage (dev mode, data lost on restart)")
-		memOrg, err := org.NewMemoryStore()
-		if err != nil {
-			slog.Error("failed to init in-memory org store", "err", err)
-			os.Exit(1)
-		}
-		orgStore = memOrg
-		revStore = revocation.NewMemoryStore()
-		auditLog = audit.NewMemoryLog()
-		appStore = approval.NewMemoryStore()
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		slog.Error("failed to connect to database", "err", err)
+		os.Exit(1)
 	}
+	defer pool.Close()
+
+	if _, err := pool.Exec(ctx, migrateSQL); err != nil {
+		slog.Warn("migration step skipped or failed (ok on fresh db)", "err", err.Error())
+	}
+	if _, err := pool.Exec(ctx, schemaSQL); err != nil {
+		slog.Error("failed to apply schema", "err", err, "detail", err.Error())
+		os.Exit(1)
+	}
+	slog.Info("schema applied")
+
+	slog.Info("storage: postgres")
+	orgStore = org.NewPostgresStore(pool)
+	revStore = revocation.NewStore(pool)
+	auditLog = audit.NewLog(pool)
+	appStore = approval.NewPostgresStore(pool)
 
 	iss := token.NewIssuer(cfg.IssuerURI)
 

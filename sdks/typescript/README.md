@@ -1,10 +1,10 @@
 # @attest-dev/sdk
 
-TypeScript SDK for [Attest](https://github.com/attest-dev/attest) — cryptographic credentials for AI agent pipelines.
+TypeScript SDK for [Attest](https://github.com/chudah1/attest-dev) — cryptographic credentials for AI agent pipelines.
 
 Attest issues RS256-signed JWTs to agents carrying scope, delegation lineage, and task provenance. Every handoff narrows scope, every action is auditable, and the entire task tree can be revoked in one call.
 
-> **Beta** — self-host the [Attest server](https://github.com/attest-dev/attest) or point at your own instance. Hosted service coming soon.
+> **Beta** — self-host the [Attest server](https://github.com/chudah1/attest-dev) or point at your own instance. Hosted service coming soon.
 
 ## Install
 
@@ -188,12 +188,13 @@ Delegation enforces that child scope is a strict subset of parent scope — serv
 
 ```bash
 # Clone and start (Docker required)
-git clone https://github.com/attest-dev/attest
-cd attest
-docker compose up
+git clone https://github.com/chudah1/attest-dev
+cd attest-dev
+docker compose up --build
 
-# Or run without Docker (ephemeral key, in-memory storage)
-cd server && go run ./cmd/attest
+# Or run the Go server against the local Postgres container
+docker compose up -d postgres
+cd server && DATABASE_URL=postgres://attest:attest@localhost:5432/attest go run ./cmd/attest
 ```
 
 Server starts on `http://localhost:8080`.

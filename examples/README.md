@@ -18,10 +18,10 @@ All examples need an Attest API key:
 export ATTEST_API_KEY=att_live_...
 ```
 
-Get one at [attestdev.com](https://www.attestdev.com) or run the server locally:
+Get one at [attestdev.com](https://www.attestdev.com) or run the local stack with Docker:
 
 ```bash
-cd server && go run ./cmd/attest --memory
+docker compose up --build
 ```
 
 ## What each example shows

@@ -70,9 +70,9 @@ The utility `isScopeSubset(parentScope, childScope)` replicates this check clien
 
 ```bash
 # Clone and start everything
-git clone https://github.com/attest-dev/attest
-cd attest
-docker compose up
+git clone https://github.com/chudah1/attest-dev
+cd attest-dev
+docker compose up --build
 
 # The server is now running at http://localhost:8080
 # PostgreSQL at localhost:5432
@@ -92,11 +92,12 @@ curl -s -X POST http://localhost:8080/v1/credentials \
 open demo/index.html
 ```
 
-**Without Docker** (dev mode — ephemeral key, no database):
+If you want to run the Go server outside Docker, point it at the Compose database:
 
 ```bash
+docker compose up -d postgres
 cd server
-go run ./cmd/attest          # starts on :8080, warns about missing DB
+DATABASE_URL=postgres://attest:attest@localhost:5432/attest go run ./cmd/attest
 ```
 
 ---
