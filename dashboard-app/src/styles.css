@@ -1,25 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 :root {
-  --bg: #fafaf9;
-  --surface: #f0f0ee;
-  --surface-2: #fafaf9;
+  --bg: #FFFFFF;
+  --surface: #F3F3F7;
+  --surface-2: #FAFAFA;
   --surface-3: rgba(0, 0, 0, 0.02);
-  --line: #e0e0dd;
-  --line-strong: #ccccc8;
-  --text: #1a1a1a;
-  --muted: #606060;
-  --accent: #1a1a1a;
-  --accent-2: #444;
+  --line: rgba(66, 87, 138, 0.15);
+  --line-strong: rgba(97, 106, 136, 0.30);
+  --text: #15191E;
+  --muted: #60646C;
+  --accent: #FF5900;
+  --accent-hover: #FF6B18;
+  --accent-2: #FF3D00;
   --green: #16a34a;
   --red: #dc2626;
   --amber: #d97706;
   --shadow: 0 1px 3px rgba(0,0,0,0.05);
-  --radius-xl: 8px;
-  --radius-lg: 6px;
-  --radius-md: 6px;
-  --radius-sm: 4px;
-  --font-body: Georgia, "Times New Roman", serif;
-  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "SF Mono", "Fira Code", monospace;
+  --shadow-hover: 0 4px 16px rgba(0,0,0,0.12);
+  --radius: 10px;
+  --radius-lg: 12px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-ui: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 }
 
 *,
@@ -76,7 +80,7 @@ a {
 
 .logo,
 .nav-logo {
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -121,7 +125,7 @@ select {
 input:focus,
 select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 0 0 3px rgba(255, 89, 0, 0.1);
   background: var(--surface);
 }
 
@@ -135,7 +139,7 @@ select:focus {
   border: none;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.15s, border-color 0.15s, background 0.15s;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
 }
 
 .btn:hover {
@@ -151,8 +155,8 @@ select:focus {
 .btn-primary {
   width: 100%;
   margin-top: 1.25rem;
-  background: var(--text);
-  color: var(--bg);
+  background: var(--accent);
+  color: #fff;
 }
 
 .btn-ghost {
@@ -229,7 +233,7 @@ select:focus {
   width: 1.9rem;
   height: 1.9rem;
   border-radius: 6px;
-  background: rgba(212, 164, 85, 0.1);
+  background: rgba(255, 89, 0, 0.1);
   font-size: 0.9rem;
   flex-shrink: 0;
 }
@@ -360,17 +364,17 @@ select:focus {
   font-size: 0.95rem;
   cursor: pointer;
   text-align: left;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
 }
 
 .sidebar-item:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(255, 89, 0, 0.04);
 }
 
 .sidebar-item.active {
-  color: var(--text);
-  background: rgba(212, 164, 85, 0.11);
+  color: var(--accent);
+  background: #FFF0E6;
   border-right: 2px solid var(--accent);
 }
 
@@ -532,7 +536,7 @@ select:focus {
 .action-tile:hover {
   transform: translateY(-1px);
   border-color: var(--line-strong);
-  background: rgba(212, 164, 85, 0.08);
+  background: rgba(255, 89, 0, 0.06);
   text-decoration: none;
 }
 
