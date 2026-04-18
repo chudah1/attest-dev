@@ -8,399 +8,33 @@
   <link rel="stylesheet" href="../styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    .page {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 1.5rem 2rem 4rem;
-    }
+    .mcp-hero { padding: 80px 0 60px; }
+    .mcp-hero-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; }
+    .mcp-hero h1 { font-size: clamp(24px, 3vw, 48px); margin-bottom: 16px; }
+    .mcp-hero .body-lg { max-width: 600px; margin-bottom: 32px; }
 
-    .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
-      gap: 1.25rem;
-      margin-bottom: 1.25rem;
-    }
+    .mcp-steps { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; }
+    .mcp-step { padding: 48px 0; border-top: 1px solid var(--line); }
+    .mcp-step:first-child { border-top: none; }
+    .mcp-step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+    .mcp-step-num { font-size: 36px; font-weight: 700; color: var(--accent); letter-spacing: -2px; line-height: 1; }
+    .mcp-step-header h3 { font-size: 20px; }
+    .mcp-step p { color: var(--text-secondary); margin-bottom: 16px; max-width: 600px; }
 
-    .hero-card,
-    .side-card,
-    .panel,
-    .subpanel {
-      border: 1px solid var(--line);
-      background: var(--surface);
-      box-shadow: var(--shadow);
-    }
+    .mcp-cards { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .mcp-cards .card h3 { margin-bottom: 8px; }
+    .mcp-cards .card p { color: var(--text-secondary); font-size: 14px; }
 
-    .hero-card,
-    .side-card,
-    .panel {
-      border-radius: var(--radius-lg);
-    }
+    .mcp-links { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .mcp-link-card { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; background: var(--surface); border-radius: var(--radius-lg); text-decoration: none; color: var(--text); transition: box-shadow 0.25s ease; }
+    .mcp-link-card:hover { box-shadow: var(--shadow-hover); text-decoration: none; }
+    .mcp-link-card span { font-size: 14px; font-weight: 500; }
+    .mcp-link-card small { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; font-weight: 400; }
 
-    .hero-card {
-      padding: 1.75rem 1.9rem;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .side-card {
-      padding: 1.3rem;
-      display: grid;
-      gap: 0.95rem;
-    }
-
-    .eyebrow {
-      color: var(--accent);
-      font: 600 0.8rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      margin-bottom: 0.8rem;
-    }
-
-    .page h1 {
-      font-size: clamp(2rem, 4.4vw, 3.35rem);
-      line-height: 1.02;
-      letter-spacing: -0.055em;
-      max-width: 12ch;
-      margin-bottom: 0.85rem;
-    }
-
-    .hero-copy {
-      max-width: 58ch;
-      color: var(--text-secondary);
-      font-size: 1rem;
-      margin-bottom: 1.2rem;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 0.7rem;
-      flex-wrap: wrap;
-      margin-bottom: 1.1rem;
-    }
-
-    .hero-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.72rem 0.98rem;
-      border-radius: var(--radius);
-      border: 1px solid transparent;
-      font-size: 0.86rem;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .hero-btn.primary {
-      background: var(--text);
-      border-color: transparent;
-      color: var(--bg);
-    }
-
-    .hero-btn.secondary {
-      background: rgba(0, 0, 0, 0.02);
-      border-color: var(--line);
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.55rem;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.36rem 0.76rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--line-hover);
-      background: rgba(0, 0, 0, 0.02);
-      color: var(--text);
-      font-size: 0.82rem;
-    }
-
-    .side-title {
-      font-size: 1.45rem;
-      letter-spacing: -0.04em;
-      line-height: 1.05;
-    }
-
-    .side-copy {
-      color: var(--text-secondary);
-      font-size: 0.92rem;
-    }
-
-    .success-list {
-      display: grid;
-      gap: 0.7rem;
-    }
-
-    .success-item {
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(0, 0, 0, 0.02);
-      padding: 0.9rem 1rem;
-    }
-
-    .success-item strong {
-      display: block;
-      font-size: 0.94rem;
-      margin-bottom: 0.22rem;
-    }
-
-    .success-item span {
-      color: var(--text-secondary);
-      font-size: 0.84rem;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1.12fr) 360px;
-      gap: 1.25rem;
-      align-items: start;
-    }
-
-    .panel {
-      padding: 1.3rem;
-    }
-
-    .section-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      align-items: end;
-      margin-bottom: 1rem;
-    }
-
-    .section-kicker {
-      color: var(--text-secondary);
-      font-size: 0.76rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 0.28rem;
-    }
-
-    .section-title {
-      font-size: 1.14rem;
-      letter-spacing: -0.03em;
-    }
-
-    .section-copy {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      max-width: 58ch;
-    }
-
-    .step-grid {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .subpanel {
-      border-radius: var(--radius);
-      padding: 1rem;
-    }
-
-    .step-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      align-items: start;
-      margin-bottom: 0.8rem;
-    }
-
-    .step-title {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .step-index {
-      width: 2rem;
-      height: 2rem;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      color: var(--text-secondary);
-      font: 700 0.84rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      flex-shrink: 0;
-    }
-
-    .step-title strong {
-      display: block;
-      font-size: 0.98rem;
-      letter-spacing: -0.02em;
-    }
-
-    .step-title span {
-      color: var(--text-secondary);
-      font-size: 0.83rem;
-    }
-
-    .step-note {
-      color: var(--text-secondary);
-      font-size: 0.8rem;
-      max-width: 30ch;
-      text-align: right;
-    }
-
-    pre {
-      margin: 0;
-      padding: 1rem 1.05rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-      overflow-x: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font: 0.83rem/1.7 "SF Mono", "Fira Code", monospace;
-      color: var(--text);
-    }
-
-    code {
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.82em;
-    }
-
-    .checklist {
-      display: grid;
-      gap: 0.65rem;
-      margin-top: 0.35rem;
-    }
-
-    .check {
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-      padding: 0.85rem 0.95rem;
-    }
-
-    .check strong {
-      display: block;
-      font-size: 0.92rem;
-      margin-bottom: 0.2rem;
-    }
-
-    .check span {
-      color: var(--text-secondary);
-      font-size: 0.83rem;
-    }
-
-    .sticky-rail {
-      position: sticky;
-      top: 92px;
-      display: grid;
-      gap: 1rem;
-    }
-
-    .rail-block {
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-      padding: 1rem;
-    }
-
-    .rail-block h3 {
-      font-size: 1rem;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.55rem;
-    }
-
-    .rail-block p,
-    .rail-block li {
-      color: var(--text-secondary);
-      font-size: 0.84rem;
-    }
-
-    .rail-block ul {
-      display: grid;
-      gap: 0.45rem;
-      padding-left: 1rem;
-    }
-
-    .rail-links {
-      display: grid;
-      gap: 0.55rem;
-    }
-
-    .rail-link {
-      display: flex;
-      justify-content: space-between;
-      gap: 0.75rem;
-      align-items: center;
-      padding: 0.8rem 0.9rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-      color: var(--text);
-    }
-
-    .rail-link:hover {
-      text-decoration: none;
-      border-color: var(--line-hover);
-      background: var(--surface);
-    }
-
-    .rail-link small {
-      color: var(--text-secondary);
-      display: block;
-      font-size: 0.74rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.15rem;
-    }
-
-    .rail-link span {
-      display: block;
-      font-size: 0.92rem;
-    }
-
-    .helper {
-      color: var(--text-secondary);
-      font-size: 0.82rem;
-      line-height: 1.6;
-    }
-
-    @media (max-width: 980px) {
-      .hero,
-      .layout {
-        grid-template-columns: 1fr;
-      }
-
-      .sticky-rail {
-        position: static;
-        top: auto;
-      }
-    }
-
-    @media (max-width: 720px) {
-      .page {
-        padding: 1.2rem 1rem 3rem;
-      }
-
-      .hero-card,
-      .side-card,
-      .panel,
-      .subpanel {
-        border-radius: var(--radius);
-      }
-
-      .hero-card,
-      .side-card,
-      .panel {
-        padding: 1.1rem;
-      }
-
-      .step-head,
-      .section-head {
-        flex-direction: column;
-      }
-
-      .step-note {
-        text-align: left;
-      }
+    @media (max-width: 860px) {
+      .mcp-hero-inner, .mcp-steps, .mcp-cards, .mcp-links { padding-left: 24px; padding-right: 24px; }
+      .mcp-cards { grid-template-columns: 1fr; }
+      .mcp-hero { padding: 60px 0 40px; }
     }
   </style>
 
@@ -435,71 +69,30 @@
     </div>
   </nav>
 
-  <main class="page">
-    <section class="hero">
-      <div class="hero-card">
-        <div class="eyebrow">MCP quickstart</div>
-        <h1>Protect one MCP tool. See the result immediately.</h1>
-        <p class="hero-copy">This is the shortest real path into Attest: wrap an existing MCP server with <code>withAttest()</code>, issue only the scope that tool needs, watch one valid call go through, then block one that should never have been allowed.</p>
-        <div class="hero-actions">
-          <a class="hero-btn primary" href="#step-1">Start the quickstart</a>
-          <a class="hero-btn secondary" href="../demo/">See the product moment first</a>
-        </div>
-        <div class="pill-row">
-          <span class="pill">One MCP server</span>
-          <span class="pill">One protected tool</span>
-          <span class="pill">One allowed call</span>
-          <span class="pill">One blocked call</span>
-        </div>
+  <section class="mcp-hero">
+    <div class="mcp-hero-inner">
+      <p class="category">MCP Quickstart</p>
+      <h1>Protect one MCP tool. See the result immediately.</h1>
+      <p class="body-lg muted">This is the shortest real path into Attest: wrap an existing MCP server with <code>withAttest()</code>, issue only the scope that tool needs, watch one valid call go through, then block one that should never have been allowed.</p>
+    </div>
+  </section>
+
+  <div class="mcp-steps">
+    <div class="mcp-step">
+      <div class="mcp-step-header">
+        <div class="mcp-step-num">1</div>
+        <h3>Install the SDK</h3>
       </div>
+      <pre><code>npm install @attest-dev/sdk @modelcontextprotocol/sdk</code></pre>
+    </div>
 
-      <aside class="side-card">
-        <div>
-          <div class="eyebrow" style="margin-bottom:0.45rem;">What success looks like</div>
-          <div class="side-title">You leave this page with one real protected tool call.</div>
-        </div>
-        <p class="side-copy">By the end of this page, your MCP server is credential-gated, the required scope is discoverable from the server itself, and the same task can flow into audit, evidence export, and verification.</p>
-        <div class="success-list">
-          <div class="success-item">
-            <strong>Allowed tool call succeeds</strong>
-            <span>A credential with <code>email:send</code> reaches the handler and does the work you expected.</span>
-          </div>
-          <div class="success-item">
-            <strong>Out-of-scope tool call is blocked</strong>
-            <span>A credential missing the required scope gets stopped before the handler runs.</span>
-          </div>
-          <div class="success-item">
-            <strong>There is proof afterward</strong>
-            <span>The same task can be opened in the dashboard, exported as evidence, or verified from a packet.</span>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <section class="layout">
-      <div class="panel">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Activation path</div>
-            <div class="section-title">Follow the path that gets you to a real protected MCP tool as fast as possible.</div>
-          </div>
-        </div>
-
-        <div class="step-grid">
-          <section class="subpanel" id="step-1">
-            <div class="step-head">
-              <div class="step-title">
-                <div class="step-index">01</div>
-                <div>
-                  <strong>Wrap the server you already have</strong>
-                  <span>Keep your existing tool registration flow. Attest sits in front of it.</span>
-                </div>
-              </div>
-            </div>
-
-            <pre><code>npm install @attest-dev/sdk @modelcontextprotocol/sdk</code></pre>
-
-            <pre><code>import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+    <div class="mcp-step">
+      <div class="mcp-step-header">
+        <div class="mcp-step-num">2</div>
+        <h3>Wrap your MCP server</h3>
+      </div>
+      <p>Add withAttest() to your existing MCP server. This intercepts every tool call and checks the caller's credential scope.</p>
+      <pre><code>import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { withAttest } from "@attest-dev/sdk/mcp";
 
 const server = new McpServer({ name: "my-tools", version: "1.0.0" });
@@ -508,26 +101,15 @@ const protectedServer = withAttest(server, {
 });
 
 protectedServer.tool("send_email", schema, handler);</code></pre>
-          </section>
+    </div>
 
-          <section class="subpanel" id="step-2">
-            <div class="step-head">
-              <div class="step-title">
-                <div class="step-index">02</div>
-                <div>
-                  <strong>Let the server declare its own scopes</strong>
-                  <span>The MCP server should be the source of truth for what each tool actually needs.</span>
-                </div>
-              </div>
-            </div>
-
-            <pre><code>import { getAttestScopes } from "@attest-dev/sdk/mcp";
-
-app.get("/.well-known/attest-scopes", (_req, res) =&gt; {
-  res.json({ tools: getAttestScopes(protectedServer) });
-});</code></pre>
-
-            <pre><code># Create an org and keep the API key shown once
+    <div class="mcp-step">
+      <div class="mcp-step-header">
+        <div class="mcp-step-num">3</div>
+        <h3>Run the protected call path</h3>
+      </div>
+      <p>Issue a credential, make a tool call, and see it succeed or get blocked based on scope.</p>
+      <pre><code># Create an org and keep the API key shown once
 curl -X POST https://api.attestdev.com/v1/orgs \
   -H "Content-Type: application/json" \
   -d '{"name":"acme-corp"}'
@@ -542,135 +124,50 @@ curl -X POST https://api.attestdev.com/v1/credentials \
     "scope": ["email:send"],
     "instruction": "Send the weekly digest"
   }'</code></pre>
-          </section>
+    </div>
 
-          <section class="subpanel" id="step-3">
-            <div class="step-head">
-              <div class="step-title">
-                <div class="step-index">03</div>
-                <div>
-                  <strong>Run one good call and one bad one</strong>
-                  <span>Make the allowed path succeed, then prove the blocked path fails for the right reason.</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="checklist">
-              <div class="check">
-                <strong>Allowed call</strong>
-                <span>A tool call to <code>send_email</code> with <code>email:send</code> reaches your MCP handler.</span>
-              </div>
-              <div class="check">
-                <strong>Blocked call</strong>
-                <span>A call requiring something like <code>crm:write</code> returns a structured scope violation before the handler runs.</span>
-              </div>
-              <div class="check">
-                <strong>Inspect the evidence trail</strong>
-                <span>Open the task in the dashboard, export the evidence packet, or verify it on the public verifier page.</span>
-              </div>
-            </div>
-
-            <pre><code># After the protected call path is working
-# - open https://api.attestdev.com/dashboard and inspect the task tree
-# - export the evidence packet
-# - open /verify/ and validate the packet independently
-# - revoke the root with DELETE /v1/credentials/{jti}</code></pre>
-          </section>
-
-          <section class="subpanel" id="mcp-server">
-            <div class="step-head">
-              <div class="step-title">
-                <div class="step-index" style="background:var(--surface);color:var(--text-secondary);border:1px solid var(--line);">+</div>
-                <div>
-                  <strong>Manage credentials from inside MCP</strong>
-                  <span>A separate MCP server that lets agents issue, delegate, revoke, and audit. No SDK code needed.</span>
-                </div>
-              </div>
-            </div>
-
-            <p style="color:var(--text-secondary);font-size:.88rem;margin-bottom:1rem;">The middleware above enforces credentials on tool calls. The <strong>MCP server</strong> below lets an orchestrator agent manage the credential lifecycle itself: issue tokens, delegate to sub-agents, revoke mid-task, and pull audit trails.</p>
-
-            <pre><code>{
-  "mcpServers": {
-    "attest": {
-      "command": "npx",
-      "args": ["-y", "@attest-dev/mcp-server"],
-      "env": {
-        "ATTEST_API_KEY": "att_live_...",
-        "ATTEST_BASE_URL": "https://api.attestdev.com"
-      }
-    }
-  }
-}</code></pre>
-
-            <p style="color:var(--text-secondary);font-size:.85rem;margin:.75rem 0 .5rem;">14 tools available:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem .75rem;font-size:.82rem;color:var(--text-secondary);margin-bottom:1rem;">
-              <span><code>issue_credential</code></span>
-              <span><code>list_tasks</code></span>
-              <span><code>delegate_credential</code></span>
-              <span><code>get_audit_trail</code></span>
-              <span><code>revoke_credential</code></span>
-              <span><code>get_evidence</code></span>
-              <span><code>verify_credential</code></span>
-              <span><code>report_action</code></span>
-              <span><code>check_revocation</code></span>
-              <span><code>report_status</code></span>
-              <span><code>request_approval</code></span>
-              <span><code>grant_approval</code></span>
-              <span><code>get_approval</code></span>
-              <span><code>deny_approval</code></span>
-            </div>
-
-            <p style="color:var(--text-secondary);font-size:.85rem;">The middleware enforces. The MCP server manages. Use one or both. They work independently.</p>
-          </section>
-        </div>
+    <div class="mcp-step">
+      <div class="mcp-step-header">
+        <div class="mcp-step-num">4</div>
+        <h3>See what happened</h3>
       </div>
+      <p>Open the dashboard to inspect the task tree, or export the evidence packet and verify it independently.</p>
+    </div>
+  </div>
 
-      <aside class="sticky-rail">
-        <div class="rail-block">
-          <h3>Use this page when...</h3>
-          <ul>
-            <li>you already have an MCP server and want the fastest path to a protected tool</li>
-            <li>you want to show a real allow/block example instead of a protocol walkthrough</li>
-            <li>you need a cleaner onboarding link than a full API reference</li>
-          </ul>
-        </div>
+  <div class="mcp-cards">
+    <div class="card">
+      <h3>Scoped credentials</h3>
+      <p>Each agent gets a JWT with only the permissions it needs. Authority narrows at each delegation level.</p>
+    </div>
+    <div class="card">
+      <h3>Audit trail</h3>
+      <p>Every issuance, delegation, tool call, and revocation is recorded in a hash-chained append-only log.</p>
+    </div>
+    <div class="card">
+      <h3>Evidence packet</h3>
+      <p>Export a signed JSON packet containing the full event chain. Verify it independently in your browser.</p>
+    </div>
+  </div>
 
-        <div class="rail-block">
-          <h3>Then continue with...</h3>
-          <div class="rail-links">
-            <a class="rail-link" href="../demo/">
-              <div>
-                <small>Product moment</small>
-                <span>Interactive demo</span>
-              </div>
-              <strong>&#8599;</strong>
-            </a>
-            <a class="rail-link" href="https://api.attestdev.com/dashboard" data-dashboard-link>
-              <div>
-                <small>Ops surface</small>
-                <span>Inspect the task tree</span>
-              </div>
-              <strong>&#8599;</strong>
-            </a>
-            <a class="rail-link" href="../verify/">
-              <div>
-                <small>Trust surface</small>
-                <span>Verify the exported packet</span>
-              </div>
-              <strong>&#8599;</strong>
-            </a>
-          </div>
-        </div>
-
-        <div class="rail-block">
-          <h3>Reference</h3>
-          <p style="margin-bottom:.5rem;"><strong>Middleware</strong> (<code>@attest-dev/sdk/mcp</code>): wraps your server to enforce credentials. <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a></p>
-          <p><strong>MCP server</strong> (<code>@attest-dev/mcp-server</code>): tools agents call to manage credentials. <a href="https://www.npmjs.com/package/@attest-dev/mcp-server">npm</a> · <a href="https://github.com/chudah1/attest-dev/tree/main/sdks/typescript/mcp-server">source</a></p>
-        </div>
-      </aside>
-    </section>
-  </main>
+  <div class="mcp-links">
+    <a class="mcp-link-card" href="../demo/">
+      <div><span>Interactive demo</span><small>See the full delegation flow</small></div>
+      <strong>&#8599;</strong>
+    </a>
+    <a class="mcp-link-card" href="#" data-dashboard-link>
+      <div><span>Inspect the task tree</span><small>Open the dashboard</small></div>
+      <strong>&#8599;</strong>
+    </a>
+    <a class="mcp-link-card" href="../verify/">
+      <div><span>Verify the exported packet</span><small>Browser-based verification</small></div>
+      <strong>&#8599;</strong>
+    </a>
+    <a class="mcp-link-card" href="https://github.com/chudah1/attest-dev" target="_blank">
+      <div><span>GitHub</span><small>Source code and issues</small></div>
+      <strong>&#8599;</strong>
+    </a>
+  </div>
 
 <footer class="footer">
   <div class="footer-shell">

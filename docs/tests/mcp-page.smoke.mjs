@@ -67,10 +67,10 @@ test('mcp quickstart page loads the core onboarding path and links', async (t) =
   await page.goto(`http://localhost:${port}/mcp/`);
 
   await page.getByRole('heading', { name: /protect one mcp tool\. see the result immediately\./i }).waitFor();
-  await page.getByText(/withAttest\(\)/i).waitFor();
+  await page.locator('pre code', { hasText: /withAttest/ }).first().waitFor();
 
-  const dashboardLink = page.getByRole('link', { name: /inspect the task tree/i });
-  const verifyHref = await page.getByRole('link', { name: /verify the exported packet/i }).getAttribute('href');
+  const dashboardLink = page.locator('.mcp-link-card', { hasText: /inspect the task tree/i });
+  const verifyHref = await page.locator('.mcp-link-card', { hasText: /verify the exported packet/i }).getAttribute('href');
 
   // Dashboard link href is set asynchronously by the resolution script;
   // just verify the link element exists and points somewhere sensible.
