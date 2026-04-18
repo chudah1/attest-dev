@@ -22,10 +22,9 @@ const SITE_BASE_URL = (SITE_OVERRIDE || import.meta.env.VITE_SITE_BASE_URL || (I
 const SITE_HOME_URL = `${SITE_BASE_URL}/`;
 const SITE_DEMO_URL = `${SITE_BASE_URL}/demo/`;
 const PAGES = [
-  { key: 'overview', label: 'Overview', icon: '◉' },
-  { key: 'audit', label: 'Audit Log', icon: '≡' },
-  { key: 'revoke', label: 'Revoke', icon: '✕' },
-  { key: 'settings', label: 'Settings', icon: '⚙' },
+  { key: 'overview', label: 'Overview' },
+  { key: 'audit', label: 'Audit' },
+  { key: 'settings', label: 'Settings' },
 ];
 
 function pick(obj, lower, upper, fallback = '—') {
@@ -713,33 +712,32 @@ function App() {
 
   return (
     <>
-      <nav className="top-nav">
-        <div className="nav-brand">
-          <div className="nav-logo">Attest<span>.</span></div>
-        </div>
-        <div className="nav-right">
-          <div className="org-chip">Workspace: <strong>{orgView.name}</strong></div>
-          <a className="btn btn-ghost btn-sm" href={SITE_HOME_URL} target="_blank" rel="noreferrer">Site</a>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={handleLogout}>Sign out</button>
-        </div>
-      </nav>
-
       <div className="layout">
-        <aside className="sidebar">
-          {PAGES.map((item) => (
-            <button
-              key={item.key}
-              className={`sidebar-item ${page === item.key ? 'active' : ''}`}
-              type="button"
-              onClick={() => setPage(item.key)}
-            >
-              <span className="icon">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+        <aside className="sidebar" id="sidebar">
+          <div className="sidebar-logo">Attest</div>
+          <nav className="sidebar-nav">
+            {PAGES.map((item) => (
+              <button
+                key={item.key}
+                className={`sidebar-item ${page === item.key ? 'active' : ''}`}
+                type="button"
+                onClick={() => { setPage(item.key); document.getElementById('sidebar').classList.remove('open'); }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+          <div className="sidebar-footer">
+            <div className="sidebar-org">{orgView.name}</div>
+            <button className="btn-link" type="button" onClick={handleLogout}>Sign out</button>
+          </div>
         </aside>
-
+        <div className="sidebar-backdrop" onClick={() => document.getElementById('sidebar').classList.remove('open')} />
         <main className="content">
+          <button className="mobile-menu-btn" type="button" onClick={() => document.getElementById('sidebar').classList.toggle('open')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+
           {page === 'overview' ? (
             <OverviewPage
               org={orgView}
@@ -755,7 +753,6 @@ function App() {
               onOpenTask={handleOpenTask}
               onCopyKey={() => copyText(apiKey, () => showToast('Access key copied', 'success'))}
               onGoAudit={() => setPage('audit')}
-              onGoRevoke={() => setPage('revoke')}
             />
           ) : null}
 
@@ -784,16 +781,6 @@ function App() {
               onPrint={() => handleOpenReport('print')}
               onExport={handleDownloadEvidence}
               onCopyVerification={copyVerificationValue}
-            />
-          ) : null}
-
-          {page === 'revoke' ? (
-            <RevokePage
-              revokeJti={revokeJti}
-              revokeBy={revokeBy}
-              setRevokeJti={setRevokeJti}
-              setRevokeBy={setRevokeBy}
-              onRevoke={handleRevoke}
             />
           ) : null}
 

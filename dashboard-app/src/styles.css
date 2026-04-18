@@ -282,89 +282,54 @@ select:focus {
   font-size: 0.75rem;
 }
 
-.top-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 1.5rem;
-  height: 56px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-2);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.nav-brand {
-  display: flex;
-  align-items: baseline;
-  gap: 0.65rem;
-}
-
-.nav-context {
-  color: var(--muted);
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  font-family: var(--font-ui);
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.org-chip {
-  background: var(--surface-3);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-  font-family: var(--font-ui);
-}
-
-.org-chip strong {
-  color: var(--text);
-}
-
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0.42rem;
-}
-
 .layout {
   display: flex;
-  min-height: calc(100vh - 56px);
+  min-height: 100vh;
 }
 
 .sidebar {
   width: 200px;
   flex-shrink: 0;
+  background: var(--surface-2);
   border-right: 1px solid var(--line);
-  padding: 1.25rem 0;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-logo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 24px;
+  padding-left: 4px;
+  font-family: var(--font-ui);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .sidebar-item {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
   background: transparent;
   border: none;
   color: var(--muted);
-  padding: 0.8rem 1.5rem;
-  font-size: 0.95rem;
+  padding: 8px 12px;
+  font-size: 13px;
   cursor: pointer;
   text-align: left;
   font-family: var(--font-ui);
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
 }
 
 .sidebar-item:hover {
@@ -375,14 +340,40 @@ select:focus {
 .sidebar-item.active {
   color: var(--accent);
   background: #FFF0E6;
-  border-right: 2px solid var(--accent);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.sidebar-org {
+  font-size: 11px;
+  color: #9CA3AF;
+  padding: 0 4px;
+  margin-bottom: 4px;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text);
+  margin-bottom: 16px;
 }
 
 .content {
   flex: 1;
   width: min(100%, 1320px);
   margin: 0 auto;
-  padding: 1.75rem 1.5rem 2.5rem;
+  padding: 24px 28px 40px;
 }
 
 .page-section {
@@ -1148,29 +1139,39 @@ select:focus {
   }
 }
 
-@media (max-width: 900px) {
-  .layout {
-    flex-direction: column;
-  }
-
+@media (max-width: 768px) {
   .sidebar {
-    width: 100%;
-    display: flex;
-    overflow-x: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-    padding: 0.5rem;
+    position: fixed;
+    left: -220px;
+    top: 0;
+    z-index: 100;
+    transition: left 0.2s ease;
+    box-shadow: none;
   }
 
-  .sidebar-item {
-    width: auto;
-    border-radius: 6px;
-    padding: 0.6rem 0.9rem;
-    white-space: nowrap;
+  .sidebar.open {
+    left: 0;
+    box-shadow: var(--shadow-hover);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 99;
+  }
+
+  .sidebar.open ~ .sidebar-backdrop {
+    display: block;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
   }
 
   .content {
-    padding: 1rem 1rem 2rem;
+    padding: 16px 16px 32px;
   }
 
   .search-row,
@@ -1188,27 +1189,6 @@ select:focus {
   .verification-meta {
     grid-template-columns: 1fr;
   }
-}
-
-@media (max-width: 720px) {
-  .top-nav {
-    height: auto;
-    min-height: 56px;
-    padding: 0.75rem 1rem;
-    align-items: flex-start;
-  }
-
-  .nav-right {
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .nav-brand {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.1rem;
-  }
 
   .card,
   .stat-card,
@@ -1218,10 +1198,6 @@ select:focus {
 
   .page-title {
     line-height: 1.05;
-  }
-
-  .org-chip {
-    max-width: 100%;
   }
 
   .mini-stat-grid {
