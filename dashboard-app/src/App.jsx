@@ -792,7 +792,13 @@ function App() {
           ) : null}
 
           {page === 'settings' ? (
-            <SettingsPage org={orgView} />
+            <SettingsPage
+              org={orgView}
+              apiKey={apiKey}
+              showKey={showKey}
+              setShowKey={setShowKey}
+              onCopyKey={() => copyText(apiKey, () => showToast('Access key copied', 'success'))}
+            />
           ) : null}
         </main>
       </div>
@@ -1456,28 +1462,31 @@ function RevokePage({ revokeJti, revokeBy, setRevokeJti, setRevokeBy, onRevoke }
   );
 }
 
-function SettingsPage({ org }) {
+function SettingsPage({ org, apiKey, showKey, setShowKey, onCopyKey }) {
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div className="page-kicker">Workspace metadata</div>
-        <div className="page-title">Settings</div>
-        <div className="page-subtitle">Workspace metadata and the current API endpoint. Nothing here changes the standalone behavior.</div>
-      </div>
-      <div className="card">
-        <div className="card-title">Workspace</div>
+      <h1 className="overview-title">Settings</h1>
+
+      <div className="settings-card">
+        <h3 className="settings-card-title">Workspace</h3>
         <table className="settings-table">
           <tbody>
             <tr><td>Name</td><td>{org.name}</td></tr>
             <tr><td>Workspace ID</td><td className="mono">{org.id}</td></tr>
-            <tr><td>Status</td><td>{org.status}</td></tr>
+            <tr><td>Status</td><td><span className="status-badge status-active">{org.status}</span></td></tr>
             <tr><td>Created</td><td>{formatDate(org.createdAt, 'datetime')}</td></tr>
+            <tr><td>API endpoint</td><td className="mono">{API}</td></tr>
           </tbody>
         </table>
       </div>
-      <div className="card">
-        <div className="card-title">API endpoint</div>
-        <div className="mono">{API}</div>
+
+      <div className="settings-card">
+        <h3 className="settings-card-title">Access Key</h3>
+        <div className="key-row">
+          <div className="key-display">{showKey ? apiKey : maskKey(apiKey)}</div>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowKey((v) => !v)}>{showKey ? 'Hide' : 'Show'}</button>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={onCopyKey}>Copy</button>
+        </div>
       </div>
     </section>
   );

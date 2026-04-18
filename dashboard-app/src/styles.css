@@ -1393,6 +1393,23 @@ select:focus {
   margin-top: 0;
 }
 
+.settings-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  max-width: 600px;
+}
+
+.settings-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  font-family: var(--font-ui);
+  color: var(--text);
+}
+
 @media (max-width: 768px) {
   .verify-detail-grid,
   .evidence-meta-grid {
