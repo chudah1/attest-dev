@@ -3,334 +3,95 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Docs — Attest</title>
-  <meta name="description" content="Complete reference for the Attest API, TypeScript SDK, and Python SDK." />
-  <meta property="og:title" content="Docs — Attest" />
-  <meta property="og:description" content="Complete reference for the Attest API, TypeScript SDK, and Python SDK." />
+  <title>Docs: Attest</title>
+  <meta name="description" content="Attest API documentation. Credentials, delegation, revocation, audit trails, and evidence." />
+  <meta property="og:title" content="Docs: Attest" />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='12' width='100' height='100' fill='%23111'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .docs-layout { max-width: var(--max-width); margin: 0 auto; padding: 48px 72px; display: grid; grid-template-columns: 220px 1fr; gap: 64px; }
+    .docs-sidebar { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; }
+    .docs-sidebar h3 { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px; margin-top: 24px; }
+    .docs-sidebar h3:first-child { margin-top: 0; }
+    .docs-sidebar a { display: block; padding: 4px 0; font-size: 14px; color: var(--text-secondary); text-decoration: none; }
+    .docs-sidebar a:hover { color: var(--text); }
+    .docs-sidebar a.active { color: var(--accent); font-weight: 500; }
+    .docs-content { min-width: 0; }
+    .docs-content h2 { font-size: clamp(20px, 2.5vw, 28px); margin-top: 48px; margin-bottom: 16px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .docs-content h2:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+    .docs-content h3 { font-size: 16px; margin-top: 32px; margin-bottom: 12px; }
+    .docs-content p { margin-bottom: 16px; color: var(--text-secondary); line-height: 1.7; }
+    .docs-content ul, .docs-content ol { margin-bottom: 16px; padding-left: 24px; }
+    .docs-content li { margin-bottom: 6px; color: var(--text-secondary); line-height: 1.6; }
+    .docs-content pre { margin-bottom: 20px; }
+    .docs-content table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+    .docs-content th { text-align: left; padding: 10px 12px; background: var(--surface); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); border-bottom: 1px solid var(--line); }
+    .docs-content td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--text-secondary); }
 
-    :root {
-      --bg: #fafaf9;
-      --surface: #f0f0ee;
-      --surface-2: #fafaf9;
-      --surface-3: rgba(0, 0, 0, 0.02);
-      --line: #e0e0dd;
-      --line-strong: #ccccc8;
-      --text: #1a1a1a;
-      --muted: #606060;
-      --accent: #1a1a1a;
-      --accent-2: #444;
-      --green: #16a34a;
-      --red: #dc2626;
-      --amber: #d97706;
-      --shadow: 0 1px 3px rgba(0,0,0,0.05);
-      --radius-xl: 8px;
-      --radius-lg: 6px;
-      --radius-md: 6px;
-      --radius-sm: 4px;
+    @media (max-width: 860px) {
+      .docs-layout { grid-template-columns: 1fr; padding: 24px; gap: 32px; }
+      .docs-sidebar { position: static; max-height: none; }
     }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 16px;
-      line-height: 1.6;
-    }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    /* NAV */
-    nav { border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; z-index: 20; }
-    .nav-shell { max-width: 980px; margin: 0 auto; padding: 0.6rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .logo { color: var(--text); font-size: 0.95rem; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; }
-    nav ul { display: flex; list-style: none; gap: 0.25rem; align-items: center; }
-    nav ul a { color: var(--muted); font-size: 0.85rem; padding: 0.35rem 0.6rem; border-radius: 6px; text-decoration: none; }
-    nav ul a.active { color: var(--text); }
-    nav ul a:hover { color: var(--text); text-decoration: none; }
-    .nav-toggle { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 0.4rem; }
-    @media (max-width: 860px) { .nav-toggle { display: flex; } nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 1rem 2rem; gap: 0.5rem; } nav ul.open { display: flex; } .nav-shell { position: relative; } }
-
-    /* LAYOUT */
-    .docs-layout {
-      display: grid;
-      grid-template-columns: 220px 1fr;
-      max-width: 1120px;
-      margin: 0 auto;
-      min-height: calc(100vh - 64px);
-    }
-
-    /* SIDEBAR */
-    .sidebar {
-      position: sticky;
-      top: 52px;
-      height: calc(100vh - 64px);
-      overflow-y: auto;
-      padding: 2rem 1.5rem 2rem 0;
-      border-right: 1px solid var(--line);
-    }
-
-    .sidebar-section { margin-bottom: 1.75rem; }
-    .sidebar-label {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-
-    .sidebar ul { list-style: none; }
-    .sidebar li { margin-bottom: 0.2rem; }
-    .sidebar a {
-      display: block;
-      font-size: 0.875rem;
-      color: var(--muted);
-      padding: 0.2rem 0.5rem;
-      border-radius: 6px;
-    }
-    .sidebar a:hover { color: var(--text); background: var(--surface-3); text-decoration: none; }
-    .sidebar a.active { color: var(--accent); background: rgba(184,137,58,0.1); }
-
-    /* CONTENT */
-    .docs-content {
-      padding: 2.5rem 3rem 4rem;
-      min-width: 0;
-    }
-
-    h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
-    h2 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin: 3rem 0 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--line);
-    }
-    h2:first-of-type { border-top: none; }
-    h3 { font-size: 1.05rem; font-weight: 600; margin: 2rem 0 0.75rem; }
-    h4 { font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--muted); }
-
-    p { color: var(--muted); margin-bottom: 1rem; }
-    p strong { color: var(--text); }
-
-    ul.prose, ol.prose { color: var(--muted); padding-left: 1.5rem; margin-bottom: 1rem; }
-    ul.prose li, ol.prose li { margin-bottom: 0.3rem; }
-
-    code {
-      background: var(--surface-3);
-      border: 1px solid var(--line);
-      border-radius: 4px;
-      padding: 0.1em 0.4em;
-      font-family: "JetBrains Mono", "Fira Code", monospace;
-      font-size: 0.82em;
-      color: var(--text);
-    }
-
-    pre {
-      background: var(--surface-3);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-md);
-      padding: 1.25rem 1.5rem;
-      overflow-x: auto;
-      margin: 1rem 0 1.5rem;
-      font-family: "JetBrains Mono", "Fira Code", monospace;
-      font-size: 0.82rem;
-      line-height: 1.7;
-    }
-    pre code { background: none; border: none; padding: 0; font-size: inherit; }
-
-    .comment { color: #64748b; }
-    .kw { color: #7c3aed; }
-    .str { color: #15803d; }
-    .fn { color: #0891b2; }
-    .num { color: #e11d48; }
-
-
-    /* TABLES */
-    .table-wrap { overflow-x: auto; margin: 1rem 0 1.5rem; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.875rem;
-    }
-
-    th {
-      text-align: left;
-      padding: 0.6rem 0.9rem;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      font-weight: 600;
-      color: var(--text);
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    td {
-      padding: 0.65rem 0.9rem;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      vertical-align: top;
-    }
-
-    td code { font-size: 0.8rem; }
-
-    .method {
-      display: inline-block;
-      font-family: monospace;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-    }
-    .method.get  { background: rgba(34,197,94,0.15); color: #86efac; }
-    .method.post { background: rgba(184,137,58,0.15); color: #f2d39a; }
-    .method.del  { background: rgba(239,68,68,0.15);  color: #fca5a5; }
-
-    .badge-auth {
-      display: inline-block;
-      font-size: 0.7rem;
-      padding: 0.1rem 0.5rem;
-      border-radius: var(--radius-md);
-      border: 1px solid;
-    }
-    .badge-auth.required { border-color: rgba(184,137,58,0.38); color: var(--accent); }
-    .badge-auth.public   { border-color: var(--line); color: var(--muted); }
-
-    /* CALLOUT */
-    .callout {
-      background: rgba(184,137,58,0.08);
-      border-left: 3px solid var(--accent);
-      border-radius: 0 var(--radius-md) var(--radius-md) 0;
-      padding: 1rem 1.25rem;
-      margin: 1rem 0 1.5rem;
-    }
-    .callout p { margin: 0; font-size: 0.9rem; }
-
-    .reading-callout {
-      background: rgba(184,137,58,0.08);
-      border: 1px solid rgba(184,137,58,0.18);
-      border-radius: var(--radius-md);
-      padding: 1rem 1.25rem;
-      margin: 1.25rem 0 1.5rem;
-    }
-    .reading-callout h3 {
-      font-size: 0.95rem;
-      font-weight: 700;
-      margin: 0 0 0.35rem;
-      color: var(--text);
-    }
-    .reading-callout p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
-    .reading-callout a {
-      font-weight: 600;
-    }
-
-    /* LIFECYCLE DIAGRAM */
-    .lifecycle {
-      display: flex;
-      gap: 0;
-      margin: 1.5rem 0 2rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .lc-step {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-md);
-      padding: 0.6rem 1rem;
-      font-size: 0.82rem;
-      color: var(--text);
-      text-align: center;
-    }
-    .lc-arrow {
-      color: var(--muted);
-      font-size: 1.2rem;
-      padding: 0 0.5rem;
-    }
-
-    /* FOOTER */
-    footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.84rem; }
-    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
-    @media (max-width: 980px) {
-      .docs-layout { grid-template-columns: 1fr; }
-      .sidebar {
-        position: static;
-        top: auto;
-        height: auto;
-        overflow: visible;
-        padding: 1.5rem 1.5rem 0;
-        border-right: none;
-        border-bottom: 1px solid var(--line);
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1.25rem;
-      }
-      .docs-content { padding: 2rem 1.75rem 4rem; }
-    }
-    @media (max-width: 720px) {
-      .sidebar { grid-template-columns: 1fr; padding: 1.25rem 1rem 0; }
-      .docs-content { padding: 1.75rem 1rem 3rem; }
-    }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
   </style>
-
 </head>
 <body>
-
-<nav>
-  <div class="nav-shell">
-    <a href="../" class="logo">Attest</a>
-    <button class="nav-toggle" id="nav-toggle" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg></button>
-    <ul id="nav-links">
-      <li><a href="../">Home</a></li>
-      <li><a href="../docs/" class="active">Docs</a></li>
-      <li><a href="../mcp/">MCP</a></li>
-      <li><a href="../verify/">Verify</a></li>
-      <li><a href="../waitlist/">Early access</a></li>
-      <li><a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a></li>
-      <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-      <li><a href="../demo/">Demo</a></li>
-    </ul>
-  </div>
-</nav>
+  <nav class="nav">
+    <div class="nav-shell">
+      <a href="../" class="logo">Attest</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="../">Product</a></li>
+        <li class="nav-dropdown" id="nav-dropdown">
+          <button class="nav-dropdown-trigger active" aria-expanded="false">
+            Developers
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+          </button>
+          <div class="nav-dropdown-menu">
+            <a href="./" class="active">Docs</a>
+            <a href="../mcp/">MCP Guide</a>
+            <a href="../demo/">Demo</a>
+            <a href="../verify/">Verify</a>
+            <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+          </div>
+        </li>
+        <li><a href="../waitlist/">Pricing</a></li>
+        <li class="nav-sep"></li>
+        <li><a href="#" data-dashboard-link>Log in</a></li>
+        <li><a href="../waitlist/" class="btn btn-primary">Get Started</a></li>
+      </ul>
+    </div>
+  </nav>
 
 <div class="docs-layout">
 
   <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="docs-sidebar">
     <div class="sidebar-section">
-      <div class="sidebar-label">Getting started</div>
+      <h3>Getting started</h3>
       <ul>
         <li><a href="#overview">Overview</a></li>
         <li><a href="#quickstart">Quickstart</a></li>
       </ul>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">Reference</div>
+      <h3>Reference</h3>
       <ul>
         <li><a href="#api-reference">API Reference</a></li>
         <li><a href="#key-management">Key Management</a></li>
       </ul>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">SDKs</div>
+      <h3>SDKs</h3>
       <ul>
         <li><a href="#typescript-sdk">TypeScript</a></li>
         <li><a href="#python-sdk">Python</a></li>
       </ul>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">Concepts</div>
+      <h3>Concepts</h3>
       <ul>
         <li><a href="#concepts-scope">Scope format</a></li>
         <li><a href="#concepts-delegation">Delegation depth</a></li>
@@ -339,7 +100,7 @@
       </ul>
     </div>
     <div class="sidebar-section">
-      <div class="sidebar-label">Further reading</div>
+      <h3>Further reading</h3>
       <ul>
         <li><a href="#further-reading">Article</a></li>
       </ul>
@@ -352,12 +113,11 @@
     <h1>Documentation</h1>
     <p>Everything you need to issue, delegate, verify, and revoke credentials for your AI agents.</p>
 
-    <!-- ── Overview ─────────────────────────────────────────────────────── -->
     <h2 id="overview">Overview</h2>
 
     <p>
       <strong>Attest</strong> gives every AI agent in your pipeline a cryptographically signed,
-      scoped, auditable credential — so you always know who authorized what action and when.
+      scoped, auditable credential -- so you always know who authorized what action and when.
     </p>
 
     <div class="reading-callout" id="further-reading">
@@ -370,27 +130,26 @@
 
     <p>Each credential is an RS256-signed JWT carrying:</p>
     <ul class="prose">
-      <li><strong>att_tid</strong> — task-tree UUID linking all credentials to a user request</li>
-      <li><strong>att_uid</strong> — the end-user who initiated the task</li>
-      <li><strong>att_scope</strong> — an allow-list of actions this credential permits</li>
-      <li><strong>att_chain</strong> — the ordered list of ancestor JTIs, enabling cascade revocation</li>
-      <li><strong>att_depth</strong> — delegation depth (0 = root, 1 = first child, …)</li>
+      <li><strong>att_tid</strong> -- task-tree UUID linking all credentials to a user request</li>
+      <li><strong>att_uid</strong> -- the end-user who initiated the task</li>
+      <li><strong>att_scope</strong> -- an allow-list of actions this credential permits</li>
+      <li><strong>att_chain</strong> -- the ordered list of ancestor JTIs, enabling cascade revocation</li>
+      <li><strong>att_depth</strong> -- delegation depth (0 = root, 1 = first child, ...)</li>
     </ul>
 
     <p>The credential lifecycle:</p>
     <div class="lifecycle">
       <div class="lc-step">Signup</div>
-      <div class="lc-arrow">→</div>
+      <div class="lc-arrow">-></div>
       <div class="lc-step">Issue root credential</div>
-      <div class="lc-arrow">→</div>
+      <div class="lc-arrow">-></div>
       <div class="lc-step">Delegate to sub-agents</div>
-      <div class="lc-arrow">→</div>
+      <div class="lc-arrow">-></div>
       <div class="lc-step">Verify (offline RS256)</div>
-      <div class="lc-arrow">→</div>
+      <div class="lc-arrow">-></div>
       <div class="lc-step">Revoke (cascades)</div>
     </div>
 
-    <!-- ── Quickstart ────────────────────────────────────────────────────── -->
     <h2 id="quickstart">Quickstart</h2>
     <p>The fastest path to value is not raw credential issuance. It is protecting one real MCP tool call end to end.</p>
 
@@ -445,7 +204,6 @@ curl -X POST https://api.attestdev.com/v1/credentials \
 <span class="comment"># - the task tree can be revoked with DELETE /v1/credentials/{jti}</span>
 <span class="comment"># - the evidence trail is queryable with GET /v1/tasks/{tid}/audit</span></code></pre>
 
-    <!-- ── API Reference ─────────────────────────────────────────────────── -->
     <h2 id="api-reference">API Reference</h2>
     <p>Base URL: <code>https://api.attestdev.com</code></p>
 
@@ -546,7 +304,6 @@ curl -X POST https://api.attestdev.com/v1/credentials \
       </table>
     </div>
 
-    <!-- ── Key Management ─────────────────────────────────────────────────── -->
     <h2 id="key-management">Key Management</h2>
     <p>Manage API keys and rotate your org's RSA signing key.</p>
 
@@ -587,11 +344,10 @@ curl -X POST https://api.attestdev.com/v1/credentials \
     <div class="callout">
       <p><strong>Key rotation:</strong> after calling <code>POST /v1/org/keys/rotate</code>, re-fetch
       <code>/orgs/{orgID}/jwks.json</code> to get the new public key.  Existing tokens signed with
-      the old key remain valid until they expire — they will just fail to verify against the new JWKS
+      the old key remain valid until they expire -- they will just fail to verify against the new JWKS
       if you clear your cache.</p>
     </div>
 
-    <!-- ── TypeScript SDK ─────────────────────────────────────────────────── -->
     <h2 id="typescript-sdk">TypeScript SDK</h2>
 
     <h3>Install</h3>
@@ -619,7 +375,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
   ttlSeconds:  <span class="num">900</span>,
 });
 
-<span class="comment">// Verify (offline — no API call needed after JWKS is cached)</span>
+<span class="comment">// Verify (offline -- no API call needed after JWKS is cached)</span>
 <span class="kw">const</span> verifier = <span class="kw">new</span> <span class="fn">AttestVerifier</span>({ orgId: claims.att_tid });
 <span class="kw">const</span> result = <span class="kw">await</span> verifier.<span class="fn">verify</span>(childToken);
 console.<span class="fn">log</span>(result.valid, result.claims?.att_scope);</code></pre>
@@ -632,7 +388,6 @@ console.<span class="fn">log</span>(result.valid, result.claims?.att_scope);</co
 <span class="kw">const</span> events = <span class="kw">await</span> client.<span class="fn">audit</span>(claims.att_tid);
 events.<span class="fn">forEach</span>(e =&gt; console.<span class="fn">log</span>(e.event_type, e.agent_id));</code></pre>
 
-    <!-- ── Python SDK ─────────────────────────────────────────────────────── -->
     <h2 id="python-sdk">Python SDK</h2>
 
     <h3>Install</h3>
@@ -665,7 +420,7 @@ child = client.<span class="fn">delegate</span>(<span class="fn">DelegateParams<
     <h3>Verify with AttestVerifier</h3>
     <pre><code><span class="kw">from</span> attest <span class="kw">import</span> AttestVerifier
 
-<span class="comment"># No API key needed — fetches JWKS once and caches it</span>
+<span class="comment"># No API key needed -- fetches JWKS once and caches it</span>
 verifier = <span class="fn">AttestVerifier</span>(org_id=<span class="str">"&lt;orgID&gt;"</span>)
 result = verifier.<span class="fn">verify</span>(child.token)
 <span class="fn">print</span>(result.valid)          <span class="comment"># True</span>
@@ -680,7 +435,6 @@ events = client.<span class="fn">audit</span>(token.claims.att_tid)
 <span class="kw">for</span> e <span class="kw">in</span> events:
     <span class="fn">print</span>(e.event_type, e.agent_id)</code></pre>
 
-    <!-- ── Concepts ───────────────────────────────────────────────────────── -->
     <h2 id="concepts-scope">Scope format</h2>
     <p>
       Scopes are strings in <code>resource:action</code> format.  Wildcards are supported:
@@ -707,7 +461,7 @@ events = client.<span class="fn">audit</span>(token.claims.att_tid)
     <p>
       Each credential carries an <code>att_depth</code> field.  Root credentials have depth 0.
       Each delegation increments depth by 1.  There is no hard cap on depth, but practical
-      pipelines rarely exceed 3–4 levels.
+      pipelines rarely exceed 3-4 levels.
     </p>
 
     <h2 id="concepts-chain">Chain integrity</h2>
@@ -720,14 +474,14 @@ events = client.<span class="fn">audit</span>(token.claims.att_tid)
       <li><code>att_chain[-1] == jti</code></li>
     </ul>
     <p>
-      Revoking any credential in the chain cascades to all descendants — any credential whose
+      Revoking any credential in the chain cascades to all descendants -- any credential whose
       <code>att_chain</code> contains the revoked JTI is also considered revoked.
     </p>
 
     <h2 id="concepts-rotation">Key rotation</h2>
     <p>
       Call <code>POST /v1/org/keys/rotate</code> to generate a new RSA-2048 signing key.  The old
-      key is retired but not deleted — existing tokens signed with it remain verifiable until they
+      key is retired but not deleted -- existing tokens signed with it remain verifiable until they
       expire (as long as you retain the old JWKS).
     </p>
     <p>
@@ -739,29 +493,48 @@ events = client.<span class="fn">audit</span>(token.claims.att_tid)
   </main>
 </div>
 
-<footer>
-  <div class="footer-links">
-    <a href="../waitlist/">Early access</a>
-    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a>
-    <a href="https://github.com/chudah1/attest-dev">GitHub</a>
-    <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
-    <a href="https://pypi.org/project/attest-sdk/">PyPI</a>
-    <a href="https://api.attestdev.com/health">API</a>
-  </div>
-  <p>&copy; 2026 Attest. Apache 2.0.</p>
-</footer>
+  <footer class="footer">
+    <div class="footer-shell">
+      <span>Attest</span>
+      <div class="footer-links">
+        <a href="./">Docs</a>
+        <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </footer>
 
-<script>
-(function(){
-  var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
-  nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
-  var isLocalHost=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
-  var dashboardOverride=new URLSearchParams(window.location.search).get('dashboard_url')||window.localStorage.getItem('attest-dashboard-url');
-  function inferLocalDashboardUrl(){if(window.location.port==='8000')return'http://localhost:5173/';return new URL('/dashboard',window.location.origin).toString();}
-  var dashboardUrl=dashboardOverride||(isLocalHost?inferLocalDashboardUrl():'https://api.attestdev.com/dashboard');
-  document.querySelectorAll('[data-dashboard-link]').forEach(function(link){link.setAttribute('href',dashboardUrl);});
-})();
-</script>
+  <script>
+    document.getElementById('nav-toggle').addEventListener('click', () => {
+      document.getElementById('nav-links').classList.toggle('open');
+    });
+    const dropdown = document.getElementById('nav-dropdown');
+    const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', dropdown.classList.contains('open'));
+    });
+    document.addEventListener('click', () => {
+      dropdown.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+    });
 
+    (function() {
+      const links = document.querySelectorAll('[data-dashboard-link]');
+      const params = new URLSearchParams(window.location.search);
+      const override = params.get('dashboard_url') || localStorage.getItem('attest_dashboard_url');
+      if (override) {
+        localStorage.setItem('attest_dashboard_url', override);
+        links.forEach(a => a.href = override);
+        return;
+      }
+      const localUrl = 'http://localhost:5173';
+      fetch(localUrl, { mode: 'no-cors' }).then(() => {
+        links.forEach(a => a.href = localUrl);
+      }).catch(() => {
+        links.forEach(a => a.href = 'https://api.attestdev.com/dashboard');
+      });
+    })();
+  </script>
 </body>
 </html>
