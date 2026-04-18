@@ -3,65 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Verify evidence packet — Attest</title>
-  <meta name="description" content="Verify an Attest evidence packet in the browser using the packet hash, signature metadata, and org JWKS." />
-  <meta property="og:title" content="Verify evidence packet — Attest" />
-  <meta property="og:description" content="Verify an Attest evidence packet in the browser using the packet hash, signature metadata, and org JWKS." />
-  <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='12' width='100' height='100' fill='%23111'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
+  <title>Verify: Attest</title>
+  <meta name="description" content="Verify Attest evidence packets. Upload a packet, check hash chains, and validate signatures in your browser." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #fafaf9;
-      --surface: #f0f0ee;
-      --surface-2: #fafaf9;
-      --surface-3: rgba(0, 0, 0, 0.02);
-      --line: #e0e0dd;
-      --line-strong: #ccccc8;
-      --text: #1a1a1a;
-      --muted: #606060;
-      --accent: #1a1a1a;
-      --accent-2: #444;
-      --green: #16a34a;
-      --red: #dc2626;
-      --amber: #d97706;
-      --shadow: 0 1px 3px rgba(0,0,0,0.05);
-      --shadow-glow: none;
-      --radius-xl: 8px;
-      --radius-lg: 6px;
-      --radius-md: 6px;
-      --radius-sm: 4px;
-    }
-
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    /* NAV */
-    nav { border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; z-index: 20; }
-    .nav-shell { max-width: 1240px; margin: 0 auto; padding: 0.65rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; }
-    .logo { color: var(--text); font-size: 1rem; font-weight: 800; letter-spacing: -0.03em; text-decoration: none; }
-    nav ul { display: flex; list-style: none; gap: 0.65rem; align-items: center; }
-    nav ul a { color: var(--muted); font-size: 0.86rem; padding: 0.42rem 0.62rem; border-radius: 6px; text-decoration: none; }
-    nav ul a.active, nav ul a:hover { color: var(--text); text-decoration: none; }
-    .nav-toggle { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 0.4rem; }
-
-    @media (max-width: 860px) {
-      .nav-toggle { display: flex; }
-      nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 1rem 2rem; gap: 0.5rem; }
-      nav ul.open { display: flex; }
-      .nav-shell { position: relative; }
-    }
-
     .page {
       max-width: 1240px;
       margin: 0 auto;
@@ -80,7 +26,7 @@
     .panel,
     .subpanel {
       border: 1px solid var(--line);
-      border-radius: var(--radius-lg, 16px);
+      border-radius: var(--radius-lg);
       background: var(--surface);
       box-shadow: var(--shadow);
       padding: 1.8rem 2rem;
@@ -93,7 +39,7 @@
     }
 
     .eyebrow {
-      color: var(--accent);
+      color: var(--text);
       font: 600 0.75rem/1.2 "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -110,7 +56,7 @@
 
     .hero-copy {
       max-width: 60ch;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.98rem;
       margin-bottom: 1.1rem;
     }
@@ -127,7 +73,7 @@
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem 1.25rem;
-      border-radius: 6px;
+      border-radius: var(--radius);
       border: 1px solid transparent;
       font-size: 0.9rem;
       font-weight: 600;
@@ -142,20 +88,20 @@
     }
 
     .hero-btn.primary:hover {
-      background: var(--accent-2);
+      background: var(--text-secondary);
       transform: translateY(-2px);
       box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
     }
 
     .hero-btn.secondary {
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       border-color: var(--line);
       color: var(--text);
     }
 
     .hero-btn.secondary:hover {
-      background: var(--surface-2);
-      border-color: var(--line-strong);
+      background: var(--bg);
+      border-color: var(--line-hover);
       transform: translateY(-2px);
     }
 
@@ -170,9 +116,9 @@
       align-items: center;
       gap: 0.35rem;
       padding: 0.36rem 0.76rem;
-      border-radius: 6px;
+      border-radius: var(--radius);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       color: var(--text);
       font-size: 0.82rem;
     }
@@ -184,7 +130,7 @@
     }
 
     .rail-copy {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.92rem;
     }
 
@@ -195,15 +141,15 @@
     }
 
     .mini-card {
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       padding: 0.9rem;
       min-height: 112px;
     }
 
     .mini-card .label {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -217,7 +163,7 @@
     }
 
     .mini-card p {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.82rem;
     }
 
@@ -246,7 +192,7 @@
     }
 
     .section-kicker {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.76rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -259,7 +205,7 @@
     }
 
     .section-copy {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.9rem;
       max-width: 58ch;
     }
@@ -291,13 +237,13 @@
     .step-index {
       width: 2rem;
       height: 2rem;
-      border-radius: 6px;
+      border-radius: var(--radius);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       background: var(--surface);
       border: 1px solid var(--line);
-      color: var(--muted);
+      color: var(--text-secondary);
       font: 700 0.84rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
@@ -308,12 +254,12 @@
     }
 
     .step-title span {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.84rem;
     }
 
     .step-hint {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.8rem;
       max-width: 30ch;
       text-align: right;
@@ -333,7 +279,7 @@
     label {
       display: block;
       margin-bottom: 0.4rem;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.74rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -350,13 +296,13 @@
       font: 0.85rem/1.6 "SF Mono", Monaco, Consolas, monospace;
       transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
     }
-    
+
     input[type="url"]:focus,
     textarea:focus {
       outline: none;
-      border-color: var(--line-strong);
+      border-color: var(--line-hover);
       box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
-      background: var(--surface-2);
+      background: var(--bg);
     }
 
     textarea {
@@ -370,8 +316,8 @@
     }
 
     .file-shell {
-      border: 1px dashed var(--line-strong);
-      border-radius: var(--radius-md);
+      border: 1px dashed var(--line-hover);
+      border-radius: var(--radius);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
       padding: 0.9rem 1rem;
@@ -379,12 +325,12 @@
 
     input[type="file"] {
       width: 100%;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.88rem;
     }
 
     .helper {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.82rem;
       line-height: 1.55;
       margin-top: 0.35rem;
@@ -397,50 +343,12 @@
       margin-top: 1rem;
     }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.8rem 1.25rem;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 600;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      font-family: inherit;
-    }
-
-    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-
-    .btn-primary {
-      background: var(--text);
-      color: var(--bg);
-      box-shadow: var(--shadow);
-    }
-
-    .btn-primary:hover {
-      background: var(--accent-2);
-      box-shadow: var(--shadow-glow);
-    }
-
-    .btn-secondary {
-      background: var(--surface-3);
-      border-color: var(--line);
-      color: var(--text);
-    }
-
-    .btn-secondary:hover {
-      background: var(--surface-2);
-      border-color: var(--line-strong);
-    }
-
     .btn-ghost {
       background: transparent;
       border-color: transparent;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
-    
+
     .btn-ghost:hover {
       background: rgba(255, 255, 255, 0.05);
       color: var(--text);
@@ -460,7 +368,7 @@
       padding: 1rem;
       border-radius: var(--radius-lg);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
     }
 
     .status-top {
@@ -476,7 +384,7 @@
     }
 
     .status-line {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.88rem;
       max-width: 30ch;
     }
@@ -485,7 +393,7 @@
       display: inline-flex;
       align-items: center;
       gap: 0.42rem;
-      border-radius: 6px;
+      border-radius: var(--radius);
       padding: 0.36rem 0.72rem;
       font-size: 0.76rem;
       text-transform: uppercase;
@@ -498,11 +406,11 @@
       content: "";
       width: 0.46rem;
       height: 0.46rem;
-      border-radius: 6px;
+      border-radius: var(--radius);
       background: currentColor;
     }
 
-    .status-idle { color: var(--muted); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.06); }
+    .status-idle { color: var(--text-secondary); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.06); }
     .status-pass { color: var(--green); background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.22); }
     .status-fail { color: var(--red); background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.22); }
 
@@ -512,16 +420,16 @@
     }
 
     .result-item {
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       padding: 0.9rem 1rem;
       display: grid;
       gap: 0.28rem;
     }
 
     .result-item .label {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -544,12 +452,12 @@
       display: grid;
       gap: 0.5rem;
       padding-left: 1rem;
-      color: #ffd89b;
+      color: var(--amber);
       font-size: 0.86rem;
     }
 
     .notes {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.83rem;
       line-height: 1.6;
     }
@@ -564,27 +472,22 @@
       padding: 0.88rem 1rem;
       border-radius: 14px;
       border: 1px solid var(--line);
-      background: var(--surface-2);
+      background: var(--bg);
       box-shadow: var(--shadow);
     }
 
-    .toast.show { 
-      display: block; 
+    .toast.show {
+      display: block;
       animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     .toast.success { color: var(--green); border-color: rgba(16, 185, 129, 0.3); }
     .toast.error { color: var(--red); border-color: rgba(239, 68, 68, 0.3); }
 
-    footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.84rem; }
-    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
-
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    
+
     @keyframes slideUp {
       from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
@@ -611,10 +514,6 @@
     }
 
     @media (max-width: 720px) {
-      nav ul {
-        gap: 1rem;
-      }
-
       .page {
         padding: 1.4rem 1rem 3rem;
       }
@@ -623,7 +522,7 @@
       .rail-card,
       .panel,
       .subpanel {
-        border-radius: 22px;
+        border-radius: var(--radius-lg);
       }
 
       .hero-card,
@@ -647,24 +546,34 @@
 
 </head>
 <body>
-<nav>
-  <div class="nav-shell">
-    <a href="../" class="logo">Attest</a>
-    <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg>
-    </button>
-    <ul id="nav-links">
-      <li><a href="../">Home</a></li>
-      <li><a href="../docs/">Docs</a></li>
-      <li><a href="../mcp/">MCP</a></li>
-      <li><a href="../verify/" class="active">Verify</a></li>
-      <li><a href="../waitlist/">Early access</a></li>
-      <li><a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a></li>
-      <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-      <li><a href="../demo/">Demo</a></li>
-    </ul>
-  </div>
-</nav>
+  <nav class="nav">
+    <div class="nav-shell">
+      <a href="../" class="logo">Attest</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="../">Product</a></li>
+        <li class="nav-dropdown" id="nav-dropdown">
+          <button class="nav-dropdown-trigger active" aria-expanded="false">
+            Developers
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+          </button>
+          <div class="nav-dropdown-menu">
+            <a href="../docs/">Docs</a>
+            <a href="../mcp/">MCP Guide</a>
+            <a href="../demo/">Demo</a>
+            <a href="./" class="active">Verify</a>
+            <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+          </div>
+        </li>
+        <li><a href="../waitlist/">Pricing</a></li>
+        <li class="nav-sep"></li>
+        <li><a href="#" data-dashboard-link>Log in</a></li>
+        <li><a href="../waitlist/" class="btn btn-primary">Get Started</a></li>
+      </ul>
+    </div>
+  </nav>
 
   <main class="page">
     <section class="hero">
@@ -849,6 +758,33 @@
   </main>
 
   <div class="toast" id="toast"></div>
+
+  <footer class="footer">
+    <div class="footer-shell">
+      <span>Attest</span>
+      <div class="footer-links">
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('nav-toggle').addEventListener('click', () => {
+      document.getElementById('nav-links').classList.toggle('open');
+    });
+    const dropdown = document.getElementById('nav-dropdown');
+    const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', dropdown.classList.contains('open'));
+    });
+    document.addEventListener('click', () => {
+      dropdown.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+    });
+  </script>
 
   <script>
     const DEFAULT_API = 'https://api.attestdev.com';
@@ -1122,22 +1058,9 @@
       setTimeout(() => el.classList.remove('show'), 2600);
     }
   </script>
-<footer>
-  <div class="footer-links">
-    <a href="../waitlist/">Early access</a>
-    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a>
-    <a href="https://github.com/chudah1/attest-dev">GitHub</a>
-    <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
-    <a href="https://pypi.org/project/attest-sdk/">PyPI</a>
-    <a href="https://api.attestdev.com/health">API</a>
-  </div>
-  &copy; 2026 Attest
-</footer>
 
 <script>
 (function(){
-  var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
-  nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
   var isLocalHost=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
   var dashboardOverride=new URLSearchParams(window.location.search).get('dashboard_url')||window.localStorage.getItem('attest-dashboard-url');
   function inferLocalDashboardUrl(){if(window.location.port==='8000')return'http://localhost:5173/';return new URL('/dashboard',window.location.origin).toString();}
