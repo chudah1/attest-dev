@@ -3,117 +3,99 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attest | Request early access</title>
-  <meta name="description" content="Request early access to Attest for teams shipping agents that take real actions in production systems." />
-  <link rel="canonical" href="https://attestdev.com/waitlist/" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='12' width='100' height='100' fill='%23111'/><text x='50' y='73' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
+  <title>Get Started: Attest</title>
+  <meta name="description" content="Sign up for Attest. See and control what your AI agents do." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#fafaf9;--surface:#f0f0ee;--surface-2:#fafaf9;--line:#e0e0dd;--line-strong:#ccccc8;--text:#1a1a1a;--muted:#606060;--shadow:0 1px 3px rgba(0,0,0,.05);--radius:6px}
-    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
-    a{color:var(--text);text-decoration:none} a:hover{text-decoration:underline}
-    nav{border-bottom:1px solid var(--line);background:var(--surface-2);position:sticky;top:0;z-index:20}
-    .nav-shell{max-width:980px;margin:0 auto;padding:.6rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
-    .logo{font-size:.95rem;font-weight:700;letter-spacing:-.02em}
-    nav ul{display:flex;list-style:none;gap:.25rem;align-items:center}
-    nav ul a{color:var(--muted);font-size:.85rem;padding:.35rem .6rem;border-radius:var(--radius)}
-    nav ul a.active,nav ul a:hover{color:var(--text);text-decoration:none}
-    .nav-toggle{display:none;background:none;border:none;color:var(--text);cursor:pointer;padding:.4rem}
-    @media (max-width:860px){.nav-toggle{display:flex}nav ul{display:none;flex-direction:column;position:absolute;top:100%;left:0;right:0;background:var(--surface-2);border-bottom:1px solid var(--line);padding:1rem 2rem;gap:.5rem}.nav-shell{position:relative}nav ul.open{display:flex}}
-    .page{max-width:1040px;margin:0 auto;padding:4.5rem 2rem 5rem}
-    .eyebrow{font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.6rem}
-    h1{font-size:clamp(1.9rem,4vw,2.8rem);font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-bottom:1rem;max-width:14ch}
-    .lede{color:var(--muted);font-size:1rem;max-width:64ch;margin-bottom:2rem}
-    .waitlist-grid{display:grid;grid-template-columns:minmax(0,.78fr) minmax(300px,.42fr);gap:1rem;align-items:start}
-    .embed-shell,.side-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .embed-shell{padding:.75rem}
-    .embed-frame{display:block;width:100%;min-height:1060px;border:0;border-radius:calc(var(--radius) - 2px);background:#fff}
-    .side-card{padding:1.2rem}
-    .card-title{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem}
-    .list{display:grid;gap:.75rem}
-    .list-item{border-left:2px solid var(--line-strong);padding-left:.8rem;color:var(--muted);font-size:.92rem}
-    .action-row{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1rem}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.6rem 1.1rem;border-radius:var(--radius);font-size:.85rem;font-weight:600;border:1px solid transparent;cursor:pointer}
-    .btn-ghost{background:transparent;border-color:var(--line);color:var(--text)}
-    .btn-primary{background:var(--text);color:var(--bg)}
-    .note{margin-top:.9rem;color:var(--muted);font-size:.88rem}
-    footer{border-top:1px solid var(--line);padding:2rem;text-align:center;color:var(--muted);font-size:.8rem}
-    .footer-links{display:flex;gap:1.5rem;justify-content:center;margin-bottom:.6rem;flex-wrap:wrap}
-    footer a{color:var(--muted)} footer a:hover{color:var(--text)}
-    @media (max-width:900px){.waitlist-grid{grid-template-columns:1fr}.embed-frame{min-height:1180px}}
+    .signup-page { max-width: 640px; margin: 0 auto; padding: 80px 24px; text-align: center; }
+    .signup-page h1 { font-size: clamp(24px, 3vw, 36px); margin-bottom: 12px; }
+    .signup-page .body-lg { margin-bottom: 40px; }
+    .signup-page iframe { width: 100%; border: none; border-radius: var(--radius-lg); }
   </style>
 </head>
 <body>
-<nav>
-  <div class="nav-shell">
-    <a href="../" class="logo">Attest</a>
-    <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg>
-    </button>
-    <ul id="nav-links">
-      <li><a href="../">Home</a></li>
-      <li><a href="../docs/">Docs</a></li>
-      <li><a href="../mcp/">MCP</a></li>
-      <li><a href="../verify/">Verify</a></li>
-      <li><a href="./" class="active">Early access</a></li>
-      <li><a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a></li>
-      <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-    </ul>
-  </div>
-</nav>
+  <nav class="nav">
+    <div class="nav-shell">
+      <a href="../" class="logo">Attest</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="../">Product</a></li>
+        <li class="nav-dropdown" id="nav-dropdown">
+          <button class="nav-dropdown-trigger" aria-expanded="false">
+            Developers
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+          </button>
+          <div class="nav-dropdown-menu">
+            <a href="../docs/">Docs</a>
+            <a href="../mcp/">MCP Guide</a>
+            <a href="../demo/">Demo</a>
+            <a href="../verify/">Verify</a>
+            <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+          </div>
+        </li>
+        <li><a href="./" class="active">Pricing</a></li>
+        <li class="nav-sep"></li>
+        <li><a href="#" data-dashboard-link>Log in</a></li>
+        <li><a href="./" class="btn btn-primary">Get Started</a></li>
+      </ul>
+    </div>
+  </nav>
 
-<main class="page">
-  <div class="eyebrow">Design partners</div>
-  <h1>Tell us about your agent workflow.</h1>
-  <p class="lede">We’re talking to teams whose agents send email, touch CRM, call internal APIs, or run internal workflows on behalf of employees. If that sounds like you, fill out the short form and we’ll reach out.</p>
+  <main class="signup-page">
+    <p class="category">Get Started</p>
+    <h1>Start seeing what your agents do</h1>
+    <p class="body-lg">Sign up for early access. Free during beta.</p>
+    <iframe data-tally-src="https://tally.so/embed/wA7OBN?alignLeft=1&hideTitle=1&dynamicHeight=1" loading="lazy" width="100%" height="300"></iframe>
+  </main>
 
-  <div class="waitlist-grid">
-    <section class="embed-shell">
-      <iframe
-        class="embed-frame"
-        src="https://tally.so/r/KYJ8yD"
-        title="Attest early access form"
-        loading="lazy"
-        referrerpolicy="strict-origin-when-cross-origin"
-      ></iframe>
-      <p class="note">If the embedded form doesn’t load, you can open it directly on <a href="https://tally.so/r/KYJ8yD" target="_blank" rel="noreferrer">Tally</a>.</p>
-    </section>
-
-    <aside class="side-card">
-      <div class="card-title">Best fit right now</div>
-      <div class="list">
-        <div class="list-item">Agents acting inside support, finance, internal ops, or workflow automation.</div>
-        <div class="list-item">Teams that care about permissions, approvals, auditability, and revocation.</div>
-        <div class="list-item">AI platform, security, and workflow teams shipping action-taking agents into production.</div>
+  <footer class="footer">
+    <div class="footer-shell">
+      <span>Attest</span>
+      <div class="footer-links">
+        <a href="../docs/">Docs</a>
+        <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
       </div>
-      <div class="action-row">
-        <a class="btn btn-primary" href="../demo/">See the demo</a>
-        <a class="btn btn-ghost" href="../docs/">Read the docs</a>
-      </div>
-    </aside>
-  </div>
-</main>
+    </div>
+  </footer>
 
-<footer>
-  <div class="footer-links">
-    <a href="../docs/">Docs</a>
-    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a>
-    <a href="https://github.com/chudah1/attest-dev">GitHub</a>
-    <a href="../demo/">Demo</a>
-  </div>
-  <p>&copy; 2026 Attest. Open source, Apache 2.0.</p>
-</footer>
+  <script>
+    document.getElementById('nav-toggle').addEventListener('click', () => {
+      document.getElementById('nav-links').classList.toggle('open');
+    });
+    const dropdown = document.getElementById('nav-dropdown');
+    const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', dropdown.classList.contains('open'));
+    });
+    document.addEventListener('click', () => {
+      dropdown.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+    });
 
-<script>
-(function(){
-  var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
-  nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
-  var isLocalHost=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
-  var dashboardOverride=new URLSearchParams(window.location.search).get('dashboard_url')||window.localStorage.getItem('attest-dashboard-url');
-  function inferLocalDashboardUrl(){if(window.location.port==='8000')return'http://localhost:5173/';return new URL('/dashboard',window.location.origin).toString();}
-  var dashboardUrl=dashboardOverride||(isLocalHost?inferLocalDashboardUrl():'https://api.attestdev.com/dashboard');
-  document.querySelectorAll('[data-dashboard-link]').forEach(function(link){link.setAttribute('href',dashboardUrl);});
-})();
-</script>
+    (function() {
+      const links = document.querySelectorAll('[data-dashboard-link]');
+      const params = new URLSearchParams(window.location.search);
+      const override = params.get('dashboard_url') || localStorage.getItem('attest_dashboard_url');
+      if (override) {
+        localStorage.setItem('attest_dashboard_url', override);
+        links.forEach(a => a.href = override);
+        return;
+      }
+      const localUrl = 'http://localhost:5173';
+      fetch(localUrl, { mode: 'no-cors' }).then(() => {
+        links.forEach(a => a.href = localUrl);
+      }).catch(() => {
+        links.forEach(a => a.href = 'https://api.attestdev.com/dashboard');
+      });
+    })();
+
+    // Tally embed loader
+    var d=document,w="https://tally.so/widgets/embed.js",v=function(){"undefined"!=typeof Tally?Tally.loadEmbeds():d.querySelectorAll("iframe[data-tally-src]:not([src])").forEach((function(e){e.src=e.dataset.tallySrc}))};if("undefined"!=typeof Tally)v();else if(d.querySelector('script[src="'+w+'"]')==null){var s=d.createElement("script");s.src=w;s.onload=v;s.onerror=v;d.body.appendChild(s)}else v();
+  </script>
 </body>
 </html>
