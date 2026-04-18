@@ -1,0 +1,175 @@
+/* docs/styles.css — Attest Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #FFFFFF;
+  --surface: #F3F3F7;
+  --text: #15191E;
+  --text-secondary: #60646C;
+  --text-tertiary: #6F737B;
+  --text-disabled: #B9BBC6;
+  --accent: #FF5900;
+  --accent-hover: #FF6B18;
+  --accent-active: #FF3D00;
+  --line: rgba(66, 87, 138, 0.15);
+  --line-hover: rgba(97, 106, 136, 0.30);
+  --green: #16a34a;
+  --red: #dc2626;
+  --amber: #d97706;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-hover: 0 4px 16px rgba(0,0,0,0.12);
+  --radius: 10px;
+  --radius-lg: 12px;
+  --radius-sm: 6px;
+  --max-width: 1280px;
+}
+
+html { scroll-padding-top: 72px; }
+
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ——————————————————————————————————————————
+   Typography
+   —————————————————————————————————————————— */
+
+h1, h2, h3, h4 { line-height: 1.15; font-weight: 600; }
+h1 { font-size: clamp(36px, 5vw, 72px); letter-spacing: -1.44px; }
+h2 { font-size: clamp(24px, 3vw, 48px); letter-spacing: -0.5px; }
+h3 { font-size: 18px; letter-spacing: -0.3px; }
+h4 { font-size: 14px; letter-spacing: -0.2px; }
+
+.body-lg { font-size: 20px; letter-spacing: -0.4px; color: var(--text-secondary); }
+.body-sm { font-size: 14px; letter-spacing: -0.28px; }
+.caption { font-size: 12px; color: var(--text-tertiary); }
+.category { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--text-secondary); }
+.mono { font-family: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ——————————————————————————————————————————
+   Navigation
+   —————————————————————————————————————————— */
+
+.nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--line); height: 60px; }
+.nav-shell { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; display: flex; align-items: center; justify-content: space-between; height: 100%; }
+.nav .logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; letter-spacing: -0.5px; }
+.nav-links { list-style: none; display: flex; align-items: center; gap: 8px; }
+.nav-links a { font-size: 14px; font-weight: 500; color: var(--text); text-decoration: none; padding: 8px 12px; border-radius: var(--radius-sm); transition: background 0.15s ease; }
+.nav-links a:hover { background: var(--surface); text-decoration: none; }
+.nav-links a.active { color: var(--accent); }
+.nav-sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+
+/* Developers dropdown */
+.nav-dropdown { position: relative; }
+.nav-dropdown-trigger { font-size: 14px; font-weight: 500; color: var(--text); padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; background: none; border: none; font-family: inherit; display: flex; align-items: center; gap: 4px; transition: background 0.15s ease; }
+.nav-dropdown-trigger:hover { background: var(--surface); }
+.nav-dropdown-trigger svg { width: 12px; height: 12px; transition: transform 0.15s ease; }
+.nav-dropdown.open .nav-dropdown-trigger svg { transform: rotate(180deg); }
+.nav-dropdown-trigger.active { color: var(--accent); }
+.nav-dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; min-width: 200px; box-shadow: var(--shadow-hover); }
+.nav-dropdown.open .nav-dropdown-menu { display: block; }
+.nav-dropdown-menu a { display: block; padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--text); border-radius: var(--radius-sm); text-decoration: none; }
+.nav-dropdown-menu a:hover { background: var(--surface); }
+
+/* Mobile nav */
+.nav-toggle { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+.nav-toggle svg { width: 24px; height: 24px; stroke: var(--text); }
+
+@media (max-width: 860px) {
+  .nav-shell { padding: 0 24px; }
+  .nav-toggle { display: block; }
+  .nav-links { display: none; position: absolute; top: 60px; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--line); flex-direction: column; padding: 16px 24px; gap: 4px; }
+  .nav-links.open { display: flex; }
+  .nav-links a, .nav-dropdown-trigger { width: 100%; padding: 10px 12px; }
+  .nav-sep { display: none; }
+  .nav-dropdown-menu { position: static; box-shadow: none; border: none; padding: 0 0 0 16px; }
+  .nav-dropdown.open .nav-dropdown-menu { display: block; }
+}
+
+/* ——————————————————————————————————————————
+   Buttons
+   —————————————————————————————————————————— */
+
+.btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 20px; font-size: 14px; font-weight: 500; font-family: inherit; border-radius: var(--radius); cursor: pointer; text-decoration: none; transition: background 0.15s ease, box-shadow 0.25s ease; border: none; }
+.btn:hover { text-decoration: none; }
+.btn-primary { background: var(--accent); color: #FFFFFF; }
+.btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-hover); }
+.btn-primary:active { background: var(--accent-active); }
+.btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.btn-secondary:hover { border-color: var(--line-hover); box-shadow: var(--shadow-hover); }
+.btn-ghost { background: transparent; color: var(--text); }
+.btn-ghost:hover { background: var(--surface); }
+
+/* ——————————————————————————————————————————
+   Cards
+   —————————————————————————————————————————— */
+
+.card { background: var(--surface); border-radius: var(--radius-lg); padding: 32px; transition: box-shadow 0.25s ease; }
+.card:hover { box-shadow: var(--shadow-hover); }
+
+/* ——————————————————————————————————————————
+   Code blocks
+   —————————————————————————————————————————— */
+
+pre { background: #15191E; color: #F3F3F7; border-radius: var(--radius); padding: 24px; overflow-x: auto; font-family: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 14px; line-height: 1.6; }
+code { font-family: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 0.9em; }
+p code, li code, td code { background: var(--surface); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+pre .c-kw { color: #FF7B7B; }
+pre .c-str { color: #7EC699; }
+pre .c-fn { color: #82AAFF; }
+pre .c-dim { color: #6F737B; }
+pre .c-key { color: #C792EA; }
+
+/* ——————————————————————————————————————————
+   Inputs
+   —————————————————————————————————————————— */
+
+input, textarea { border: 1px solid var(--line); border-radius: var(--radius); height: 40px; padding: 0 16px; font-family: inherit; font-size: 14px; color: var(--text); background: var(--bg); transition: border-color 0.15s ease; }
+input:hover, textarea:hover { border-color: var(--line-hover); }
+input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 2px rgba(0, 110, 245, 0.8); }
+
+/* ——————————————————————————————————————————
+   Status badges
+   —————————————————————————————————————————— */
+
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+.badge-ok { background: #dcfce7; color: var(--green); }
+.badge-err { background: #fef2f2; color: var(--red); }
+.badge-warn { background: #fefce8; color: var(--amber); }
+
+/* ——————————————————————————————————————————
+   Layout utilities
+   —————————————————————————————————————————— */
+
+.container { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; }
+.section { padding: 120px 0; }
+
+@media (max-width: 860px) {
+  .container { padding: 0 24px; }
+  .section { padding: 80px 0; }
+}
+
+/* ——————————————————————————————————————————
+   Footer
+   —————————————————————————————————————————— */
+
+.footer { border-top: 1px solid var(--line); padding: 40px 0; color: var(--text-secondary); font-size: 14px; }
+.footer-shell { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; display: flex; justify-content: space-between; align-items: center; }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { color: var(--text-secondary); text-decoration: none; font-size: 14px; }
+.footer-links a:hover { color: var(--text); }
+
+@media (max-width: 860px) {
+  .footer-shell { padding: 0 24px; flex-direction: column; gap: 16px; text-align: center; }
+}
