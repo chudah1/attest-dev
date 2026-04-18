@@ -10,29 +10,31 @@
   <link rel="stylesheet" href="../styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    .docs-layout { max-width: var(--max-width); margin: 0 auto; padding: 48px 72px; display: grid; grid-template-columns: 220px 1fr; gap: 64px; }
-    .docs-sidebar { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; }
-    .docs-sidebar h3 { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px; margin-top: 24px; }
-    .docs-sidebar h3:first-child { margin-top: 0; }
-    .docs-sidebar a { display: block; padding: 4px 0; font-size: 14px; color: var(--text-secondary); text-decoration: none; }
-    .docs-sidebar a:hover { color: var(--text); }
-    .docs-sidebar a.active { color: var(--accent); font-weight: 500; }
-    .docs-content { min-width: 0; }
-    .docs-content h2 { font-size: clamp(20px, 2.5vw, 28px); margin-top: 48px; margin-bottom: 16px; padding-top: 24px; border-top: 1px solid var(--line); }
-    .docs-content h2:first-child { margin-top: 0; padding-top: 0; border-top: none; }
-    .docs-content h3 { font-size: 16px; margin-top: 32px; margin-bottom: 12px; }
-    .docs-content p { margin-bottom: 16px; color: var(--text-secondary); line-height: 1.7; }
-    .docs-content ul, .docs-content ol { margin-bottom: 16px; padding-left: 24px; }
-    .docs-content li { margin-bottom: 6px; color: var(--text-secondary); line-height: 1.6; }
-    .docs-content pre { margin-bottom: 20px; }
-    .docs-content table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
-    .docs-content th { text-align: left; padding: 10px 12px; background: var(--surface); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); border-bottom: 1px solid var(--line); }
-    .docs-content td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--text-secondary); }
-
-    @media (max-width: 860px) {
-      .docs-layout { grid-template-columns: 1fr; padding: 24px; gap: 32px; }
-      .docs-sidebar { position: static; max-height: none; }
-    }
+    .docs-main h1 { font-size: clamp(24px, 3vw, 36px); margin-bottom: 8px; }
+    .docs-main > p:first-of-type { color: var(--text-secondary); margin-bottom: 32px; }
+    .docs-main h2 { font-size: clamp(20px, 2.5vw, 28px); margin-bottom: 16px; }
+    .docs-main h3 { font-size: 16px; margin-top: 32px; margin-bottom: 12px; }
+    .docs-main p { margin-bottom: 16px; color: var(--text-secondary); line-height: 1.7; }
+    .docs-main ul, .docs-main ol { margin-bottom: 16px; padding-left: 24px; }
+    .docs-main li { margin-bottom: 6px; color: var(--text-secondary); line-height: 1.6; }
+    .docs-main pre { margin-bottom: 20px; }
+    .docs-main table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+    .docs-main th { text-align: left; padding: 10px 12px; background: var(--surface); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); border-bottom: 1px solid var(--line); }
+    .docs-main td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--text-secondary); }
+    .docs-main .callout { background: var(--surface); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
+    .docs-main .callout p { margin-bottom: 0; }
+    .docs-main .reading-callout { background: var(--surface); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
+    .docs-main .reading-callout h3 { margin-top: 0; margin-bottom: 8px; }
+    .docs-main .reading-callout p { margin-bottom: 0; }
+    .docs-main .lifecycle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 14px; }
+    .docs-main .lc-step { background: var(--surface); padding: 6px 12px; border-radius: var(--radius-sm); font-weight: 500; }
+    .docs-main .lc-arrow { color: var(--text-disabled); }
+    .docs-main .method.post { color: #2563eb; font-weight: 600; font-size: 12px; }
+    .docs-main .method.get { color: var(--green); font-weight: 600; font-size: 12px; }
+    .docs-main .method.del { color: var(--red); font-weight: 600; font-size: 12px; }
+    .docs-main .badge-auth { font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+    .docs-main .badge-auth.public { background: #dcfce7; color: var(--green); }
+    .docs-main .badge-auth.required { background: #dbeafe; color: #2563eb; }
   </style>
 </head>
 <body>
@@ -65,50 +67,67 @@
     </div>
   </nav>
 
-<div class="docs-layout">
+  <button class="docs-nav-toggle" id="docs-nav-toggle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    Navigation
+  </button>
 
-  <!-- Sidebar -->
-  <aside class="docs-sidebar">
-    <div class="sidebar-section">
-      <h3>Getting started</h3>
-      <ul>
-        <li><a href="#overview">Overview</a></li>
-        <li><a href="#quickstart">Quickstart</a></li>
-      </ul>
-    </div>
-    <div class="sidebar-section">
-      <h3>Reference</h3>
-      <ul>
-        <li><a href="#api-reference">API Reference</a></li>
-        <li><a href="#key-management">Key Management</a></li>
-      </ul>
-    </div>
-    <div class="sidebar-section">
-      <h3>SDKs</h3>
-      <ul>
-        <li><a href="#typescript-sdk">TypeScript</a></li>
-        <li><a href="#python-sdk">Python</a></li>
-      </ul>
-    </div>
-    <div class="sidebar-section">
-      <h3>Concepts</h3>
-      <ul>
-        <li><a href="#concepts-scope">Scope format</a></li>
-        <li><a href="#concepts-delegation">Delegation depth</a></li>
-        <li><a href="#concepts-chain">Chain integrity</a></li>
-        <li><a href="#concepts-rotation">Key rotation</a></li>
-      </ul>
-    </div>
-    <div class="sidebar-section">
-      <h3>Further reading</h3>
-      <ul>
-        <li><a href="#further-reading">Article</a></li>
-      </ul>
-    </div>
-  </aside>
+  <div class="docs-three-panel">
+    <nav class="docs-left-nav" id="docs-left-nav">
+      <div class="nav-search">
+        <input type="text" id="docs-search" placeholder="Search docs...">
+        <span class="shortcut">&#8984;K</span>
+      </div>
 
-  <!-- Main content -->
-  <main class="docs-content">
+      <div class="nav-group">
+        <button class="nav-group-header">Getting Started<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg></button>
+        <div class="nav-group-items">
+          <a href="#overview">Overview</a>
+          <a href="#quickstart">Quickstart</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-header">API Reference<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg></button>
+        <div class="nav-group-items">
+          <a href="#api-reference"><span class="method-badge post">POST</span> Create org</a>
+          <a href="#api-reference"><span class="method-badge get">GET</span> Get org</a>
+          <a href="#credentials"><span class="method-badge post">POST</span> Issue credential</a>
+          <a href="#credentials"><span class="method-badge post">POST</span> Delegate</a>
+          <a href="#credentials"><span class="method-badge del">DEL</span> Revoke</a>
+          <a href="#audit"><span class="method-badge get">GET</span> Audit log</a>
+          <a href="#jwks"><span class="method-badge get">GET</span> JWKS</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-header">Key Management<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg></button>
+        <div class="nav-group-items">
+          <a href="#key-management">API Keys</a>
+          <a href="#concepts-rotation">Key Rotation</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-header">SDKs<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg></button>
+        <div class="nav-group-items">
+          <a href="#typescript-sdk">TypeScript</a>
+          <a href="#python-sdk">Python</a>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <button class="nav-group-header">Concepts<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg></button>
+        <div class="nav-group-items">
+          <a href="#concepts-scope">Scope format</a>
+          <a href="#concepts-delegation">Delegation depth</a>
+          <a href="#concepts-chain">Chain integrity</a>
+          <a href="#concepts-rotation">Key rotation</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="docs-main">
 
     <h1>Documentation</h1>
     <p>Everything you need to issue, delegate, verify, and revoke credentials for your AI agents.</p>
@@ -235,7 +254,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
       </table>
     </div>
 
-    <h3>Credentials</h3>
+    <h3 id="credentials">Credentials</h3>
     <div class="table-wrap">
       <table>
         <thead>
@@ -270,7 +289,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
       </table>
     </div>
 
-    <h3>Audit</h3>
+    <h3 id="audit">Audit</h3>
     <div class="table-wrap">
       <table>
         <thead>
@@ -287,7 +306,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
       </table>
     </div>
 
-    <h3>JWKS</h3>
+    <h3 id="jwks">JWKS</h3>
     <div class="table-wrap">
       <table>
         <thead>
@@ -490,8 +509,22 @@ events = client.<span class="fn">audit</span>(token.claims.att_tid)
       <code>clear_jwks_cache()</code> (Python) or equivalent after rotation.
     </p>
 
-  </main>
-</div>
+    </main>
+
+    <aside class="docs-toc" id="docs-toc">
+      <h4>On this page</h4>
+      <a href="#overview">Overview</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#api-reference">API Reference</a>
+      <a href="#key-management">Key Management</a>
+      <a href="#typescript-sdk">TypeScript SDK</a>
+      <a href="#python-sdk">Python SDK</a>
+      <a href="#concepts-scope">Scope format</a>
+      <a href="#concepts-delegation">Delegation depth</a>
+      <a href="#concepts-chain">Chain integrity</a>
+      <a href="#concepts-rotation">Key rotation</a>
+    </aside>
+  </div>
 
   <footer class="footer">
     <div class="footer-shell">
@@ -535,6 +568,78 @@ events = client.<span class="fn">audit</span>(token.claims.att_tid)
         links.forEach(a => a.href = 'https://api.attestdev.com/dashboard');
       });
     })();
+
+    // Docs left nav: collapse/expand groups
+    document.querySelectorAll('.nav-group-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('collapsed');
+      });
+    });
+
+    // Docs left nav: mobile toggle
+    const docsNavToggle = document.getElementById('docs-nav-toggle');
+    const docsLeftNav = document.getElementById('docs-left-nav');
+    if (docsNavToggle && docsLeftNav) {
+      docsNavToggle.addEventListener('click', () => {
+        docsLeftNav.classList.toggle('collapsed');
+      });
+    }
+
+    // Docs search: filter nav items
+    const docsSearch = document.getElementById('docs-search');
+    if (docsSearch) {
+      docsSearch.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        document.querySelectorAll('.nav-group-items a').forEach(link => {
+          const match = link.textContent.toLowerCase().includes(q);
+          link.style.display = match || !q ? '' : 'none';
+        });
+        if (q) {
+          document.querySelectorAll('.nav-group').forEach(g => g.classList.remove('collapsed'));
+        }
+      });
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault();
+          docsSearch.focus();
+        }
+      });
+    }
+
+    // Right TOC: scroll spy
+    const tocLinks = document.querySelectorAll('.docs-toc a');
+    const tocSections = Array.from(tocLinks).map(a => {
+      const id = a.getAttribute('href').slice(1);
+      return document.getElementById(id);
+    }).filter(Boolean);
+
+    if (tocSections.length > 0) {
+      const tocObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            tocLinks.forEach(l => l.classList.remove('active'));
+            const activeLink = document.querySelector(`.docs-toc a[href="#${entry.target.id}"]`);
+            if (activeLink) activeLink.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-80px 0px -60% 0px' });
+      tocSections.forEach(s => tocObserver.observe(s));
+    }
+
+    // Left nav: highlight active section
+    const leftNavLinks = document.querySelectorAll('.docs-left-nav .nav-group-items a');
+    if (leftNavLinks.length > 0) {
+      const navObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            leftNavLinks.forEach(l => l.classList.remove('active'));
+            const href = `#${entry.target.id}`;
+            document.querySelectorAll(`.docs-left-nav a[href="${href}"]`).forEach(l => l.classList.add('active'));
+          }
+        });
+      }, { rootMargin: '-80px 0px -60% 0px' });
+      tocSections.forEach(s => navObserver.observe(s));
+    }
   </script>
 </body>
 </html>
