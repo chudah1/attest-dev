@@ -776,10 +776,6 @@ function App() {
               verificationSnippets={verificationSnippets}
               taskList={taskList}
               taskListLoading={taskListLoading}
-              taskListError={taskListError}
-              taskListFilters={taskListFilters}
-              setTaskListFilters={setTaskListFilters}
-              onRefreshTasks={() => fetchTaskList()}
               onOpenTask={handleOpenTask}
               onSearch={() => fetchAudit()}
               onVerify={handleVerifyOnSite}
@@ -787,6 +783,11 @@ function App() {
               onPrint={() => handleOpenReport('print')}
               onExport={handleDownloadEvidence}
               onCopyVerification={copyVerificationValue}
+              onRevoke={handleRevoke}
+              revokeJti={revokeJti}
+              setRevokeJti={setRevokeJti}
+              revokeBy={revokeBy}
+              setRevokeBy={setRevokeBy}
             />
           ) : null}
 
@@ -890,10 +891,6 @@ function AuditPage({
   verificationSnippets,
   taskList,
   taskListLoading,
-  taskListError,
-  taskListFilters,
-  setTaskListFilters,
-  onRefreshTasks,
   onOpenTask,
   onSearch,
   onVerify,
@@ -901,234 +898,199 @@ function AuditPage({
   onPrint,
   onExport,
   onCopyVerification,
+  onRevoke,
+  revokeJti,
+  setRevokeJti,
+  revokeBy,
+  setRevokeBy,
 }) {
-  const [showManualLookup, setShowManualLookup] = useState(false);
-  const summary = evidencePacket?.summary || {};
+  const [activeTab, setActiveTab] = useState('tree');
+  const [verifyExpanded, setVerifyExpanded] = useState(false);
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
   const task = evidencePacket?.task || {};
+  const summary = evidencePacket?.summary || {};
   const integrity = evidencePacket?.integrity || {};
   const credentials = evidencePacket?.credentials || [];
   const identity = evidencePacket?.identity || {};
   const observedScopes = collectObservedScopes(credentials);
-  const eventCount = task.event_count || auditEvents.length || 0;
-  const lastEvent = auditEvents[auditEvents.length - 1];
   const hasLoadedTask = auditEvents.length > 0 && !auditLoading && !auditError;
+
+  if (!hasLoadedTask) {
+    return (
+      <section className="page-section">
+        <h1 className="overview-title">Audit</h1>
+        <div className="audit-lookup">
+          <input
+            type="search"
+            value={taskId}
+            onChange={(e) => setTaskId(e.target.value)}
+            placeholder="Enter a task ID..."
+            className="audit-search-input"
+            onKeyDown={(e) => { if (e.key === 'Enter') onSearch(); }}
+          />
+          <button className="btn btn-primary audit-search-btn" type="button" onClick={onSearch}>
+            {auditLoading ? 'Loading...' : 'Search'}
+          </button>
+        </div>
+        {auditError ? <div className="empty">{auditError}</div> : null}
+        {!auditLoading && taskList.length ? (
+          <>
+            <div className="task-section-header" style={{ marginTop: 24 }}>
+              <h2 className="task-section-title">Or select a recent task</h2>
+            </div>
+            <div className="task-list-new">
+              {taskList.slice(0, 6).map((t) => (
+                <button key={t.att_tid} className="task-row-new" type="button" onClick={() => onOpenTask(t)}>
+                  <span className={`status-badge ${t.revoked ? 'status-revoked' : 'status-active'}`}>
+                    {t.revoked ? 'REVOKED' : 'ACTIVE'}
+                  </span>
+                  <span className="task-id mono">{shortValue(t.att_tid, 9, 4)}</span>
+                  <span className="task-summary">{t.root_agent_id || 'orchestrator'} &rarr; {t.credential_count || 0} agent{(t.credential_count || 0) === 1 ? '' : 's'}</span>
+                  <span className="task-time">{t.last_event_at ? formatRelativeTime(t.last_event_at) : '--'}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div className="page-kicker">Evidence review</div>
-        <div className="page-title">Audit Log</div>
-        <div className="page-subtitle">Select a task tree to review its evidence packet, authority timeline, and verification status.</div>
+      <div className="audit-header">
+        <button className="btn-link" type="button" onClick={() => { setTaskId(''); }}>&#8592; All tasks</button>
+        <div className="audit-title-row">
+          <h1 className="audit-task-id mono">{shortValue(task.att_tid || taskId, 9, 4)}</h1>
+          <span className={`status-badge ${summary.result === 'revoked' ? 'status-revoked' : summary.result === 'expired' ? 'status-expired' : 'status-active'}`}>
+            {(summary.result || 'active').toUpperCase()}
+          </span>
+        </div>
+        <div className="audit-meta">
+          Started by <strong>{identity.user_id || task.att_uid || '--'}</strong> &middot; {credentials.length} credential{credentials.length === 1 ? '' : 's'} &middot; {auditEvents.length} event{auditEvents.length === 1 ? '' : 's'} &middot; depth {task.depth_max ?? '--'}
+        </div>
       </div>
 
-      {!hasLoadedTask ? (
-        <TaskInboxCard
-          title="Select a task tree"
-          subtitle="Pick a task to load its audit log, evidence packet, and authority timeline."
-          tasks={taskList}
-          loading={taskListLoading}
-          error={taskListError}
-          filters={taskListFilters}
-          onChangeFilters={setTaskListFilters}
-          onRefresh={onRefreshTasks}
-          onOpenTask={onOpenTask}
-        />
-      ) : (
-        <TaskInboxCard
-          title="Recent workspace tasks"
-          subtitle="Switch to a different task tree."
-          tasks={taskList}
-          loading={taskListLoading}
-          error={taskListError}
-          filters={taskListFilters}
-          onChangeFilters={setTaskListFilters}
-          onRefresh={onRefreshTasks}
-          onOpenTask={onOpenTask}
-          compact
-        />
-      )}
+      <div className="audit-actions">
+        <button className="btn btn-ghost btn-sm" type="button" onClick={onVerify}>Verify</button>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowReportModal(true)}>Generate Report</button>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={onExport}>Export JSON</button>
+        <button className="btn btn-danger btn-sm audit-revoke-btn" type="button" onClick={() => setShowRevokeModal(true)}>Revoke</button>
+      </div>
 
-      {!hasLoadedTask ? (
-        <div className="manual-lookup-toggle">
-          <button className="btn-link muted-text" type="button" onClick={() => setShowManualLookup((v) => !v)}>
-            {showManualLookup ? 'Hide manual lookup' : 'Look up by task ID'}
-          </button>
+      <VerificationBanner
+        verification={evidenceVerification}
+        onVerify={onVerify}
+        expanded={verifyExpanded}
+        onToggle={() => setVerifyExpanded((v) => !v)}
+      />
+
+      <div className="audit-tabs">
+        <button className={`audit-tab ${activeTab === 'tree' ? 'active' : ''}`} type="button" onClick={() => setActiveTab('tree')}>Tree</button>
+        <button className={`audit-tab ${activeTab === 'timeline' ? 'active' : ''}`} type="button" onClick={() => setActiveTab('timeline')}>Timeline</button>
+        <button className={`audit-tab ${activeTab === 'evidence' ? 'active' : ''}`} type="button" onClick={() => setActiveTab('evidence')}>Evidence</button>
+      </div>
+
+      {activeTab === 'tree' ? (
+        <TreeView events={auditEvents} credentials={credentials} />
+      ) : null}
+
+      {activeTab === 'timeline' ? (
+        <div className="timeline-shell">
+          <table className="audit-table">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>JTI</th>
+                <th>Agent</th>
+                <th>User</th>
+                <th>Scope</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {auditEvents.map((event, index) => (
+                <tr key={`${event.id || event.entry_hash || index}`}>
+                  <td><span className={`event-badge ${eventBadgeClass(event.event_type)}`}>{event.event_type || 'event'}</span></td>
+                  <td className="mono">{event.jti ? `${event.jti.slice(0, 8)}...` : '--'}</td>
+                  <td>{event.agent_id || '--'}</td>
+                  <td>{event.user_id || '--'}</td>
+                  <td className="mono">{Array.isArray(event.scope) && event.scope.length ? event.scope.join(', ') : '--'}</td>
+                  <td className="muted">{event.created_at ? new Date(event.created_at).toLocaleTimeString() : '--'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : null}
 
-      {hasLoadedTask || showManualLookup ? (
-        <div className="card">
-          {hasLoadedTask ? (
-            <div className="audit-loaded-summary">
-              <div className="mini-stat-grid">
-                <div className="mini-stat">
-                  <span className="stat-label">Task ID</span>
-                  <strong className="mono-inline">{task.att_tid ? shortValue(task.att_tid, 10, 8) : '—'}</strong>
-                </div>
-                <div className="mini-stat">
-                  <span className="stat-label">Status</span>
-                  <strong>{summary.result || 'active'}</strong>
-                </div>
-                <div className="mini-stat">
-                  <span className="stat-label">Events</span>
-                  <strong>{eventCount}</strong>
-                </div>
-                <div className="mini-stat">
-                  <span className="stat-label">Integrity</span>
-                  <strong>{evidencePacket ? (integrity.audit_chain_valid ? 'Valid' : 'Check packet') : 'Pending'}</strong>
-                </div>
+      {activeTab === 'evidence' ? (
+        <div className="evidence-tab">
+          <div className="evidence-meta-grid">
+            <DetailItem label="Task ID" value={task.att_tid} mono />
+            <DetailItem label="Root credential" value={task.root_jti} mono />
+            <DetailItem label="Original user" value={identity.user_id || task.att_uid} mono />
+            <DetailItem label="Packet hash" value={shortValue(integrity.packet_hash)} title={integrity.packet_hash} mono />
+            <DetailItem label="Instruction hash" value={shortValue(task.instruction_hash)} title={task.instruction_hash} mono />
+            <DetailItem label="Root agent" value={task.root_agent_id || '--'} />
+          </div>
+          {observedScopes.length ? (
+            <div style={{ marginTop: 16 }}>
+              <div className="stat-card-label" style={{ marginBottom: 8 }}>Observed Scopes</div>
+              <div className="scope-list">
+                {observedScopes.map((s) => <span key={s} className="scope-chip">{s}</span>)}
               </div>
             </div>
           ) : null}
-
-          <div className="search-row">
-            <div className="search-input-shell">
-              <div className="search-input-label">Task tree</div>
-              <input
-                id="task-id-input"
-                type="search"
-                value={taskId}
-                onChange={(event) => setTaskId(event.target.value)}
-                placeholder="Paste att_tid from a credential or evidence packet"
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') onSearch();
-                }}
-              />
-            </div>
-            <div className="toolbar-field">
-              <div className="toolbar-label">Report view</div>
-              <select id="report-template-select" value={reportTemplate} onChange={(event) => setReportTemplate(event.target.value)}>
-                <option value="audit">Audit report</option>
-                <option value="soc2">SOC 2 report</option>
-                <option value="incident">Incident report</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="toolbar-actions">
-            <button className="btn btn-toolbar-primary" type="button" onClick={onSearch}>
-              <span className="btn-mark">≡</span>
-              <span className="btn-text"><small>Timeline</small><span>{auditLoading ? 'Loading…' : 'Search events'}</span></span>
-            </button>
-            <button className="btn btn-toolbar-secondary" type="button" onClick={onVerify}>
-              <span className="btn-mark">✓</span>
-              <span className="btn-text"><small>On-site</small><span>Verify packet</span></span>
-            </button>
-            <button className="btn btn-toolbar-secondary" type="button" onClick={onOpenReport}>
-              <span className="btn-mark">↗</span>
-              <span className="btn-text"><small>Readable</small><span>Open report</span></span>
-            </button>
-            <button className="btn btn-toolbar-secondary" type="button" onClick={onPrint}>
-              <span className="btn-mark">⎙</span>
-              <span className="btn-text"><small>PDF-ready</small><span>Print report</span></span>
-            </button>
-            <button className="btn btn-toolbar-tertiary" type="button" onClick={onExport}>
-              <span className="btn-mark">↓</span>
-              <span className="btn-text"><small>Canonical</small><span>Export packet</span></span>
-            </button>
-          </div>
-
-          <div className="audit-results">
-            {auditLoading ? <div className="empty">Loading…</div> : null}
-            {!auditLoading && auditError ? <div className="empty">{auditError}</div> : null}
-            {!auditLoading && !auditError && !auditEvents.length ? <div className="empty">Select a task above or enter a task ID to view its evidence trail.</div> : null}
-
-          {!auditLoading && !auditError && auditEvents.length ? (
-            <div className="audit-stack">
-              {evidencePacket ? (
-                <div className="evidence-preview">
-                  <div className="results-divider">Task summary</div>
-                  <div className="evidence-summary-grid">
-                    <div className="evidence-summary-card">
-                      <div className="label">Task status</div>
-                      <div className="value"><span className={`result-pill ${resultClass(summary.result)}`}>{summary.result || 'active'}</span></div>
-                    </div>
-                    <div className="evidence-summary-card">
-                      <div className="label">Authority tree</div>
-                      <div className="value">{task.credential_count || credentials.length} credential{(task.credential_count || credentials.length) === 1 ? '' : 's'}</div>
-                    </div>
-                    <div className="evidence-summary-card">
-                      <div className="label">Runtime events</div>
-                      <div className="value">{eventCount} event{eventCount === 1 ? '' : 's'}</div>
-                    </div>
-                    <div className="evidence-summary-card">
-                      <div className="label">Integrity</div>
-                      <div className="value">{integrity.audit_chain_valid ? 'Audit chain valid' : 'Audit chain invalid'}</div>
-                    </div>
-                  </div>
-
-                  <div className="evidence-detail-card">
-                    <div>
-                      <div className="detail-section-title">Evidence packet</div>
-                      <div className="detail-grid">
-                        <DetailItem label="Task ID" value={task.att_tid} mono />
-                        <DetailItem label="Root credential" value={task.root_jti} mono />
-                        <DetailItem label="Original user" value={identity.user_id || task.att_uid} mono />
-                        <DetailItem label="Packet hash" value={shortValue(integrity.packet_hash)} title={integrity.packet_hash} mono />
-                        <DetailItem label="Instruction hash" value={shortValue(task.instruction_hash)} title={task.instruction_hash} mono />
-                        <DetailItem label="Last activity" value={lastEvent?.created_at ? new Date(lastEvent.created_at).toLocaleString() : '—'} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="detail-section-title">Observed scopes</div>
-                      <div className="scope-list">
-                        {observedScopes.length ? observedScopes.map((scope) => <span key={scope} className="scope-chip">{scope}</span>) : <span className="scope-chip">No scope captured</span>}
-                      </div>
-                      <div className="side-detail-grid">
-                        <DetailItem label="Root agent" value={task.root_agent_id || '—'} />
-                        <DetailItem label="Report view" value={reportTemplate === 'soc2' ? 'SOC 2 report' : reportTemplate === 'incident' ? 'Incident report' : 'Audit report'} />
-                      </div>
-                      <div className="preview-note">
-                        {summary.scope_violations || summary.revocations || summary.approvals
-                          ? `${summary.scope_violations || 0} scope violation(s), ${summary.approvals || 0} approval-linked event(s), and ${summary.revocations || 0} revocation event(s) are present in this packet.`
-                          : 'This task is clean so far: no scope violations, approval interruptions, or revocations are present in the current packet.'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <VerificationPanel
-                    packet={evidencePacket}
-                    verification={evidenceVerification}
-                    snippets={verificationSnippets}
-                    onCopyVerification={onCopyVerification}
-                  />
-                </div>
-              ) : null}
-
-              <div className="timeline-shell">
-                <div className="timeline-header">
-                  <div className="timeline-title">Authority timeline</div>
-                  <div className="timeline-meta">{auditEvents.length} recorded event{auditEvents.length === 1 ? '' : 's'}</div>
-                </div>
-                <table className="audit-table">
-                  <thead>
-                    <tr>
-                      <th>Event</th>
-                      <th>JTI</th>
-                      <th>Agent</th>
-                      <th>User</th>
-                      <th>Scope</th>
-                      <th>Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditEvents.map((event, index) => (
-                      <tr key={`${event.id || event.entry_hash || event.created_at || index}`}>
-                        <td><span className={`event-badge ${eventBadgeClass(event.event_type)}`}>{event.event_type || 'event'}</span></td>
-                        <td className="mono">{event.jti ? `${event.jti.slice(0, 8)}…` : '—'}</td>
-                        <td>{event.agent_id || '—'}</td>
-                        <td>{event.user_id || '—'}</td>
-                        <td className="mono">{Array.isArray(event.scope) && event.scope.length ? event.scope.join(', ') : '—'}</td>
-                        <td className="muted">{event.created_at ? new Date(event.created_at).toLocaleTimeString() : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {verificationSnippets ? (
+            <div style={{ marginTop: 16 }}>
+              <div className="stat-card-label" style={{ marginBottom: 8 }}>Verification Snippets</div>
+              <div className="verification-action-row">
+                <button className="verification-action-btn" type="button" onClick={() => onCopyVerification('jwks')}>Copy JWKS URL</button>
+                <button className="verification-action-btn" type="button" onClick={() => onCopyVerification('typescript')}>Copy TypeScript</button>
+                <button className="verification-action-btn" type="button" onClick={() => onCopyVerification('python')}>Copy Python</button>
               </div>
             </div>
           ) : null}
         </div>
-      </div>
+      ) : null}
+
+      {showRevokeModal ? (
+        <div className="modal-backdrop" onClick={() => setShowRevokeModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Revoke Credential</h3>
+            <p className="modal-body">Revoking a credential invalidates it and all descendants immediately. This cannot be undone.</p>
+            <label htmlFor="revoke-jti-modal">Credential JTI</label>
+            <input id="revoke-jti-modal" type="text" value={revokeJti} onChange={(e) => setRevokeJti(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+            <label htmlFor="revoke-by-modal" style={{ marginTop: 12 }}>Revoked by</label>
+            <input id="revoke-by-modal" type="text" value={revokeBy} onChange={(e) => setRevokeBy(e.target.value)} placeholder="dashboard" />
+            <div className="modal-actions">
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowRevokeModal(false)}>Cancel</button>
+              <button className="btn btn-danger" type="button" onClick={() => { onRevoke(); setShowRevokeModal(false); }}>Revoke</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showReportModal ? (
+        <div className="modal-backdrop" onClick={() => setShowReportModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">Generate Report</h3>
+            <label htmlFor="report-template-modal">Template</label>
+            <select id="report-template-modal" value={reportTemplate} onChange={(e) => setReportTemplate(e.target.value)}>
+              <option value="audit">Audit Report</option>
+              <option value="soc2">SOC 2 Report</option>
+              <option value="incident">Incident Report</option>
+            </select>
+            <div className="modal-actions">
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowReportModal(false)}>Cancel</button>
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => { onPrint(); setShowReportModal(false); }}>Print to PDF</button>
+              <button className="btn btn-primary modal-primary-btn" type="button" onClick={() => { onOpenReport(); setShowReportModal(false); }}>View Report</button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </section>
   );
@@ -1314,6 +1276,145 @@ function VerificationCheck({ label, value, state }) {
     <div className={`verification-check ${state === 'error' ? 'error' : state === 'success' ? 'success' : ''}`}>
       <div className="label">{label}</div>
       <div className="value">{value}</div>
+    </div>
+  );
+}
+
+function TreeView({ events, credentials }) {
+  const tree = buildDelegationTree(events, credentials);
+  return (
+    <div className="tree-view">
+      {tree.map((node) => (
+        <TreeNode key={node.key} node={node} depth={0} />
+      ))}
+    </div>
+  );
+}
+
+function TreeNode({ node, depth }) {
+  return (
+    <div className="tree-node" style={{ marginLeft: depth > 0 ? 24 : 0 }}>
+      {depth > 0 ? <div className="tree-branch" /> : null}
+      <div className="tree-node-content">
+        <span className={`event-badge ${eventBadgeClass(node.type)}`}>{node.type}</span>
+        <span className="tree-agent">{node.agent || '--'}</span>
+        {node.scope ? <span className="tree-scope">{node.scope}</span> : null}
+        {node.detail ? <span className="tree-detail">{node.detail}</span> : null}
+      </div>
+      {node.children?.map((child) => (
+        <TreeNode key={child.key} node={child} depth={depth + 1} />
+      ))}
+    </div>
+  );
+}
+
+function buildDelegationTree(events, credentials) {
+  if (!events || !events.length) return [];
+
+  const nodes = [];
+  const credMap = new Map();
+  for (const cred of credentials || []) {
+    credMap.set(cred.jti, cred);
+  }
+
+  const childrenOf = new Map();
+  const roots = [];
+
+  for (const event of events) {
+    const node = {
+      key: event.id || event.entry_hash || `${event.event_type}-${event.created_at}`,
+      type: event.event_type || 'event',
+      agent: event.agent_id || '--',
+      jti: event.jti || '',
+      scope: Array.isArray(event.scope) && event.scope.length ? `scope: ${event.scope.join(', ')}` : '',
+      detail: event.event_type === 'action' ? `tool_call: ${event.tool_name || event.agent_id || '--'}` : '',
+      children: [],
+    };
+
+    if (event.event_type === 'issued') {
+      roots.push(node);
+    } else if (event.event_type === 'delegated') {
+      const parentJti = credMap.get(event.jti)?.parent_jti;
+      if (parentJti) {
+        if (!childrenOf.has(parentJti)) childrenOf.set(parentJti, []);
+        childrenOf.get(parentJti).push(node);
+      } else {
+        roots.push(node);
+      }
+    } else {
+      const jti = event.jti;
+      if (jti) {
+        if (!childrenOf.has(jti)) childrenOf.set(jti, []);
+        childrenOf.get(jti).push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+    nodes.push(node);
+  }
+
+  function attachChildren(node) {
+    const kids = childrenOf.get(node.jti) || [];
+    node.children = kids;
+    for (const kid of kids) attachChildren(kid);
+  }
+  for (const root of roots) attachChildren(root);
+
+  return roots;
+}
+
+function VerificationBanner({ verification, onVerify, expanded, onToggle }) {
+  if (!verification) {
+    return (
+      <button className="verify-banner verify-banner-idle" type="button" onClick={onVerify}>
+        Click to verify packet: hash, signature, chain
+      </button>
+    );
+  }
+
+  const passed = verification.valid;
+  const label = passed
+    ? 'All checks passed: hash, signature, chain'
+    : `${[!verification.hashValid && 'hash', !verification.signatureValid && 'signature', !verification.auditChainValid && 'chain'].filter(Boolean).join(', ')} failed`;
+
+  return (
+    <div>
+      <button className={`verify-banner ${passed ? 'verify-banner-pass' : 'verify-banner-fail'}`} type="button" onClick={onToggle}>
+        {label}
+        <span className="verify-banner-toggle">{expanded ? 'v' : '>'}</span>
+      </button>
+      {expanded ? (
+        <div className="verify-detail">
+          <div className="verify-detail-grid">
+            <div className={`verify-check ${verification.hashValid ? 'pass' : 'fail'}`}>
+              <div className="verify-check-icon">{verification.hashValid ? 'OK' : 'X'}</div>
+              <div>
+                <div className="verify-check-label">Hash Integrity</div>
+                <div className="verify-check-desc">{verification.hashValid ? 'SHA-256 packet hash matches' : 'Hash mismatch detected'}</div>
+              </div>
+            </div>
+            <div className={`verify-check ${verification.signatureValid ? 'pass' : 'fail'}`}>
+              <div className="verify-check-icon">{verification.signatureValid ? 'OK' : 'X'}</div>
+              <div>
+                <div className="verify-check-label">Signature</div>
+                <div className="verify-check-desc">{verification.signatureValid ? 'RS256 verified against JWKS' : 'Signature invalid or missing'}</div>
+              </div>
+            </div>
+            <div className={`verify-check ${verification.auditChainValid ? 'pass' : 'fail'}`}>
+              <div className="verify-check-icon">{verification.auditChainValid ? 'OK' : 'X'}</div>
+              <div>
+                <div className="verify-check-label">Audit Chain</div>
+                <div className="verify-check-desc">{verification.auditChainValid ? 'Append-only chain intact' : 'Chain break detected'}</div>
+              </div>
+            </div>
+          </div>
+          {verification.warnings?.length ? (
+            <ul className="verify-warnings">
+              {verification.warnings.map((w) => <li key={w}>{w}</li>)}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

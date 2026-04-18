@@ -1126,6 +1126,280 @@ select:focus {
   color: var(--red);
 }
 
+/* Tree view */
+.tree-view {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 2.2;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.tree-node {
+  position: relative;
+}
+
+.tree-branch {
+  position: absolute;
+  left: -16px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+
+.tree-node-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tree-agent {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.tree-scope {
+  color: #9CA3AF;
+  font-size: 10px;
+}
+
+.tree-detail {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Verification banner */
+.verify-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: background 0.15s;
+}
+
+.verify-banner-idle {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.verify-banner-pass {
+  background: #dcfce7;
+  color: var(--green);
+}
+
+.verify-banner-fail {
+  background: #fef2f2;
+  color: var(--red);
+}
+
+.verify-banner-toggle {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.verify-detail {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  margin-top: -8px;
+}
+
+.verify-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.verify-check {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.verify-check-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.verify-check.pass .verify-check-icon { color: var(--green); }
+.verify-check.fail .verify-check-icon { color: var(--red); }
+
+.verify-check-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+.verify-check-desc {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-ui);
+}
+
+.verify-warnings {
+  margin-top: 12px;
+  padding-left: 16px;
+  color: var(--amber);
+  font-size: 12px;
+}
+
+/* Audit page specifics */
+.audit-header {
+  margin-bottom: 16px;
+}
+
+.audit-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.audit-task-id {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.audit-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-family: var(--font-ui);
+}
+
+.audit-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.audit-revoke-btn {
+  margin-left: auto;
+}
+
+.audit-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.audit-tab {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: var(--muted);
+  transition: color 0.15s;
+}
+
+.audit-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.audit-tab:hover:not(.active) {
+  color: var(--text);
+}
+
+.audit-lookup {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.audit-search-input {
+  flex: 1;
+}
+
+.audit-search-btn {
+  width: auto;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.evidence-tab {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.evidence-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-hover);
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-family: var(--font-ui);
+}
+
+.modal-body {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modal-primary-btn {
+  width: auto;
+  margin-top: 0;
+}
+
+@media (max-width: 768px) {
+  .verify-detail-grid,
+  .evidence-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1100px) {
   .hero-shell,
   .audit-hero,
