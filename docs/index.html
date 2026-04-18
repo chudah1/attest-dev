@@ -3,375 +3,204 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attest | Your agents can take action. Can you prove they were allowed to?</title>
-  <meta name="description" content="Attest gives every AI agent action a signed chain of authority tied back to the human who approved it. Scope access, stop privilege creep, revoke instantly, and export proof." />
-  <meta property="og:title" content="Attest | Your agents can take action. Can you prove they were allowed to?" />
-  <meta property="og:description" content="Give every AI agent action a signed chain of authority tied back to the human who approved it. Scope access, revoke instantly, and export proof." />
+  <title>Attest: See and control what your AI agents do</title>
+  <meta name="description" content="MCP Gateway that gives you visibility, control, and compliance for every AI agent tool call. Tamper-evident audit trails included." />
+  <meta property="og:title" content="Attest: MCP Gateway for AI Agents" />
+  <meta property="og:description" content="See and control what your AI agents do. Every tool call, visible. Every risky action, approved." />
   <meta property="og:type" content="website" />
-  <meta name="twitter:card" content="summary" />
-  <link rel="canonical" href="https://attestdev.com/" />
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Attest",
-    "description": "Authorization layer for AI agent pipelines. Give every AI agent action a signed chain of authority tied back to the human who approved it, with scoped delegation, cascade revocation, and exportable proof.",
-    "applicationCategory": "DeveloperApplication",
-    "operatingSystem": "Any",
-    "url": "https://attestdev.com",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "author": { "@type": "Organization", "name": "Attest", "url": "https://attestdev.com" },
-    "softwareHelp": { "@type": "WebPage", "url": "https://attestdev.com/docs/" }
-  }
-  </script>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='12' width='100' height='100' fill='%23111'/><text x='50' y='73' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .hero { padding: 120px 0 80px; text-align: left; }
+    .hero-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; }
+    .hero h1 { margin-bottom: 20px; }
+    .hero .body-lg { max-width: 560px; margin-bottom: 32px; }
+    .hero .cta-group { display: flex; gap: 12px; }
 
-    :root {
-      --bg: #fafaf9;
-      --surface: #f0f0ee;
-      --surface-2: #fafaf9;
-      --surface-3: rgba(0, 0, 0, 0.02);
-      --line: #e0e0dd;
-      --line-strong: #ccccc8;
-      --text: #1a1a1a;
-      --muted: #606060;
-      --link: #1a1a1a;
-      --green: #16a34a;
-      --red: #dc2626;
-      --shadow: 0 1px 3px rgba(0,0,0,0.05);
-      --radius: 6px;
-    }
+    .features { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; }
+    .feature-row { display: flex; align-items: center; gap: 80px; padding: 80px 0; }
+    .feature-row:not(:last-child) { border-bottom: 1px solid var(--line); }
+    .feature-row.reverse { flex-direction: row-reverse; }
+    .feature-text { flex: 1; }
+    .feature-text .category { margin-bottom: 12px; }
+    .feature-text h2 { margin-bottom: 16px; }
+    .feature-text p { color: var(--text-secondary); font-size: 16px; line-height: 1.6; }
+    .feature-image { flex: 1; background: var(--surface); border-radius: var(--radius-lg); min-height: 280px; display: flex; align-items: center; justify-content: center; color: var(--text-disabled); font-size: 14px; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 16px;
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-    }
+    .how-it-works { background: var(--surface); padding: 100px 0; }
+    .how-it-works-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; text-align: center; }
+    .how-it-works h2 { margin-bottom: 60px; }
+    .steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; text-align: left; }
+    .step { position: relative; }
+    .step-num { font-size: 48px; font-weight: 700; color: var(--accent); letter-spacing: -2px; margin-bottom: 12px; line-height: 1; }
+    .step h3 { margin-bottom: 8px; }
+    .step p { color: var(--text-secondary); font-size: 14px; }
 
-    a { color: var(--link); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    code { font-family: "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 0.85em; }
-
-    /* NAV */
-    nav { border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; z-index: 20; }
-    .nav-shell { max-width: 980px; margin: 0 auto; padding: 0.6rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .logo { color: var(--text); font-size: 0.95rem; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; }
-    nav ul { display: flex; list-style: none; gap: 0.25rem; align-items: center; }
-    nav ul a { color: var(--muted); font-size: 0.85rem; padding: 0.35rem 0.6rem; border-radius: var(--radius); text-decoration: none; }
-    nav ul a.active { color: var(--text); }
-    nav ul a:hover { color: var(--text); text-decoration: none; }
-    .nav-toggle { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 0.4rem; }
+    .bottom-cta { padding: 120px 0; text-align: center; }
+    .bottom-cta h2 { margin-bottom: 24px; }
 
     @media (max-width: 860px) {
-      .nav-toggle { display: flex; }
-      nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 1rem 2rem; gap: 0.5rem; }
-      nav ul.open { display: flex; }
-      .nav-shell { position: relative; }
+      .hero { padding: 80px 0 60px; }
+      .hero-inner, .features { padding: 0 24px; }
+      .feature-row { flex-direction: column; gap: 32px; padding: 48px 0; }
+      .feature-row.reverse { flex-direction: column; }
+      .feature-image { min-height: 200px; width: 100%; }
+      .how-it-works-inner { padding: 0 24px; }
+      .steps { grid-template-columns: 1fr; gap: 32px; }
+      .bottom-cta { padding: 80px 24px; }
     }
-
-    /* STATUS */
-    .api-status { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: var(--muted); }
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
-    .status-dot.live { background: var(--green); }
-
-    /* HERO */
-    .hero { max-width: 640px; margin: 0 auto; padding: 5rem 2rem 3rem; }
-    h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 1rem; }
-    .hero p { font-size: 1rem; color: var(--muted); line-height: 1.7; margin-bottom: 1.5rem; }
-    .cta-group { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
-
-    .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1.1rem; border-radius: var(--radius); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; border: 1px solid transparent; }
-    .btn:hover { text-decoration: none; }
-    .btn-primary { background: var(--text); color: var(--bg); }
-    .btn-primary:hover { opacity: 0.85; }
-    .btn-ghost { border-color: var(--line); color: var(--text); background: transparent; }
-    .btn-ghost:hover { border-color: var(--line-strong); background: var(--surface); }
-
-    /* CODE BLOCK */
-    .code-wrap { max-width: 640px; margin: 0 auto; padding: 0 2rem; }
-    .code-example { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 3.5rem; }
-    .code-example pre { padding: 1.25rem 1.5rem; font-family: "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 0.8rem; line-height: 1.8; overflow-x: auto; color: var(--text); }
-    .c-dim { color: var(--muted); }
-    .c-key { color: #8250df; }
-    .c-fn { color: #0550ae; }
-    .c-str { color: #0a3069; }
-    .c-kw { color: #cf222e; }
-
-    /* FEATURES */
-    .features { max-width: 980px; margin: 0 auto; padding: 0 2rem 4rem; }
-    .features-header { margin-bottom: 2rem; }
-    .features-header h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; }
-    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
-    .feature { padding: 1.25rem 1.5rem 1.25rem 0; border-top: 1px solid var(--line); }
-    .feature:nth-child(3n+2) { padding-left: 1.5rem; padding-right: 1.5rem; }
-    .feature:nth-child(3n+3) { padding-left: 1.5rem; padding-right: 0; }
-    .feature h3 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.25rem; }
-    .feature p { font-size: 0.84rem; color: var(--muted); line-height: 1.6; }
-
-    @media (max-width: 768px) {
-      .feature-grid { grid-template-columns: 1fr; }
-      .feature, .feature:nth-child(3n+2), .feature:nth-child(3n+3) { padding-left: 0; padding-right: 0; }
-    }
-
-    /* ARTICLE CALLOUT */
-    .reading-callout { max-width: 640px; margin: 0 auto 4rem; padding: 0 2rem; }
-    .reading-callout-inner { padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: var(--radius); display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .reading-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.2rem; font-weight: 600; }
-    .reading-callout h3 { font-size: 0.9rem; font-weight: 600; }
-    @media (max-width: 640px) { .reading-callout-inner { flex-direction: column; align-items: flex-start; } }
-
-    /* SECTIONS */
-    .section { max-width: 640px; margin: 0 auto; padding: 0 2rem 4rem; }
-    .section-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
-    .section h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.75rem; }
-    .section > p { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.92rem; }
-    .steps { display: flex; flex-direction: column; gap: 1rem; }
-    .step { display: flex; gap: 1rem; align-items: flex-start; }
-    .step-num { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 0.15rem; }
-    .step-text h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.15rem; }
-    .step-text p { font-size: 0.84rem; color: var(--muted); }
-
-    /* INSTALL */
-    .install-section { max-width: 640px; margin: 0 auto; padding: 0 2rem 5rem; }
-    .install-section h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
-    .install-section > p { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.92rem; }
-    .code-block { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.85rem 1.1rem; font-family: "SF Mono", "Fira Code", ui-monospace, monospace; font-size: 0.8rem; margin-bottom: 0.75rem; overflow-x: auto; line-height: 1.7; white-space: pre; }
-
-    /* FOOTER */
-    footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
-    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.6rem; flex-wrap: wrap; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
   </style>
 </head>
 <body>
-
-<nav>
-  <div class="nav-shell">
-    <a href="./" class="logo">Attest</a>
-    <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg>
-    </button>
-    <ul id="nav-links">
-      <li><a href="./" class="active">Home</a></li>
-      <li><a href="./docs/">Docs</a></li>
-      <li><a href="./mcp/">MCP</a></li>
-      <li><a href="./verify/">Verify</a></li>
-      <li><a href="./waitlist/">Early access</a></li>
-      <li><a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a></li>
-      <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-      <li><a href="./demo/">Demo</a></li>
-    </ul>
-  </div>
-</nav>
-
-<section class="hero">
-  <h1>Your agents take action. Can you prove they were allowed to?</h1>
-  <p>When agents send email, update CRM, or call internal APIs on behalf of people, you need more than "we think it was allowed." Attest gives every action a signed chain of authority tied back to the human who approved it.</p>
-  <div class="cta-group">
-    <a href="./docs/" class="btn btn-primary">Read the docs</a>
-    <a href="./demo/" class="btn btn-ghost">Try the demo</a>
-    <a href="./waitlist/" class="btn btn-ghost">Request early access</a>
-    <span class="api-status" style="margin-left: 0.5rem;">
-      <span class="status-dot" id="status-dot"></span>
-      <span id="status-label">Checking API...</span>
-    </span>
-  </div>
-</section>
-
-<div class="code-wrap">
-  <div class="code-example">
-    <pre><span class="c-dim">// Issue a credential tied to a human instruction</span>
-<span class="c-kw">const</span> { token } = <span class="c-kw">await</span> client.<span class="c-fn">issue</span>({
-  agentId:     <span class="c-str">"orchestrator-v1"</span>,
-  userId:      <span class="c-str">"usr_alice"</span>,
-  scope:       [<span class="c-str">"research:read"</span>, <span class="c-str">"gmail:send"</span>],
-  instruction: <span class="c-str">"summarise inbox and send digest"</span>,
-});
-
-<span class="c-dim">// Delegate a narrower credential to a sub-agent</span>
-<span class="c-kw">const</span> { token: child } = <span class="c-kw">await</span> client.<span class="c-fn">delegate</span>({
-  parentToken: token,
-  childAgent:  <span class="c-str">"email-agent-v2"</span>,
-  childScope:  [<span class="c-str">"gmail:send"</span>],  <span class="c-dim">// subset of parent</span>
-});
-
-<span class="c-dim">// Revoke the root and kill the entire chain</span>
-<span class="c-kw">await</span> client.<span class="c-fn">revoke</span>(token);</pre>
-  </div>
-</div>
-
-<div class="features">
-  <div class="features-header">
-    <h2>What Attest does</h2>
-  </div>
-  <div class="feature-grid">
-    <div class="feature">
-      <h3>Ties every action to a human</h3>
-      <p>The original instruction is hashed into the credential chain. Months later, you can trace any action back to the human request that started it.</p>
+  <nav class="nav">
+    <div class="nav-shell">
+      <a href="./" class="logo">Attest</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="./" class="active">Product</a></li>
+        <li class="nav-dropdown" id="nav-dropdown">
+          <button class="nav-dropdown-trigger" aria-expanded="false">
+            Developers
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+          </button>
+          <div class="nav-dropdown-menu">
+            <a href="./docs/">Docs</a>
+            <a href="./mcp/">MCP Guide</a>
+            <a href="./demo/">Demo</a>
+            <a href="./verify/">Verify</a>
+            <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+          </div>
+        </li>
+        <li><a href="./waitlist/">Pricing</a></li>
+        <li class="nav-sep"></li>
+        <li><a href="#" data-dashboard-link>Log in</a></li>
+        <li><a href="./waitlist/" class="btn btn-primary">Get Started</a></li>
+      </ul>
     </div>
-    <div class="feature">
-      <h3>Enforces scope at the tool boundary</h3>
-      <p>Wrap your MCP server with <code>withAttest()</code> and every tool call has to present a valid credential before your handler runs.</p>
-    </div>
-    <div class="feature">
-      <h3>Children get less, never more</h3>
-      <p>When an orchestrator delegates to a sub-agent, the child credential is a strict subset. You cannot accidentally grant more than you started with.</p>
-    </div>
-    <div class="feature">
-      <h3>Cascade revocation</h3>
-      <p>Revoke the root and every downstream credential dies with it. No child agents quietly keep running after the parent is gone.</p>
-    </div>
-    <div class="feature">
-      <h3>Exportable evidence</h3>
-      <p>Every issue, delegation, denial, and revoke becomes a hash-chained audit entry. Export the full evidence packet and hand it to compliance.</p>
-    </div>
-    <div class="feature">
-      <h3>Offline verification</h3>
-      <p>Credentials and evidence can be verified without calling your backend. The proof holds even when the incident review happens months later.</p>
-    </div>
-  </div>
-</div>
+  </nav>
 
-<div class="reading-callout">
-  <div class="reading-callout-inner">
-    <div>
-      <div class="reading-label">Article</div>
-      <h3>The Missing Protocol for AI Agent Authorization</h3>
-    </div>
-    <a href="https://dev.to/chudah1/the-missing-protocol-for-ai-agent-authorization-2532" class="btn btn-ghost" style="flex-shrink:0;">Read it</a>
-  </div>
-</div>
-
-<section class="section" id="how-it-works">
-  <div class="section-label">How it works</div>
-  <h2>How Attest fits into a real workflow</h2>
-  <p>Issue a root credential, narrow it at every handoff, enforce it at the tool boundary, and keep proof when something goes wrong.</p>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-text">
-        <h4>A human approves the work</h4>
-        <p>Your backend calls <code>POST /v1/credentials</code> with the agent ID, user ID, permitted scopes, and original instruction. Attest returns a signed root credential tied back to that approval.</p>
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="category">MCP Gateway</p>
+      <h1>See and control what your AI agents do</h1>
+      <p class="body-lg">Every tool call, visible. Every risky action, approved. Tamper-evident audit trails you can export for compliance.</p>
+      <div class="cta-group">
+        <a href="./waitlist/" class="btn btn-primary">Start Free</a>
+        <a href="./demo/" class="btn btn-secondary">Watch Demo</a>
       </div>
     </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-text">
-        <h4>The orchestrator hands work downstream</h4>
-        <p>The orchestrator calls <code>POST /v1/credentials/delegate</code>, narrowing scope for each child agent. Every child token carries the chain of authority with it.</p>
+  </section>
+
+  <div class="features">
+    <div class="feature-row">
+      <div class="feature-text">
+        <p class="category">Visibility</p>
+        <h2>Every tool call, live</h2>
+        <p>Real-time stream of agent actions across all your MCP servers. See which agent called which tool, when, and what happened.</p>
       </div>
+      <div class="feature-image">Dashboard live feed</div>
     </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-text">
-        <h4>Every tool call has to prove itself</h4>
-        <p><code>withAttest()</code> intercepts each tool invocation, verifies the JWT against your org's JWKS, and checks the required scope before your handler runs.</p>
+
+    <div class="feature-row reverse">
+      <div class="feature-text">
+        <p class="category">Control</p>
+        <h2>Approve before it runs</h2>
+        <p>Block specific tools, set rate limits, or require human sign-off for risky actions. Policies apply across all your MCP servers.</p>
       </div>
+      <div class="feature-image">Policy configuration</div>
     </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-text">
-        <h4>Kill the chain when you need to</h4>
-        <p>Call <code>DELETE /v1/credentials/:jti</code> to revoke a token. All descendants are invalidated immediately through cascade revocation.</p>
+
+    <div class="feature-row">
+      <div class="feature-text">
+        <p class="category">Compliance</p>
+        <h2>Proof you can hand over</h2>
+        <p>Hash-chained audit trails with cryptographic verification. Export JSON reports for regulators and auditors.</p>
       </div>
+      <div class="feature-image">Report export</div>
     </div>
   </div>
-</section>
 
-<section class="install-section" id="install">
-  <div class="section-label">Quickstart</div>
-  <h2>Start with one real action</h2>
-  <p>Install the SDK, hit the live API, and protect a workflow where agents act on behalf of people.</p>
+  <section class="how-it-works">
+    <div class="how-it-works-inner">
+      <h2>Three steps to get started</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Register your MCP servers</h3>
+          <p>Add your MCP servers through the dashboard. Name, command, args, and env vars.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Paste the config</h3>
+          <p>Copy the generated JSON snippet into Claude Desktop, Cursor, or Windsurf.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>See everything</h3>
+          <p>Your dashboard lights up with every tool call. Set policies, approve actions, export reports.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <div class="code-block"><span class="c-dim"># Install</span>
-npm install @attest-dev/sdk@beta</div>
+  <section class="bottom-cta">
+    <h2>Start seeing what your agents do</h2>
+    <a href="./waitlist/" class="btn btn-primary">Get Started</a>
+  </section>
 
-  <div class="code-block"><span class="c-dim"># Check the API</span>
-curl https://api.attestdev.com/health
-<span class="c-fn">{"status":"ok"}</span></div>
+  <footer class="footer">
+    <div class="footer-shell">
+      <span>Attest</span>
+      <div class="footer-links">
+        <a href="./docs/">Docs</a>
+        <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </footer>
 
-  <div class="code-block"><span class="c-kw">import</span> { AttestClient } <span class="c-kw">from</span> <span class="c-str">"@attest-dev/sdk"</span>;
-
-<span class="c-kw">const</span> client = <span class="c-kw">new</span> <span class="c-fn">AttestClient</span>({
-  baseUrl: <span class="c-str">"https://api.attestdev.com"</span>,
-  apiKey:  <span class="c-str">"att_live_..."</span>,
-});
-
-<span class="c-kw">const</span> { token } = <span class="c-kw">await</span> client.<span class="c-fn">issue</span>({
-  agent_id:    <span class="c-str">"my-agent"</span>,
-  user_id:     <span class="c-str">"usr_123"</span>,
-  scope:       [<span class="c-str">"research:read"</span>],
-  instruction: <span class="c-str">"find recent AI papers"</span>,
-});</div>
-
-  <p style="color: var(--muted); font-size: 0.84rem;">
-    Want to protect an MCP tool? <a href="./mcp/">MCP quickstart</a> &middot;
-    <a href="./waitlist/">Talk to us</a> &middot;
-    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Open dashboard</a>
-  </p>
-</section>
-
-<footer>
-  <div class="footer-links">
-    <a href="./waitlist/">Early access</a>
-    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a>
-    <a href="https://github.com/chudah1/attest-dev">GitHub</a>
-    <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
-    <a href="https://pypi.org/project/attest-sdk/">PyPI</a>
-    <a href="https://api.attestdev.com/health">API</a>
-    <a href="https://datatracker.ietf.org/doc/draft-yakung-oauth-agent-attestation/">IETF Draft</a>
-  </div>
-  <p>&copy; 2026 Attest. Open source, Apache 2.0.</p>
-</footer>
-
-<script>
-(function () {
-  'use strict';
-
-  // Mobile nav
-  const navToggle = document.getElementById('nav-toggle');
-  const navLinks  = document.getElementById('nav-links');
-  navToggle?.addEventListener('click', () => {
-    navLinks.classList.toggle('open');
-  });
-
-  // Dashboard URL
-  const isLocalHost = /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
-  const dashboardOverride =
-    new URLSearchParams(window.location.search).get('dashboard_url') ||
-    window.localStorage.getItem('attest-dashboard-url');
-  function inferLocalDashboardUrl() {
-    if (window.location.port === '8000') return 'http://localhost:5173/';
-    return new URL('/dashboard', window.location.origin).toString();
-  }
-  const dashboardUrl = dashboardOverride || (isLocalHost ? inferLocalDashboardUrl() : 'https://api.attestdev.com/dashboard');
-  document.querySelectorAll('[data-dashboard-link]').forEach((link) => {
-    link.setAttribute('href', dashboardUrl);
-  });
-
-  // API health check
-  const statusDot   = document.getElementById('status-dot');
-  const statusLabel = document.getElementById('status-label');
-
-  fetch('https://api.attestdev.com/health')
-    .then(res => res.json())
-    .then(data => {
-      if (data.status === 'ok') {
-        statusDot.classList.add('live');
-        statusLabel.textContent = 'API live';
-      }
-    })
-    .catch(() => {
-      statusLabel.textContent = 'API offline';
+  <script>
+    // Mobile nav toggle
+    document.getElementById('nav-toggle').addEventListener('click', () => {
+      document.getElementById('nav-links').classList.toggle('open');
     });
-})();
-</script>
 
+    // Developers dropdown
+    const dropdown = document.getElementById('nav-dropdown');
+    const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', dropdown.classList.contains('open'));
+    });
+    document.addEventListener('click', () => {
+      dropdown.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+    });
+
+    // Dashboard URL resolution
+    (function() {
+      const links = document.querySelectorAll('[data-dashboard-link]');
+      const params = new URLSearchParams(window.location.search);
+      const override = params.get('dashboard_url') || localStorage.getItem('attest_dashboard_url');
+      if (override) {
+        localStorage.setItem('attest_dashboard_url', override);
+        links.forEach(a => a.href = override);
+        return;
+      }
+      const localUrl = 'http://localhost:5173';
+      fetch(localUrl, { mode: 'no-cors' }).then(() => {
+        links.forEach(a => a.href = localUrl);
+      }).catch(() => {
+        links.forEach(a => a.href = 'https://api.attestdev.com/dashboard');
+      });
+    })();
+
+    // Health check
+    fetch('https://api.attestdev.com/health')
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null);
+  </script>
 </body>
 </html>
