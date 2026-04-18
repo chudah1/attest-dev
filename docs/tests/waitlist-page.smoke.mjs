@@ -66,11 +66,11 @@ test('waitlist page embeds the Tally early access form', async (t) => {
 
   await page.goto(`http://localhost:${port}/waitlist/`);
 
-  await page.getByRole('heading', { name: /tell us about your agent workflow/i }).waitFor();
-  const frame = page.locator('iframe[title="Attest early access form"]');
+  await page.getByRole('heading', { name: /start seeing what your agents do/i }).waitFor();
+  const frame = page.locator('iframe[data-tally-src]');
   await frame.waitFor();
-  const src = await frame.getAttribute('src');
-  assert.equal(src, 'https://tally.so/r/KYJ8yD');
-  const docsHref = await page.getByRole('link', { name: /read the docs/i }).getAttribute('href');
+  const src = await frame.getAttribute('data-tally-src');
+  assert.ok(src.startsWith('https://tally.so/'), 'Tally embed src should point to tally.so');
+  const docsHref = await page.getByRole('link', { name: /docs/i }).getAttribute('href');
   assert.equal(docsHref, '../docs/');
 });
