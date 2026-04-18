@@ -3,73 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Interactive demo — Attest</title>
-  <meta name="description" content="Interactive demo of Attest's delegated authority chain: issue credentials, delegate to sub-agents, enforce tool calls, and revoke the full task tree." />
-  <meta property="og:title" content="Interactive demo — Attest" />
-  <meta property="og:description" content="See how Attest issues, delegates, enforces, and revokes AI agent credentials in a live interactive demo." />
-  <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='12' width='100' height='100' fill='%23111'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
+  <title>Demo: Attest</title>
+  <meta name="description" content="Interactive demo showing how Attest protects agent workflows with scoped credentials, delegation, and revocation." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #fafaf9;
-      --surface: #f0f0ee;
-      --surface-2: #fafaf9;
-      --surface-3: rgba(0, 0, 0, 0.02);
-      --line: #e0e0dd;
-      --line-strong: #ccccc8;
-      --text: #1a1a1a;
-      --muted: #606060;
-      --accent: #1a1a1a;
-      --accent-2: #444;
-      --green: #16a34a;
-      --red: #dc2626;
-      --amber: #d97706;
-      --shadow: 0 1px 3px rgba(0,0,0,0.05);
-      --radius-xl: 8px;
-      --radius-lg: 6px;
-      --radius-md: 6px;
-      --radius-sm: 4px;
-    }
-
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.55;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    /* NAV */
-    nav { border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; z-index: 20; }
-    .nav-shell { max-width: 1240px; margin: 0 auto; padding: 0.65rem 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; }
-    .logo { color: var(--text); font-size: 1rem; font-weight: 800; letter-spacing: -0.03em; text-decoration: none; }
-    nav ul { display: flex; list-style: none; gap: 0.65rem; align-items: center; }
-    nav ul a { color: var(--muted); font-size: 0.86rem; padding: 0.42rem 0.62rem; border-radius: 6px; text-decoration: none; }
-    nav ul a.active, nav ul a:hover { color: var(--text); text-decoration: none; }
-    .nav-toggle { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 0.4rem; }
-
-    @media (max-width: 860px) {
-      .nav-toggle { display: flex; }
-      nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 1rem 2rem; gap: 0.5rem; }
-      nav ul.open { display: flex; }
-      .nav-shell { position: relative; }
-    }
-
+    /* Demo-specific styles */
     .page {
       max-width: 1220px;
       margin: 0 auto;
+      padding: 0 2rem;
     }
 
     .hero {
@@ -83,7 +26,7 @@
     .panel {
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-lg);
       box-shadow: var(--shadow);
       backdrop-filter: blur(12px);
     }
@@ -107,10 +50,10 @@
       content: "";
       width: 34px;
       height: 1px;
-      background: var(--line-strong); opacity: 0.5;
+      background: var(--line-hover); opacity: 0.5;
     }
 
-    h1 {
+    .page h1 {
       font-size: clamp(1.8rem, 3.4vw, 3.2rem);
       line-height: 0.94;
       letter-spacing: -0.04em;
@@ -120,7 +63,7 @@
     .hero-copy p {
       max-width: 50ch;
       font-size: 0.93rem;
-      color: var(--muted);
+      color: var(--text-secondary);
       margin-bottom: 10px;
     }
 
@@ -132,8 +75,8 @@
     }
 
     .pill {
-      border: 1px solid var(--line-strong);
-      border-radius: 6px;
+      border: 1px solid var(--line-hover);
+      border-radius: var(--radius-sm);
       padding: 8px 12px;
       font-size: 0.82rem;
       color: var(--text);
@@ -151,7 +94,7 @@
     .proof-card {
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       padding: 18px;
     }
 
@@ -161,7 +104,7 @@
     }
 
     .proof-card p {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.92rem;
     }
 
@@ -174,7 +117,7 @@
     .stat {
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       padding: 14px 12px;
     }
 
@@ -185,7 +128,7 @@
     }
 
     .stat span {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.78rem;
     }
 
@@ -205,7 +148,7 @@
     }
 
     .section-copy {
-      color: var(--muted);
+      color: var(--text-secondary);
       margin-bottom: 22px;
       max-width: 58ch;
     }
@@ -224,15 +167,15 @@
       font-size: 0.8rem;
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
 
     textarea,
     input {
       width: 100%;
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       border: 1px solid var(--line);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       color: var(--text);
       padding: 14px 16px;
       font: inherit;
@@ -247,7 +190,7 @@
 
     textarea:focus,
     input:focus {
-      border-color: var(--accent-2);
+      border-color: var(--text-secondary);
       transform: translateY(-1px);
     }
 
@@ -262,10 +205,10 @@
       align-items: center;
       gap: 8px;
       padding: 10px 12px;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--line);
       background: var(--bg);
-      color: var(--muted);
+      color: var(--text-secondary);
       cursor: pointer;
       user-select: none;
       transition: all 0.16s ease;
@@ -275,7 +218,7 @@
     .scope-chip input {
       width: auto;
       padding: 0;
-      accent-color: var(--accent-2);
+      accent-color: var(--text-secondary);
     }
 
     .scope-chip.active {
@@ -291,43 +234,43 @@
       margin-top: 6px;
     }
 
-    button {
+    .page button {
       border: 0;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       padding: 12px 18px;
       font: inherit;
       cursor: pointer;
       transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
     }
 
-    button:hover {
+    .page button:hover {
       transform: translateY(-1px);
     }
 
-    button:disabled {
+    .page button:disabled {
       opacity: 0.45;
       cursor: not-allowed;
       transform: none;
     }
 
-    .btn-primary {
+    .page .btn-primary {
       background: var(--text);
       color: var(--bg);
     }
 
-    .btn-primary:hover {
+    .page .btn-primary:hover {
       opacity: 0.85;
     }
 
     .btn-secondary {
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       color: var(--text);
       border: 1px solid var(--line);
     }
 
     .mini-caption {
       margin-top: 12px;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.83rem;
     }
 
@@ -341,7 +284,7 @@
     .credential {
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       padding: 16px;
       min-height: 168px;
     }
@@ -358,7 +301,7 @@
     .badge {
       font-size: 0.72rem;
       padding: 4px 8px;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       text-transform: uppercase;
       letter-spacing: 0.08em;
       border: 1px solid var(--line);
@@ -383,14 +326,14 @@
     }
 
     .meta strong {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-weight: 600;
       display: inline-block;
       min-width: 86px;
     }
 
-    .mono {
-      font-family: "SF Mono", "Monaco", "Consolas", monospace;
+    .page .mono {
+      font-family: "JetBrains Mono", "SF Mono", "Monaco", "Consolas", monospace;
       font-size: 0.8rem;
       word-break: break-all;
     }
@@ -405,7 +348,7 @@
       position: relative;
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       padding: 16px 16px 16px 18px;
       overflow: hidden;
     }
@@ -415,7 +358,7 @@
       position: absolute;
       inset: 0 auto 0 0;
       width: 4px;
-      background: var(--line-strong);
+      background: var(--line-hover);
     }
 
     .event-head {
@@ -432,13 +375,13 @@
     }
 
     .event-time {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.78rem;
       white-space: nowrap;
     }
 
     .event p {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.88rem;
       margin-bottom: 6px;
     }
@@ -459,7 +402,7 @@
     .verify-panel {
       background: var(--bg);
       border: 1px solid var(--amber);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       padding: 16px;
     }
 
@@ -468,7 +411,7 @@
     }
 
     .verify-panel p {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.88rem;
       margin-bottom: 10px;
     }
@@ -477,7 +420,7 @@
       margin-top: 14px;
       background: var(--surface);
       border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       padding: 16px;
     }
 
@@ -505,7 +448,7 @@
     }
 
     .evidence-row strong {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-weight: 600;
       flex-shrink: 0;
     }
@@ -519,12 +462,12 @@
     .packet-box {
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       padding: 12px 14px;
       margin-top: 12px;
       max-height: 220px;
       overflow: auto;
-      font-family: "SF Mono", "Monaco", "Consolas", monospace;
+      font-family: "JetBrains Mono", "SF Mono", "Monaco", "Consolas", monospace;
       font-size: 0.75rem;
       line-height: 1.6;
       white-space: pre-wrap;
@@ -548,9 +491,10 @@
 
     .note {
       margin-top: 28px;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.84rem;
       text-align: center;
+      padding-bottom: 28px;
     }
 
     .scenario-grid {
@@ -581,7 +525,7 @@
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.14em;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
 
     .scenario-kicker::before {
@@ -599,7 +543,7 @@
     }
 
     .scenario-card p {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.92rem;
     }
 
@@ -609,8 +553,8 @@
     }
 
     .scenario-card.after {
-      border-color: var(--line-strong);
-      background: linear-gradient(180deg, var(--surface-3), var(--surface));
+      border-color: var(--line-hover);
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), var(--surface));
     }
 
     .scenario-summary {
@@ -622,7 +566,7 @@
     .summary-chip {
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       padding: 14px 12px;
       display: grid;
       gap: 4px;
@@ -632,7 +576,7 @@
       font-size: 0.78rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
 
     .summary-chip span {
@@ -648,7 +592,7 @@
     .risk-item {
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       padding: 14px;
       display: grid;
       gap: 6px;
@@ -658,7 +602,7 @@
       font-size: 0.84rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
 
     .risk-item p {
@@ -670,7 +614,7 @@
       margin-top: 18px;
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       padding: 18px;
       display: grid;
       gap: 10px;
@@ -680,7 +624,7 @@
       font-size: 0.84rem;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      color: var(--muted);
+      color: var(--text-secondary);
     }
 
     .comparison-banner p {
@@ -696,7 +640,7 @@
     }
 
     @media (max-width: 720px) {
-      body {
+      .page {
         padding: 16px 14px 32px;
       }
 
@@ -712,39 +656,40 @@
       .scenario-summary {
         grid-template-columns: 1fr;
       }
-
-      h1 {
-        font-size: 1.95rem;
-      }
     }
-
-    footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.84rem; }
-    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
   </style>
 
 </head>
 <body>
 
-<nav>
-  <div class="nav-shell">
-    <a href="../" class="logo">Attest</a>
-    <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg>
-    </button>
-    <ul id="nav-links">
-      <li><a href="../">Home</a></li>
-      <li><a href="../docs/">Docs</a></li>
-      <li><a href="../mcp/">MCP</a></li>
-      <li><a href="../verify/">Verify</a></li>
-      <li><a href="../waitlist/">Early access</a></li>
-      <li><a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a></li>
-      <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-      <li><a href="../demo/" class="active">Demo</a></li>
-    </ul>
-  </div>
-</nav>
+  <nav class="nav">
+    <div class="nav-shell">
+      <a href="../" class="logo">Attest</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="../">Product</a></li>
+        <li class="nav-dropdown" id="nav-dropdown">
+          <button class="nav-dropdown-trigger active" aria-expanded="false">
+            Developers
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+          </button>
+          <div class="nav-dropdown-menu">
+            <a href="../docs/">Docs</a>
+            <a href="../mcp/">MCP Guide</a>
+            <a href="./" class="active">Demo</a>
+            <a href="../verify/">Verify</a>
+            <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+          </div>
+        </li>
+        <li><a href="../waitlist/">Pricing</a></li>
+        <li class="nav-sep"></li>
+        <li><a href="#" data-dashboard-link>Log in</a></li>
+        <li><a href="../waitlist/" class="btn btn-primary">Get Started</a></li>
+      </ul>
+    </div>
+  </nav>
 
   <div class="page">
     <section class="hero">
@@ -945,6 +890,33 @@
       The production implementation lives in the server, dashboard app, and SDKs.
     </p>
   </div>
+
+<footer class="footer">
+  <div class="footer-shell">
+    <span>Attest</span>
+    <div class="footer-links">
+      <a href="../docs/">Docs</a>
+      <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('nav-toggle').addEventListener('click', () => {
+    document.getElementById('nav-links').classList.toggle('open');
+  });
+  const dropdown = document.getElementById('nav-dropdown');
+  const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+    trigger.setAttribute('aria-expanded', dropdown.classList.contains('open'));
+  });
+  document.addEventListener('click', () => {
+    dropdown.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+  });
+</script>
 
   <script>
     const state = {
@@ -1462,22 +1434,8 @@
     }
   </script>
 
-<footer>
-  <div class="footer-links">
-    <a href="../waitlist/">Early access</a>
-    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a>
-    <a href="https://github.com/chudah1/attest-dev">GitHub</a>
-    <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
-    <a href="https://pypi.org/project/attest-sdk/">PyPI</a>
-    <a href="https://api.attestdev.com/health">API</a>
-  </div>
-  &copy; 2026 Attest
-</footer>
-
 <script>
 (function(){
-  var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
-  nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
   var isLocalHost=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
   var dashboardOverride=new URLSearchParams(window.location.search).get('dashboard_url')||window.localStorage.getItem('attest-dashboard-url');
   function inferLocalDashboardUrl(){if(window.location.port==='8000')return'http://localhost:5173/';return new URL('/dashboard',window.location.origin).toString();}
