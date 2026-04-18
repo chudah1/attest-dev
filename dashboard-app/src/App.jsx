@@ -38,6 +38,18 @@ function formatDate(value, mode = 'date') {
   return mode === 'datetime' ? date.toLocaleString() : date.toLocaleDateString();
 }
 
+function formatRelativeTime(value) {
+  if (!value) return '—';
+  const now = Date.now();
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return '—';
+  const diff = Math.max(0, now - then);
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
+}
+
 function maskKey(key) {
   if (!key) return '—';
   const parts = key.split('_');
@@ -741,18 +753,12 @@ function App() {
           {page === 'overview' ? (
             <OverviewPage
               org={orgView}
-              apiKey={apiKey}
-              showKey={showKey}
-              setShowKey={setShowKey}
               taskList={taskList}
               taskListLoading={taskListLoading}
               taskListError={taskListError}
-              taskListFilters={taskListFilters}
-              setTaskListFilters={setTaskListFilters}
               onRefreshTasks={() => fetchTaskList()}
               onOpenTask={handleOpenTask}
-              onCopyKey={() => copyText(apiKey, () => showToast('Access key copied', 'success'))}
-              onGoAudit={() => setPage('audit')}
+              siteBaseUrl={SITE_BASE_URL}
             />
           ) : null}
 
@@ -797,144 +803,76 @@ function App() {
 
 function OverviewPage({
   org,
-  apiKey,
-  showKey,
-  setShowKey,
   taskList,
   taskListLoading,
   taskListError,
-  taskListFilters,
-  setTaskListFilters,
   onRefreshTasks,
   onOpenTask,
-  onCopyKey,
-  onGoAudit,
-  onGoRevoke,
+  siteBaseUrl,
 }) {
+  const activeCount = taskList.filter((t) => !t.revoked).length;
+  const totalEvents = taskList.reduce((sum, t) => sum + (t.event_count || 0), 0);
+  const violations = taskList.reduce((sum, t) => sum + (t.scope_violations || 0), 0);
+
+  if (!taskListLoading && !taskListError && taskList.length === 0) {
+    return (
+      <section className="page-section">
+        <div className="empty-state">
+          <div className="empty-state-icon">🛡️</div>
+          <h2 className="empty-state-title">No tasks yet</h2>
+          <p className="empty-state-body">
+            Wrap your first MCP tool with Attest to see delegation tracking, scoped credentials, and evidence trails appear here.
+          </p>
+          <div className="empty-state-code">
+            <code>{"import { withAttest } from '@attest-dev/sdk'"}</code>
+          </div>
+          <a className="btn btn-primary empty-state-btn" href={`${siteBaseUrl}/mcp/`}>MCP Quickstart →</a>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div className="page-kicker">Workspace control plane</div>
-        <div className="page-title">Overview</div>
-        <div className="page-subtitle">Select a task tree to inspect its evidence packet, audit trail, and authority chain.</div>
-      </div>
+      <h1 className="overview-title">Overview</h1>
 
-      <TaskInboxCard
-        title="Task trees"
-        subtitle="Select a task to load its audit log and evidence packet. Filter by user, agent, or revocation status."
-        tasks={taskList}
-        loading={taskListLoading}
-        error={taskListError}
-        filters={taskListFilters}
-        onChangeFilters={setTaskListFilters}
-        onRefresh={onRefreshTasks}
-        onOpenTask={onOpenTask}
-      />
-
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Authority state</div>
-          <div className="stat-value green">Active</div>
+      <div className="stat-row">
+        <div className="stat-card-new">
+          <div className="stat-card-label">Active Tasks</div>
+          <div className="stat-card-value">{activeCount}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Workspace ID</div>
-          <div className="stat-value mono-inline">{org.id}</div>
+        <div className="stat-card-new">
+          <div className="stat-card-label">Total Events</div>
+          <div className="stat-card-value">{totalEvents}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Provisioned</div>
-          <div className="stat-value date">{formatDate(org.createdAt)}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Task trees</div>
-          <div className="stat-value">{taskList.length}</div>
+        <div className="stat-card-new">
+          <div className="stat-card-label">Violations</div>
+          <div className={`stat-card-value ${violations === 0 ? 'green' : 'orange'}`}>{violations}</div>
         </div>
       </div>
 
-      <div className="overview-grid">
-        <div className="card">
-          <div className="card-title">Access key</div>
-          <div className="key-row">
-            <div className="key-display">{showKey ? apiKey : maskKey(apiKey)}</div>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setShowKey((current) => !current)}>{showKey ? 'Hide' : 'Show'}</button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={onCopyKey}>Copy</button>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Quick actions</div>
-          <div className="quick-actions">
-            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoAudit}>Inspect task tree</button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={onGoRevoke}>Revoke chain</button>
-            <a className="btn btn-ghost btn-sm" href={SITE_DEMO_URL}>Open demo</a>
-          </div>
-        </div>
+      <div className="task-section-header">
+        <h2 className="task-section-title">Recent Tasks</h2>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={onRefreshTasks}>Refresh</button>
       </div>
 
-      <div className="hero-shell overview-hero">
-        <div className="hero-card-main">
-          <div className="hero-card-label">Control posture</div>
-          <h2 className="hero-card-title">Keep agent authority readable, narrow, and easy to shut down.</h2>
-          <p className="hero-card-copy">
-            This dashboard is the operator surface for Attest. Look up a task tree, inspect the evidence packet, verify it in-browser, and revoke the full chain when something should stop immediately.
-          </p>
-          <div className="hero-card-pills">
-            <span className="hero-pill">Signed evidence</span>
-            <span className="hero-pill">Delegation history</span>
-            <span className="hero-pill">On-site verification</span>
-            <span className="hero-pill">Cascade revoke</span>
-          </div>
-          <div className="hero-action-grid">
-            <button className="action-tile" type="button" onClick={onGoAudit}>
-              <span className="action-tile-kicker">Review</span>
-              <strong>Inspect task tree</strong>
-              <span>Search a task ID, load the packet, and check the full authority timeline.</span>
+      {taskListLoading ? <div className="empty">Loading recent tasks...</div> : null}
+      {!taskListLoading && taskListError ? <div className="empty">{taskListError}</div> : null}
+
+      {!taskListLoading && !taskListError && taskList.length ? (
+        <div className="task-list-new">
+          {taskList.map((task) => (
+            <button key={task.att_tid} className="task-row-new" type="button" onClick={() => onOpenTask(task)}>
+              <span className={`status-badge ${task.revoked ? 'status-revoked' : 'status-active'}`}>
+                {task.revoked ? 'REVOKED' : 'ACTIVE'}
+              </span>
+              <span className="task-id mono">{shortValue(task.att_tid, 9, 4)}</span>
+              <span className="task-summary">{task.root_agent_id || 'orchestrator'} → {task.credential_count || 0} agent{(task.credential_count || 0) === 1 ? '' : 's'}</span>
+              <span className="task-time">{task.last_event_at ? formatRelativeTime(task.last_event_at) : '—'}</span>
             </button>
-            <button className="action-tile" type="button" onClick={onGoRevoke}>
-              <span className="action-tile-kicker">Contain</span>
-              <strong>Revoke chain</strong>
-              <span>Invalidate a credential and its descendants from one operator action.</span>
-            </button>
-            <a className="action-tile" href={SITE_DEMO_URL}>
-              <span className="action-tile-kicker">Walkthrough</span>
-              <strong>Open demo</strong>
-              <span>Show the before-and-after failure mode for compromised orchestrators.</span>
-            </a>
-          </div>
+          ))}
         </div>
-
-        <div className="hero-rail">
-          <div className="rail-panel">
-            <div className="card-title">Workspace snapshot</div>
-            <div className="mini-stat-grid">
-              <div className="mini-stat">
-                <span className="stat-label">Authority state</span>
-                <strong className="stat-value green">Active</strong>
-              </div>
-              <div className="mini-stat">
-                <span className="stat-label">Workspace ID</span>
-                <strong className="mono-inline">{shortValue(org.id, 10, 8)}</strong>
-              </div>
-              <div className="mini-stat">
-                <span className="stat-label">Provisioned</span>
-                <strong>{formatDate(org.createdAt)}</strong>
-              </div>
-              <div className="mini-stat">
-                <span className="stat-label">Surface</span>
-                <strong>Audit-ready</strong>
-              </div>
-            </div>
-          </div>
-
-          <div className="rail-panel">
-            <div className="card-title">Operator notes</div>
-            <div className="rail-list">
-              <div className="rail-list-item">Use the audit view when you need the full event stream, packet hash, and report exports in one place.</div>
-              <div className="rail-list-item">Use revoke when a root credential should shut down the whole descendant tree immediately.</div>
-              <div className="rail-list-item">The public verifier and print report stay in sync with what you see here.</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      ) : null}
     </section>
   );
 }
