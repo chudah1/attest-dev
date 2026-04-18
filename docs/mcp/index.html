@@ -3,101 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MCP quickstart — Attest</title>
-  <meta name="description" content="Protect MCP tools with Attest middleware, or let agents manage credentials directly via the Attest MCP server. Issue, delegate, revoke, and audit." />
-  <meta property="og:title" content="MCP quickstart — Attest" />
-  <meta property="og:description" content="Protect one MCP tool with Attest. Wrap your server, issue the right scope, block the wrong call, and leave behind proof." />
-  <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='12' width='100' height='100' fill='%23111'/><text x='50' y='72' text-anchor='middle' font-size='65' font-weight='800' fill='white' font-family='system-ui'>A</text></svg>">
+  <title>MCP: Attest</title>
+  <meta name="description" content="Protect MCP tools with Attest middleware, or let agents manage credentials directly via the Attest MCP server." />
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #fafaf9;
-      --surface: #f0f0ee;
-      --surface-2: #fafaf9;
-      --surface-3: rgba(0, 0, 0, 0.02);
-      --line: #e0e0dd;
-      --line-strong: #ccccc8;
-      --text: #1a1a1a;
-      --muted: #606060;
-      --accent: #1a1a1a;
-      --accent-2: #444;
-      --green: #16a34a;
-      --red: #dc2626;
-      --amber: #d97706;
-      --shadow: 0 1px 3px rgba(0,0,0,0.05);
-      --radius-xl: 8px;
-      --radius-lg: 6px;
-      --radius-md: 6px;
-      --radius-sm: 4px;
-    }
-
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.55;
-    }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    nav {
-      border-bottom: 1px solid var(--line);
-      background: var(--surface-2);
-      position: sticky;
-      top: 0;
-      z-index: 20;
-    }
-
-    .nav-shell {
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 0.65rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.25rem;
-    }
-
-    .logo {
-      color: var(--text);
-      font-size: 1rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-    }
-
-    nav ul {
-      display: flex;
-      list-style: none;
-      gap: 0.65rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    nav ul a {
-      color: var(--muted);
-      font-size: 0.86rem;
-      padding: 0.42rem 0.62rem;
-      border-radius: 6px;
-    }
-
-    nav ul a.active,
-    nav ul a:hover {
-      color: var(--text);
-      text-decoration: none;
-    }
-    .nav-toggle { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 0.4rem; }
-
-    @media (max-width: 860px) {
-      .nav-toggle { display: flex; }
-      nav ul { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface-2); border-bottom: 1px solid var(--line); padding: 1rem 2rem; gap: 0.5rem; }
-      nav ul.open { display: flex; }
-      .nav-shell { position: relative; }
-    }
-
     .page {
       max-width: 1240px;
       margin: 0 auto;
@@ -123,7 +33,7 @@
     .hero-card,
     .side-card,
     .panel {
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-lg);
     }
 
     .hero-card {
@@ -146,7 +56,7 @@
       margin-bottom: 0.8rem;
     }
 
-    h1 {
+    .page h1 {
       font-size: clamp(2rem, 4.4vw, 3.35rem);
       line-height: 1.02;
       letter-spacing: -0.055em;
@@ -156,7 +66,7 @@
 
     .hero-copy {
       max-width: 58ch;
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 1rem;
       margin-bottom: 1.2rem;
     }
@@ -173,7 +83,7 @@
       align-items: center;
       gap: 0.45rem;
       padding: 0.72rem 0.98rem;
-      border-radius: 6px;
+      border-radius: var(--radius);
       border: 1px solid transparent;
       font-size: 0.86rem;
       font-weight: 600;
@@ -187,7 +97,7 @@
     }
 
     .hero-btn.secondary {
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       border-color: var(--line);
     }
 
@@ -201,9 +111,9 @@
       display: inline-flex;
       align-items: center;
       padding: 0.36rem 0.76rem;
-      border-radius: 6px;
-      border: 1px solid var(--line-strong);
-      background: var(--surface-3);
+      border-radius: var(--radius);
+      border: 1px solid var(--line-hover);
+      background: rgba(0, 0, 0, 0.02);
       color: var(--text);
       font-size: 0.82rem;
     }
@@ -215,7 +125,7 @@
     }
 
     .side-copy {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.92rem;
     }
 
@@ -226,8 +136,8 @@
 
     .success-item {
       border: 1px solid var(--line);
-      border-radius: var(--radius-md);
-      background: var(--surface-3);
+      border-radius: var(--radius);
+      background: rgba(0, 0, 0, 0.02);
       padding: 0.9rem 1rem;
     }
 
@@ -238,7 +148,7 @@
     }
 
     .success-item span {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.84rem;
     }
 
@@ -262,7 +172,7 @@
     }
 
     .section-kicker {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.76rem;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -275,7 +185,7 @@
     }
 
     .section-copy {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.9rem;
       max-width: 58ch;
     }
@@ -286,7 +196,7 @@
     }
 
     .subpanel {
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       padding: 1rem;
     }
 
@@ -313,7 +223,7 @@
       justify-content: center;
       background: var(--surface);
       border: 1px solid var(--line);
-      color: var(--muted);
+      color: var(--text-secondary);
       font: 700 0.84rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       flex-shrink: 0;
     }
@@ -325,12 +235,12 @@
     }
 
     .step-title span {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.83rem;
     }
 
     .step-note {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.8rem;
       max-width: 30ch;
       text-align: right;
@@ -339,9 +249,9 @@
     pre {
       margin: 0;
       padding: 1rem 1.05rem;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       overflow-x: auto;
       white-space: pre-wrap;
       word-break: break-word;
@@ -361,9 +271,9 @@
     }
 
     .check {
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       padding: 0.85rem 0.95rem;
     }
 
@@ -374,7 +284,7 @@
     }
 
     .check span {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.83rem;
     }
 
@@ -386,9 +296,9 @@
     }
 
     .rail-block {
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       padding: 1rem;
     }
 
@@ -400,7 +310,7 @@
 
     .rail-block p,
     .rail-block li {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.84rem;
     }
 
@@ -421,20 +331,20 @@
       gap: 0.75rem;
       align-items: center;
       padding: 0.8rem 0.9rem;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius);
       border: 1px solid var(--line);
-      background: var(--surface-3);
+      background: rgba(0, 0, 0, 0.02);
       color: var(--text);
     }
 
     .rail-link:hover {
       text-decoration: none;
-      border-color: var(--line-strong);
+      border-color: var(--line-hover);
       background: var(--surface);
     }
 
     .rail-link small {
-      color: var(--muted);
+      color: var(--text-secondary);
       display: block;
       font-size: 0.74rem;
       text-transform: uppercase;
@@ -448,7 +358,7 @@
     }
 
     .helper {
-      color: var(--muted);
+      color: var(--text-secondary);
       font-size: 0.82rem;
       line-height: 1.6;
     }
@@ -465,22 +375,7 @@
       }
     }
 
-    footer { border-top: 1px solid var(--line); padding: 2rem; text-align: center; color: var(--muted); font-size: 0.84rem; }
-    .footer-links { display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
-
     @media (max-width: 720px) {
-      .nav-shell {
-        padding: 0.75rem 1rem;
-        align-items: flex-start;
-      }
-
-      nav ul {
-        gap: 1rem;
-        justify-content: flex-end;
-      }
-
       .page {
         padding: 1.2rem 1rem 3rem;
       }
@@ -489,7 +384,7 @@
       .side-card,
       .panel,
       .subpanel {
-        border-radius: 8px;
+        border-radius: var(--radius);
       }
 
       .hero-card,
@@ -511,19 +406,31 @@
 
 </head>
 <body>
-  <nav>
+  <nav class="nav">
     <div class="nav-shell">
       <a href="../" class="logo">Attest</a>
-      <button class="nav-toggle" id="nav-toggle" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/></svg></button>
-      <ul id="nav-links">
-        <li><a href="../">Home</a></li>
-        <li><a href="../docs/">Docs</a></li>
-        <li><a href="../mcp/" class="active">MCP</a></li>
-        <li><a href="../verify/">Verify</a></li>
-        <li><a href="../waitlist/">Early access</a></li>
-        <li><a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a></li>
-        <li><a href="https://github.com/chudah1/attest-dev">GitHub</a></li>
-        <li><a href="../demo/">Demo</a></li>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="../">Product</a></li>
+        <li class="nav-dropdown" id="nav-dropdown">
+          <button class="nav-dropdown-trigger active" aria-expanded="false">
+            Developers
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+          </button>
+          <div class="nav-dropdown-menu">
+            <a href="../docs/">Docs</a>
+            <a href="./" class="active">MCP Guide</a>
+            <a href="../demo/">Demo</a>
+            <a href="../verify/">Verify</a>
+            <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+          </div>
+        </li>
+        <li><a href="../waitlist/">Pricing</a></li>
+        <li class="nav-sep"></li>
+        <li><a href="#" data-dashboard-link>Log in</a></li>
+        <li><a href="../waitlist/" class="btn btn-primary">Get Started</a></li>
       </ul>
     </div>
   </nav>
@@ -673,7 +580,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
           <section class="subpanel" id="mcp-server">
             <div class="step-head">
               <div class="step-title">
-                <div class="step-index" style="background:var(--surface);color:var(--muted);border:1px solid var(--line);">+</div>
+                <div class="step-index" style="background:var(--surface);color:var(--text-secondary);border:1px solid var(--line);">+</div>
                 <div>
                   <strong>Manage credentials from inside MCP</strong>
                   <span>A separate MCP server that lets agents issue, delegate, revoke, and audit. No SDK code needed.</span>
@@ -681,7 +588,7 @@ curl -X POST https://api.attestdev.com/v1/credentials \
               </div>
             </div>
 
-            <p style="color:var(--muted);font-size:.88rem;margin-bottom:1rem;">The middleware above enforces credentials on tool calls. The <strong>MCP server</strong> below lets an orchestrator agent manage the credential lifecycle itself: issue tokens, delegate to sub-agents, revoke mid-task, and pull audit trails.</p>
+            <p style="color:var(--text-secondary);font-size:.88rem;margin-bottom:1rem;">The middleware above enforces credentials on tool calls. The <strong>MCP server</strong> below lets an orchestrator agent manage the credential lifecycle itself: issue tokens, delegate to sub-agents, revoke mid-task, and pull audit trails.</p>
 
             <pre><code>{
   "mcpServers": {
@@ -696,8 +603,8 @@ curl -X POST https://api.attestdev.com/v1/credentials \
   }
 }</code></pre>
 
-            <p style="color:var(--muted);font-size:.85rem;margin:.75rem 0 .5rem;">14 tools available:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem .75rem;font-size:.82rem;color:var(--muted);margin-bottom:1rem;">
+            <p style="color:var(--text-secondary);font-size:.85rem;margin:.75rem 0 .5rem;">14 tools available:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem .75rem;font-size:.82rem;color:var(--text-secondary);margin-bottom:1rem;">
               <span><code>issue_credential</code></span>
               <span><code>list_tasks</code></span>
               <span><code>delegate_credential</code></span>
@@ -714,14 +621,14 @@ curl -X POST https://api.attestdev.com/v1/credentials \
               <span><code>deny_approval</code></span>
             </div>
 
-            <p style="color:var(--muted);font-size:.85rem;">The middleware enforces. The MCP server manages. Use one or both. They work independently.</p>
+            <p style="color:var(--text-secondary);font-size:.85rem;">The middleware enforces. The MCP server manages. Use one or both. They work independently.</p>
           </section>
         </div>
       </div>
 
       <aside class="sticky-rail">
         <div class="rail-block">
-          <h3>Use this page when…</h3>
+          <h3>Use this page when...</h3>
           <ul>
             <li>you already have an MCP server and want the fastest path to a protected tool</li>
             <li>you want to show a real allow/block example instead of a protocol walkthrough</li>
@@ -730,28 +637,28 @@ curl -X POST https://api.attestdev.com/v1/credentials \
         </div>
 
         <div class="rail-block">
-          <h3>Then continue with…</h3>
+          <h3>Then continue with...</h3>
           <div class="rail-links">
             <a class="rail-link" href="../demo/">
               <div>
                 <small>Product moment</small>
                 <span>Interactive demo</span>
               </div>
-              <strong>↗</strong>
+              <strong>&#8599;</strong>
             </a>
             <a class="rail-link" href="https://api.attestdev.com/dashboard" data-dashboard-link>
               <div>
                 <small>Ops surface</small>
                 <span>Inspect the task tree</span>
               </div>
-              <strong>↗</strong>
+              <strong>&#8599;</strong>
             </a>
             <a class="rail-link" href="../verify/">
               <div>
                 <small>Trust surface</small>
                 <span>Verify the exported packet</span>
               </div>
-              <strong>↗</strong>
+              <strong>&#8599;</strong>
             </a>
           </div>
         </div>
@@ -765,28 +672,48 @@ curl -X POST https://api.attestdev.com/v1/credentials \
     </section>
   </main>
 
-<footer>
-  <div class="footer-links">
-    <a href="../waitlist/">Early access</a>
-    <a href="https://api.attestdev.com/dashboard" data-dashboard-link>Dashboard</a>
-    <a href="https://github.com/chudah1/attest-dev">GitHub</a>
-    <a href="https://www.npmjs.com/package/@attest-dev/sdk">npm</a>
-    <a href="https://pypi.org/project/attest-sdk/">PyPI</a>
-    <a href="https://api.attestdev.com/health">API</a>
+<footer class="footer">
+  <div class="footer-shell">
+    <span>Attest</span>
+    <div class="footer-links">
+      <a href="../docs/">Docs</a>
+      <a href="https://github.com/chudah1/attest-dev" target="_blank">GitHub</a>
+    </div>
   </div>
-  <p>&copy; 2026 Attest. Apache 2.0.</p>
 </footer>
 
 <script>
-(function(){
-  var nt=document.getElementById('nav-toggle'),nl=document.getElementById('nav-links');
-  nt&&nl&&nt.addEventListener('click',function(){nl.classList.toggle('open');});
-  var isLocalHost=/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
-  var dashboardOverride=new URLSearchParams(window.location.search).get('dashboard_url')||window.localStorage.getItem('attest-dashboard-url');
-  function inferLocalDashboardUrl(){if(window.location.port==='8000')return'http://localhost:5173/';return new URL('/dashboard',window.location.origin).toString();}
-  var dashboardUrl=dashboardOverride||(isLocalHost?inferLocalDashboardUrl():'https://api.attestdev.com/dashboard');
-  document.querySelectorAll('[data-dashboard-link]').forEach(function(link){link.setAttribute('href',dashboardUrl);});
-})();
+  document.getElementById('nav-toggle').addEventListener('click', () => {
+    document.getElementById('nav-links').classList.toggle('open');
+  });
+  const dropdown = document.getElementById('nav-dropdown');
+  const trigger = dropdown.querySelector('.nav-dropdown-trigger');
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+    trigger.setAttribute('aria-expanded', dropdown.classList.contains('open'));
+  });
+  document.addEventListener('click', () => {
+    dropdown.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+  });
+
+  (function() {
+    const links = document.querySelectorAll('[data-dashboard-link]');
+    const params = new URLSearchParams(window.location.search);
+    const override = params.get('dashboard_url') || localStorage.getItem('attest_dashboard_url');
+    if (override) {
+      localStorage.setItem('attest_dashboard_url', override);
+      links.forEach(a => a.href = override);
+      return;
+    }
+    const localUrl = 'http://localhost:5173';
+    fetch(localUrl, { mode: 'no-cors' }).then(() => {
+      links.forEach(a => a.href = localUrl);
+    }).catch(() => {
+      links.forEach(a => a.href = 'https://api.attestdev.com/dashboard');
+    });
+  })();
 </script>
 </body>
 </html>
