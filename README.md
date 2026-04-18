@@ -2,7 +2,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Attest is a cryptographic credentialing standard for AI agent pipelines. When an orchestrator spawns sub-agents to complete a task, Attest issues each agent a short-lived, scope-limited JWT that is cryptographically bound to the original human instruction via a SHA-256 intent hash. Every delegation narrows scope, cannot outlive the parent, and is recorded in an append-only, hash-chained audit log — so the full chain of authority from a human principal down to any tool call is provable, revocable in a single operation, and independently verifiable by any party with access to the public key.
+Attest is the control plane for delegated agent actions. It gives orchestrators and sub-agents signed, scope-limited credentials tied to the original human instruction, so every handoff stays narrow, every tool call can be checked, the whole task tree can be revoked in one operation, and the resulting evidence can be verified later.
 
 This repository also includes a standalone MCP server:
 

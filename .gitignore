@@ -87,6 +87,8 @@ content/
 phase2.md
 .github/agents/*.agent.md
 examples/refund-workflow/
+docs/superpowers/
+.superpowers/
 
 # Logs
 *.log
