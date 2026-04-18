@@ -8,540 +8,26 @@
   <link rel="stylesheet" href="../styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    .page {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 2.2rem 2rem 4rem;
-    }
-
-    .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.85fr);
-      gap: 1.3rem;
-      margin-bottom: 1.3rem;
-    }
-
-    .hero-card,
-    .rail-card,
-    .panel,
-    .subpanel {
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      background: var(--surface);
-      box-shadow: var(--shadow);
-      padding: 1.8rem 2rem;
-    }
-
-    .rail-card {
-      padding: 1.4rem;
-      display: grid;
-      gap: 1rem;
-    }
-
-    .eyebrow {
-      color: var(--text);
-      font: 600 0.75rem/1.2 "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 1rem;
-    }
-
-    h1 {
-      font-size: clamp(1.85rem, 4.1vw, 3.15rem);
-      line-height: 1.02;
-      letter-spacing: -0.06em;
-      max-width: 14ch;
-      margin-bottom: 0.75rem;
-    }
-
-    .hero-copy {
-      max-width: 60ch;
-      color: var(--text-secondary);
-      font-size: 0.98rem;
-      margin-bottom: 1.1rem;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 0.7rem;
-      flex-wrap: wrap;
-      margin-bottom: 1.4rem;
-    }
-
-    .hero-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.25rem;
-      border-radius: var(--radius);
-      border: 1px solid transparent;
-      font-size: 0.9rem;
-      font-weight: 600;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
-    }
-
-    .hero-btn.primary {
-      background: var(--text);
-      color: var(--bg);
-      box-shadow: none;
-    }
-
-    .hero-btn.primary:hover {
-      background: var(--text-secondary);
-      transform: translateY(-2px);
-      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
-    }
-
-    .hero-btn.secondary {
-      background: rgba(0, 0, 0, 0.02);
-      border-color: var(--line);
-      color: var(--text);
-    }
-
-    .hero-btn.secondary:hover {
-      background: var(--bg);
-      border-color: var(--line-hover);
-      transform: translateY(-2px);
-    }
-
-    .hero-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.55rem;
-    }
-
-    .hero-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.36rem 0.76rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-      color: var(--text);
-      font-size: 0.82rem;
-    }
-
-    .rail-title {
-      font-size: 1.45rem;
-      letter-spacing: -0.04em;
-      line-height: 1.05;
-    }
-
-    .rail-copy {
-      color: var(--text-secondary);
-      font-size: 0.92rem;
-    }
-
-    .rail-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.7rem;
-    }
-
-    .mini-card {
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-      padding: 0.9rem;
-      min-height: 112px;
-    }
-
-    .mini-card .label {
-      color: var(--text-secondary);
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.35rem;
-    }
-
-    .mini-card .value {
-      font-size: 1.3rem;
-      letter-spacing: -0.04em;
-      margin-bottom: 0.28rem;
-    }
-
-    .mini-card p {
-      color: var(--text-secondary);
-      font-size: 0.82rem;
-    }
-
-    .workflow {
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) 360px;
-      gap: 1.3rem;
-      align-items: start;
-    }
-
-    .panel {
-      padding: 1.4rem;
-    }
-
-    .section-row {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .section-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      align-items: end;
-      margin-bottom: 1rem;
-    }
-
-    .section-kicker {
-      color: var(--text-secondary);
-      font-size: 0.76rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 0.3rem;
-    }
-
-    .section-title {
-      font-size: 1.16rem;
-      letter-spacing: -0.03em;
-    }
-
-    .section-copy {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      max-width: 58ch;
-    }
-
-    .step-grid {
-      display: grid;
-      gap: 1rem;
-    }
-
-    .subpanel {
-      border-radius: var(--radius-lg);
-      padding: 1rem;
-    }
-
-    .step-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 0.8rem;
-    }
-
-    .step-title {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-    }
-
-    .step-index {
-      width: 2rem;
-      height: 2rem;
-      border-radius: var(--radius);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      color: var(--text-secondary);
-      font: 700 0.84rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .step-title strong {
-      display: block;
-      font-size: 1rem;
-      letter-spacing: -0.02em;
-    }
-
-    .step-title span {
-      color: var(--text-secondary);
-      font-size: 0.84rem;
-    }
-
-    .step-hint {
-      color: var(--text-secondary);
-      font-size: 0.8rem;
-      max-width: 30ch;
-      text-align: right;
-    }
-
-    .field-grid {
-      display: grid;
-      gap: 0.95rem;
-    }
-
-    .field-row {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.95rem;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 0.4rem;
-      color: var(--text-secondary);
-      font-size: 0.74rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    input[type="url"],
-    textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text);
-      padding: 0.9rem 1rem;
-      font: 0.85rem/1.6 "SF Mono", Monaco, Consolas, monospace;
-      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-    }
-
-    input[type="url"]:focus,
-    textarea:focus {
-      outline: none;
-      border-color: var(--line-hover);
-      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
-      background: var(--bg);
-    }
-
-    textarea {
-      min-height: 220px;
-      resize: vertical;
-    }
-
-    input::placeholder,
-    textarea::placeholder {
-      color: #688199;
-    }
-
-    .file-shell {
-      border: 1px dashed var(--line-hover);
-      border-radius: var(--radius);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
-      padding: 0.9rem 1rem;
-    }
-
-    input[type="file"] {
-      width: 100%;
-      color: var(--text-secondary);
-      font-size: 0.88rem;
-    }
-
-    .helper {
-      color: var(--text-secondary);
-      font-size: 0.82rem;
-      line-height: 1.55;
-      margin-top: 0.35rem;
-    }
-
-    .action-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.7rem;
-      margin-top: 1rem;
-    }
-
-    .btn-ghost {
-      background: transparent;
-      border-color: transparent;
-      color: var(--text-secondary);
-    }
-
-    .btn-ghost:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-    }
-
-    .summary-panel {
-      position: sticky;
-      top: 92px;
-      display: grid;
-      gap: 1rem;
-      padding: 1.1rem;
-    }
-
-    .status-shell {
-      display: grid;
-      gap: 0.9rem;
-      padding: 1rem;
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-    }
-
-    .status-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 0.8rem;
-      align-items: start;
-    }
-
-    .status-title {
-      font-size: 1.18rem;
-      letter-spacing: -0.03em;
-    }
-
-    .status-line {
-      color: var(--text-secondary);
-      font-size: 0.88rem;
-      max-width: 30ch;
-    }
-
-    .status-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.42rem;
-      border-radius: var(--radius);
-      padding: 0.36rem 0.72rem;
-      font-size: 0.76rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      border: 1px solid transparent;
-      flex-shrink: 0;
-    }
-
-    .status-chip::before {
-      content: "";
-      width: 0.46rem;
-      height: 0.46rem;
-      border-radius: var(--radius);
-      background: currentColor;
-    }
-
-    .status-idle { color: var(--text-secondary); background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.06); }
-    .status-pass { color: var(--green); background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.22); }
-    .status-fail { color: var(--red); background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.22); }
-
-    .result-grid {
-      display: grid;
-      gap: 0.7rem;
-    }
-
-    .result-item {
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.02);
-      padding: 0.9rem 1rem;
-      display: grid;
-      gap: 0.28rem;
-    }
-
-    .result-item .label {
-      color: var(--text-secondary);
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .result-item .value {
-      font-size: 0.95rem;
-      word-break: break-word;
-    }
-
-    .mono {
-      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-      font-size: 0.8rem;
-    }
-
-    .pass { color: var(--green); }
-    .fail { color: var(--red); }
-
-    .warning-list {
-      display: grid;
-      gap: 0.5rem;
-      padding-left: 1rem;
-      color: var(--amber);
-      font-size: 0.86rem;
-    }
-
-    .notes {
-      color: var(--text-secondary);
-      font-size: 0.83rem;
-      line-height: 1.6;
-    }
-
-    .toast {
-      position: fixed;
-      right: 1.15rem;
-      bottom: 1.15rem;
-      z-index: 30;
-      display: none;
-      max-width: 340px;
-      padding: 0.88rem 1rem;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: var(--bg);
-      box-shadow: var(--shadow);
-    }
-
-    .toast.show {
-      display: block;
-      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .toast.success { color: var(--green); border-color: rgba(16, 185, 129, 0.3); }
-    .toast.error { color: var(--red); border-color: rgba(239, 68, 68, 0.3); }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .result-grid .result-item {
-      animation: fadeIn 0.4s ease-out forwards;
-      opacity: 0;
-    }
-    .result-grid .result-item:nth-child(1) { animation-delay: 0.05s; }
-    .result-grid .result-item:nth-child(2) { animation-delay: 0.1s; }
-    .result-grid .result-item:nth-child(3) { animation-delay: 0.15s; }
-
-    @media (max-width: 980px) {
-      .hero,
-      .workflow {
-        grid-template-columns: 1fr;
-      }
-
-      .summary-panel {
-        position: static;
-        top: auto;
-      }
-    }
-
-    @media (max-width: 720px) {
-      .page {
-        padding: 1.4rem 1rem 3rem;
-      }
-
-      .hero-card,
-      .rail-card,
-      .panel,
-      .subpanel {
-        border-radius: var(--radius-lg);
-      }
-
-      .hero-card,
-      .rail-card,
-      .panel {
-        padding: 1.15rem;
-      }
-
-      .field-row,
-      .rail-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .step-head,
-      .status-top {
-        flex-direction: column;
-        align-items: start;
-      }
-    }
+    .verify-page { max-width: 800px; margin: 0 auto; padding: 80px 24px; }
+    .verify-page h1 { font-size: clamp(24px, 3vw, 36px); margin-bottom: 12px; }
+    .verify-page .body-lg { margin-bottom: 40px; }
+    .verify-input-card { background: var(--surface); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 32px; }
+    .verify-input-card textarea { width: 100%; min-height: 200px; background: #15191E; color: #F3F3F7; border: none; border-radius: var(--radius); padding: 16px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; line-height: 1.6; resize: vertical; height: auto; }
+    .verify-input-card .btn-row { display: flex; gap: 12px; margin-top: 16px; }
+    .verify-status { text-align: center; margin-bottom: 24px; }
+    .verify-status .status-chip { display: inline-flex; align-items: center; padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+    .verify-status .status-pass { background: #dcfce7; color: var(--green); }
+    .verify-status .status-fail { background: #fef2f2; color: var(--red); }
+    .verify-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .verify-result-card { background: var(--surface); border-radius: var(--radius-lg); padding: 20px; }
+    .verify-result-card .result-icon { font-size: 20px; margin-bottom: 8px; }
+    .verify-result-card .result-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .verify-result-card .result-detail { font-size: 12px; color: var(--text-secondary); }
+    .verify-meta { background: var(--surface); border-radius: var(--radius-lg); padding: 20px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; color: var(--text-secondary); }
+    .verify-meta .meta-row { margin-bottom: 4px; }
+    .verify-explainer { text-align: center; margin-top: 40px; color: var(--text-tertiary); font-size: 13px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: var(--radius); font-size: 14px; z-index: 200; opacity: 0; transform: translateY(10px); transition: opacity 0.3s, transform 0.3s; pointer-events: none; }
+    .toast.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
   </style>
 
 </head>
@@ -575,186 +61,28 @@
     </div>
   </nav>
 
-  <main class="page">
-    <section class="hero">
-      <div class="hero-card">
-        <div class="eyebrow">Public verification</div>
-        <h1>Verify evidence packets in-browser.</h1>
-        <p class="hero-copy">Drop in a packet, resolve the org JWKS, and confirm the hash, signature, and audit chain still match what Attest signed. No dashboard session required.</p>
-        <div class="hero-actions">
-          <button class="hero-btn primary" type="button" id="hero-verify-btn">Jump to verifier</button>
-          <button class="hero-btn secondary" type="button" id="hero-sample-btn">Load sample packet</button>
-        </div>
-        <div class="hero-pills">
-          <span class="hero-pill">Hash checked locally</span>
-          <span class="hero-pill">Signature checked by <span class="mono">kid</span></span>
-          <span class="hero-pill">Audit chain validated</span>
-          <span class="hero-pill">No private keys leave the org</span>
-        </div>
+  <main class="verify-page">
+    <p class="category">Verify</p>
+    <h1>Verify an evidence packet</h1>
+    <p class="body-lg muted">Paste a packet below to check hash integrity, validate the cryptographic signature, and confirm the append-only chain.</p>
+
+    <div class="verify-input-card">
+      <textarea id="packet-input" placeholder="Paste evidence packet JSON..."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="load-sample-btn">Load Sample</button>
+        <button class="btn btn-primary" id="verify-btn">Verify Packet</button>
       </div>
+    </div>
 
-      <aside class="rail-card">
-        <div>
-          <div class="eyebrow" style="margin-bottom:0.45rem;">What this checks</div>
-          <div class="rail-title">Independent verification for exported evidence.</div>
-        </div>
-        <p class="rail-copy">The verifier recomputes the canonical packet hash, verifies the RS256 signature against JWKS, and checks the append-only event chain. If any one of those breaks, the page tells you exactly why.</p>
-        <div class="rail-grid">
-          <div class="mini-card">
-            <div class="label">1</div>
-            <div class="value">Hash</div>
-            <p>Detects mutations to the canonical export artifact.</p>
-          </div>
-          <div class="mini-card">
-            <div class="label">2</div>
-            <div class="value">JWKS</div>
-            <p>Picks the correct public key from <span class="mono">signature_kid</span>.</p>
-          </div>
-          <div class="mini-card">
-            <div class="label">3</div>
-            <div class="value">Chain</div>
-            <p>Confirms every event points back through the audit log.</p>
-          </div>
-          <div class="mini-card">
-            <div class="label">Use cases</div>
-            <div class="value">Audit, review, incidents</div>
-            <p>Share the packet. Verify it without a dashboard session.</p>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <section class="workflow">
-      <div class="panel">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Inputs</div>
-            <div class="section-title">Load the packet, decide how to resolve JWKS, then run verification.</div>
-          </div>
-          <div class="section-copy">Use exported evidence JSON from the dashboard, or start with the built-in sample if you just want to see the verification loop in action.</div>
-        </div>
-
-        <div class="step-grid">
-          <section class="subpanel">
-            <div class="step-head">
-              <div class="step-title">
-                <div class="step-index">01</div>
-                <div>
-                  <strong>Load an evidence packet</strong>
-                  <span>Upload a JSON file or paste the exported packet directly.</span>
-                </div>
-              </div>
-              <div class="step-hint">The packet is the canonical artifact. Everything else hangs off it.</div>
-            </div>
-
-            <div class="field-grid">
-              <div class="file-shell">
-                <label for="packet-file">Packet file</label>
-                <input type="file" id="packet-file" accept=".json,application/json" />
-                <div class="helper">Choose an exported evidence packet from the dashboard, or skip the file picker and paste the JSON below.</div>
-              </div>
-
-              <div>
-                <label for="packet-input">Evidence packet JSON</label>
-                <textarea id="packet-input" placeholder='{"packet_type":"attest.evidence_packet", ...}'></textarea>
-              </div>
-            </div>
-          </section>
-
-          <section class="subpanel">
-            <div class="step-head">
-              <div class="step-title">
-                <div class="step-index">02</div>
-                <div>
-                  <strong>Resolve the public keys</strong>
-                  <span>Use org metadata from the packet, paste JWKS, or point at a JWKS URL.</span>
-                </div>
-              </div>
-              <div class="step-hint">If the packet includes <span class="mono">org.id</span>, Attest can derive the default JWKS URL.</div>
-            </div>
-
-            <div class="field-grid">
-              <div class="field-row">
-                <div>
-                  <label for="jwks-url">JWKS URL</label>
-                  <input type="url" id="jwks-url" placeholder="https://api.attestdev.com/orgs/org_xxx/jwks.json" />
-                  <div class="helper">Leave blank to derive it automatically from <span class="mono">packet.org.id</span>.</div>
-                </div>
-                <div class="file-shell">
-                  <label for="jwks-file">JWKS file</label>
-                  <input type="file" id="jwks-file" accept=".json,application/json" />
-                  <div class="helper">Use this when you want to verify without a live network fetch.</div>
-                </div>
-              </div>
-
-              <div>
-                <label for="jwks-input">JWKS JSON override</label>
-                <textarea id="jwks-input" placeholder='{"keys":[...]}' style="min-height: 150px;"></textarea>
-              </div>
-            </div>
-          </section>
-
-          <section class="subpanel">
-            <div class="step-head">
-              <div class="step-title">
-                <div class="step-index">03</div>
-                <div>
-                  <strong>Run verification</strong>
-                  <span>Check the hash, signature, and append-only audit chain in-browser.</span>
-                </div>
-              </div>
-              <div class="step-hint">You can also load the sample packet first if you want a known-good reference.</div>
-            </div>
-
-            <div class="action-bar">
-              <button class="btn btn-primary" id="verify-btn">Verify packet</button>
-              <button class="btn btn-secondary" id="load-sample-btn">Load sample</button>
-              <button class="btn btn-ghost" id="clear-btn">Clear</button>
-            </div>
-          </section>
-        </div>
+    <div id="results-area" style="display:none;">
+      <div class="verify-status">
+        <span id="status-chip" class="status-chip"></span>
       </div>
+      <div class="verify-results" id="result-grid"></div>
+      <div class="verify-meta" id="meta-block"></div>
+    </div>
 
-      <aside class="panel summary-panel">
-        <div class="status-shell">
-          <div class="status-top">
-            <div>
-              <div class="section-kicker" style="margin-bottom:0.35rem;">Result</div>
-              <div class="status-title">Verification status</div>
-              <div class="status-line" id="status-line">Ready to verify</div>
-            </div>
-            <div class="status-chip status-idle" id="status-chip">Idle</div>
-          </div>
-
-          <div class="result-grid" id="result-grid">
-            <div class="result-item">
-              <div class="label">Packet hash</div>
-              <div class="value">Not checked yet</div>
-            </div>
-            <div class="result-item">
-              <div class="label">Signature</div>
-              <div class="value">Not checked yet</div>
-            </div>
-            <div class="result-item">
-              <div class="label">Audit chain</div>
-              <div class="value">Not checked yet</div>
-            </div>
-          </div>
-
-          <div class="result-item">
-            <div class="label">Packet metadata</div>
-            <div class="value mono" id="meta-block">Load a packet to inspect its task ID, org, signature key, and JWKS source.</div>
-          </div>
-
-          <div class="result-item">
-            <div class="label">Warnings</div>
-            <div class="value" id="warning-block">No warnings yet.</div>
-          </div>
-
-          <p class="notes">This page never signs anything and never needs private key material. It only uses the exported packet plus public JWKS to verify what Attest signed.</p>
-        </div>
-      </aside>
-    </section>
+    <p class="verify-explainer">Verification runs entirely in your browser using the Web Crypto API. No data leaves your machine.</p>
   </main>
 
   <div class="toast" id="toast"></div>
@@ -791,18 +119,6 @@
 
     document.getElementById('verify-btn').addEventListener('click', verifyFromPage);
     document.getElementById('load-sample-btn').addEventListener('click', loadSamplePacket);
-    document.getElementById('clear-btn').addEventListener('click', clearPage);
-    document.getElementById('packet-file').addEventListener('change', event => loadFileIntoField(event, 'packet-input'));
-    document.getElementById('jwks-file').addEventListener('change', event => loadFileIntoField(event, 'jwks-input'));
-    document.getElementById('hero-verify-btn').addEventListener('click', () => document.getElementById('verify-btn').click());
-    document.getElementById('hero-sample-btn').addEventListener('click', () => document.getElementById('load-sample-btn').click());
-
-    async function loadFileIntoField(event, fieldId) {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
-      const text = await file.text();
-      document.getElementById(fieldId).value = text;
-    }
 
     async function loadSamplePacket() {
       try {
@@ -811,33 +127,22 @@
           fetch('/testdata/evidence/jwks.json'),
         ]);
         document.getElementById('packet-input').value = await packetRes.text();
-        document.getElementById('jwks-input').value = await jwksRes.text();
-        document.getElementById('jwks-url').value = '';
-        showToast('Sample packet loaded', 'success');
+        window.__jwksOverride = await jwksRes.text();
+        showToast('Sample packet loaded');
       } catch {
-        showToast('Could not load sample packet', 'error');
+        showToast('Could not load sample packet');
       }
-    }
-
-    function clearPage() {
-      document.getElementById('packet-file').value = '';
-      document.getElementById('packet-input').value = '';
-      document.getElementById('jwks-file').value = '';
-      document.getElementById('jwks-input').value = '';
-      document.getElementById('jwks-url').value = '';
-      renderResult(null, null, []);
-      showToast('Verifier cleared', 'success');
     }
 
     async function verifyFromPage() {
       const packetText = document.getElementById('packet-input').value.trim();
       if (!packetText) {
-        showToast('Paste or load an evidence packet first', 'error');
+        showToast('Paste or load an evidence packet first');
         return;
       }
 
       if (!window.crypto?.subtle) {
-        showToast('This browser does not support Web Crypto verification', 'error');
+        showToast('This browser does not support Web Crypto verification');
         return;
       }
 
@@ -845,7 +150,7 @@
       try {
         packet = JSON.parse(packetText);
       } catch {
-        showToast('Packet JSON is invalid', 'error');
+        showToast('Packet JSON is invalid');
         return;
       }
 
@@ -853,29 +158,27 @@
       try {
         jwks = await resolveJWKS(packet);
       } catch (error) {
-        showToast(String(error) || 'Failed to load JWKS', 'error');
+        showToast(String(error) || 'Failed to load JWKS');
         return;
       }
 
       const result = await verifyEvidencePacketInBrowser(packet, jwks);
-      renderResult(packet, result, result.warnings || []);
-      showToast(result.valid ? 'Packet verified' : 'Verification found issues', result.valid ? 'success' : 'error');
+      renderResult(packet, result);
+      showToast(result.valid ? 'Packet verified' : 'Verification found issues');
     }
 
     async function resolveJWKS(packet) {
-      const overrideText = document.getElementById('jwks-input').value.trim();
-      if (overrideText) {
-        return JSON.parse(overrideText);
+      if (window.__jwksOverride) {
+        const jwks = JSON.parse(window.__jwksOverride);
+        return jwks;
       }
 
-      const explicitURL = document.getElementById('jwks-url').value.trim();
       const derivedOrgID = packet?.org?.id;
-      const url = explicitURL || (derivedOrgID ? `${DEFAULT_API}/orgs/${encodeURIComponent(derivedOrgID)}/jwks.json` : '');
+      const url = derivedOrgID ? `${DEFAULT_API}/orgs/${encodeURIComponent(derivedOrgID)}/jwks.json` : '';
       if (!url) {
-        throw new Error('No JWKS URL available. Provide packet org metadata, a JWKS URL, or JWKS JSON.');
+        throw new Error('No JWKS URL available. Provide packet org metadata or load a sample packet.');
       }
 
-      document.getElementById('jwks-url').value = url;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Failed to load JWKS: HTTP ${res.status}`);
@@ -883,60 +186,46 @@
       return res.json();
     }
 
-    function renderResult(packet, verification, warnings) {
+    function renderResult(packet, verification) {
       const statusChip = document.getElementById('status-chip');
-      const statusLine = document.getElementById('status-line');
       const resultGrid = document.getElementById('result-grid');
       const metaBlock = document.getElementById('meta-block');
-      const warningBlock = document.getElementById('warning-block');
+      const resultsArea = document.getElementById('results-area');
 
       if (!packet || !verification) {
-        statusChip.className = 'status-chip status-idle';
-        statusChip.textContent = 'Idle';
-        statusLine.textContent = 'Ready to verify';
-        resultGrid.innerHTML = `
-          <div class="result-item"><div class="label">Packet hash</div><div class="value">Not checked yet</div></div>
-          <div class="result-item"><div class="label">Signature</div><div class="value">Not checked yet</div></div>
-          <div class="result-item"><div class="label">Audit chain</div><div class="value">Not checked yet</div></div>
-        `;
-        metaBlock.textContent = 'Load a packet to inspect its task ID, org, signature key, and JWKS source.';
-        warningBlock.textContent = 'No warnings yet.';
+        resultsArea.style.display = 'none';
         return;
       }
+
+      resultsArea.style.display = 'block';
 
       const statusClass = verification.valid ? 'status-pass' : 'status-fail';
       statusChip.className = `status-chip ${statusClass}`;
       statusChip.textContent = verification.valid ? 'Verified' : 'Issues';
-      statusLine.textContent = verification.valid
-        ? 'This packet passed hash, signature, and audit-chain checks.'
-        : 'One or more verification checks failed.';
 
       resultGrid.innerHTML = `
-        <div class="result-item">
-          <div class="label">Packet hash</div>
-          <div class="value ${verification.hashValid ? 'pass' : 'fail'}">${verification.hashValid ? 'Matches canonical packet' : 'Hash mismatch detected'}</div>
+        <div class="verify-result-card">
+          <div class="result-icon">${verification.hashValid ? '&#10003;' : '&#10007;'}</div>
+          <div class="result-label">Packet hash</div>
+          <div class="result-detail">${verification.hashValid ? 'Matches canonical packet' : 'Hash mismatch detected'}</div>
         </div>
-        <div class="result-item">
-          <div class="label">Signature</div>
-          <div class="value ${verification.signatureValid ? 'pass' : 'fail'}">${verification.signatureValid ? 'RS256 signature valid' : 'Signature invalid or missing'}</div>
+        <div class="verify-result-card">
+          <div class="result-icon">${verification.signatureValid ? '&#10003;' : '&#10007;'}</div>
+          <div class="result-label">Signature</div>
+          <div class="result-detail">${verification.signatureValid ? 'RS256 signature valid' : 'Signature invalid or missing'}</div>
         </div>
-        <div class="result-item">
-          <div class="label">Audit chain</div>
-          <div class="value ${verification.auditChainValid ? 'pass' : 'fail'}">${verification.auditChainValid ? 'Append-only chain intact' : 'Audit chain inconsistency found'}</div>
+        <div class="verify-result-card">
+          <div class="result-icon">${verification.auditChainValid ? '&#10003;' : '&#10007;'}</div>
+          <div class="result-label">Audit chain</div>
+          <div class="result-detail">${verification.auditChainValid ? 'Append-only chain intact' : 'Audit chain inconsistency found'}</div>
         </div>
       `;
 
-      const jwksSource = document.getElementById('jwks-url').value.trim() || 'JWKS JSON override';
       metaBlock.innerHTML = [
-        `task: ${escapeHtml(packet.task?.att_tid || '—')}`,
-        `org: ${escapeHtml(packet.org?.id || '—')}`,
-        `kid: ${escapeHtml(packet.integrity?.signature_kid || '—')}`,
-        `jwks: ${escapeHtml(jwksSource)}`
-      ].join('<br/>');
-
-      warningBlock.innerHTML = warnings.length
-        ? `<ul class="warning-list">${warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}</ul>`
-        : '<span class="pass">No warnings. The packet is consistent with the JWKS and audit chain.</span>';
+        `<div class="meta-row">task: ${escapeHtml(packet.task?.att_tid || '')}</div>`,
+        `<div class="meta-row">org: ${escapeHtml(packet.org?.id || '')}</div>`,
+        `<div class="meta-row">kid: ${escapeHtml(packet.integrity?.signature_kid || '')}</div>`,
+      ].join('');
     }
 
     async function verifyEvidencePacketInBrowser(packet, jwks) {
@@ -947,7 +236,7 @@
 
       const warnings = [];
       if (!hashValid) {
-        warnings.push(`packet hash mismatch: expected ${packet.integrity?.packet_hash || '—'}, computed ${computedHash}`);
+        warnings.push(`packet hash mismatch: expected ${packet.integrity?.packet_hash || ''}, computed ${computedHash}`);
       }
 
       let signatureValid = false;
@@ -1051,11 +340,11 @@
         .replaceAll("'", '&#39;');
     }
 
-    function showToast(msg, type = 'success') {
+    function showToast(msg) {
       const el = document.getElementById('toast');
       el.textContent = msg;
-      el.className = `toast show ${type}`;
-      setTimeout(() => el.classList.remove('show'), 2600);
+      el.classList.add('visible');
+      setTimeout(() => el.classList.remove('visible'), 2600);
     }
   </script>
 
