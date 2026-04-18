@@ -173,3 +173,73 @@ input:focus, textarea:focus { outline: none; box-shadow: 0 0 0 2px rgba(0, 110, 
 @media (max-width: 860px) {
   .footer-shell { padding: 0 24px; flex-direction: column; gap: 16px; text-align: center; }
 }
+
+/* ——————————————————————————————————————————
+   Method badges (docs)
+   —————————————————————————————————————————— */
+
+.method-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.5px; text-transform: uppercase; }
+.method-badge.get { background: #dcfce7; color: #16a34a; }
+.method-badge.post { background: #dbeafe; color: #2563eb; }
+.method-badge.del { background: #fef2f2; color: #dc2626; }
+
+/* ——————————————————————————————————————————
+   Docs three-panel layout
+   —————————————————————————————————————————— */
+
+.docs-three-panel { max-width: var(--max-width); margin: 0 auto; padding: 32px 72px; display: grid; grid-template-columns: 280px 1fr 200px; gap: 48px; }
+
+.docs-left-nav { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; }
+.docs-left-nav .nav-search { width: 100%; margin-bottom: 20px; position: relative; }
+.docs-left-nav .nav-search input { width: 100%; height: 36px; padding: 0 12px; font-size: 13px; }
+.docs-left-nav .nav-search .shortcut { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--text-disabled); background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--line); pointer-events: none; }
+.docs-left-nav .nav-group { margin-bottom: 8px; }
+.docs-left-nav .nav-group-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); border: none; background: none; width: 100%; font-family: inherit; }
+.docs-left-nav .nav-group-header svg { width: 12px; height: 12px; transition: transform 0.15s ease; }
+.docs-left-nav .nav-group.collapsed .nav-group-header svg { transform: rotate(-90deg); }
+.docs-left-nav .nav-group.collapsed .nav-group-items { display: none; }
+.docs-left-nav .nav-group-items a { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-sm); border-left: 2px solid transparent; }
+.docs-left-nav .nav-group-items a:hover { color: var(--text); background: var(--surface); }
+.docs-left-nav .nav-group-items a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 500; }
+.docs-left-nav .nav-group-items .method-badge { margin-right: 2px; }
+
+.docs-main { min-width: 0; }
+.docs-main .endpoint-section { padding: 32px 0; border-top: 1px solid var(--line); }
+.docs-main .endpoint-section:first-child { border-top: none; padding-top: 0; }
+.docs-main .endpoint-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.docs-main .endpoint-path { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 15px; color: var(--text); }
+.docs-main .endpoint-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+.docs-main .endpoint-panels > div > h4 { font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 8px; }
+
+.docs-toc { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; }
+.docs-toc h4 { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 12px; }
+.docs-toc a { display: block; padding: 4px 0; font-size: 12px; color: var(--text-tertiary); text-decoration: none; border-left: 2px solid transparent; padding-left: 12px; }
+.docs-toc a:hover { color: var(--text-secondary); }
+.docs-toc a.active { color: var(--accent); border-left-color: var(--accent); }
+
+@media (max-width: 1100px) {
+  .docs-three-panel { grid-template-columns: 280px 1fr; }
+  .docs-toc { display: none; }
+  .docs-main .endpoint-panels { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+  .docs-three-panel { grid-template-columns: 1fr; padding: 24px; gap: 24px; }
+  .docs-left-nav { position: static; max-height: none; }
+  .docs-left-nav.collapsed { display: none; }
+  .docs-nav-toggle { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; margin-bottom: 16px; font-family: inherit; color: var(--text); }
+}
+@media (min-width: 861px) {
+  .docs-nav-toggle { display: none; }
+}
+
+/* ——————————————————————————————————————————
+   Feature animations (landing page)
+   —————————————————————————————————————————— */
+
+.anim-container { flex: 1; background: var(--surface); border-radius: var(--radius-lg); min-height: 280px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-container * { animation: none !important; transition: none !important; }
+  .anim-container .anim-step { opacity: 1 !important; transform: none !important; }
+}
