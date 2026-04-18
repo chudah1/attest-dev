@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attest: See and control what your AI agents do</title>
-  <meta name="description" content="MCP Gateway that gives you visibility, control, and compliance for every AI agent tool call. Tamper-evident audit trails included." />
-  <meta property="og:title" content="Attest: MCP Gateway for AI Agents" />
-  <meta property="og:description" content="See and control what your AI agents do. Every tool call, visible. Every risky action, approved." />
+  <title>Attest: See every handoff. Prove every action.</title>
+  <meta name="description" content="Delegation tracking, scoped credentials, and evidence trails for multi-agent workflows." />
+  <meta property="og:title" content="Attest: See every handoff. Prove every action." />
+  <meta property="og:description" content="Attest gives you delegation tracking, scoped credentials, and evidence trails for multi-agent workflows." />
   <meta property="og:type" content="website" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
@@ -83,9 +83,9 @@
 
   <section class="hero">
     <div class="hero-inner">
-      <p class="category">MCP Gateway</p>
-      <h1>See and control what your AI agents do</h1>
-      <p class="body-lg">Every tool call, visible. Every risky action, approved. Tamper-evident audit trails you can export for compliance.</p>
+      <p class="category">Delegated agent workflows</p>
+      <h1>See every handoff. Prove every action.</h1>
+      <p class="body-lg">Attest gives you delegation tracking, scoped credentials, and evidence trails for multi-agent workflows.</p>
       <div class="cta-group">
         <a href="./waitlist/" class="btn btn-primary">Start Free</a>
         <a href="./demo/" class="btn btn-secondary">Watch Demo</a>
@@ -96,57 +96,57 @@
   <div class="features">
     <div class="feature-row">
       <div class="feature-text">
-        <p class="category">Visibility</p>
-        <h2>Every tool call, live</h2>
-        <p>Real-time stream of agent actions across all your MCP servers. See which agent called which tool, when, and what happened.</p>
+        <p class="category">SCOPE</p>
+        <h2>Narrow what each agent can do</h2>
+        <p>Issue credentials with only the permissions each sub-agent needs. Authority narrows at every handoff.</p>
       </div>
-      <div class="feature-image">Dashboard live feed</div>
+      <div class="anim-container" id="anim-scope"></div>
     </div>
 
     <div class="feature-row reverse">
+      <div class="anim-container" id="anim-trace"></div>
       <div class="feature-text">
-        <p class="category">Control</p>
-        <h2>Approve before it runs</h2>
-        <p>Block specific tools, set rate limits, or require human sign-off for risky actions. Policies apply across all your MCP servers.</p>
+        <p class="category">TRACE</p>
+        <h2>Follow the full task tree</h2>
+        <p>See who delegated to whom, what tools were called, and what happened at each step.</p>
       </div>
-      <div class="feature-image">Policy configuration</div>
     </div>
 
     <div class="feature-row">
       <div class="feature-text">
-        <p class="category">Compliance</p>
-        <h2>Proof you can hand over</h2>
-        <p>Hash-chained audit trails with cryptographic verification. Export JSON reports for regulators and auditors.</p>
+        <p class="category">PROVE</p>
+        <h2>Evidence that holds up later</h2>
+        <p>Hash-chained, signed packets you can export and verify independently.</p>
       </div>
-      <div class="feature-image">Report export</div>
+      <div class="anim-container" id="anim-prove"></div>
     </div>
   </div>
 
   <section class="how-it-works">
     <div class="how-it-works-inner">
-      <h2>Three steps to get started</h2>
+      <h2>Three steps to a verifiable workflow</h2>
       <div class="steps">
         <div class="step">
           <div class="step-num">1</div>
-          <h3>Register your MCP servers</h3>
-          <p>Add your MCP servers through the dashboard. Name, command, args, and env vars.</p>
+          <h3>Issue the root credential</h3>
+          <p>Start with the human-approved task and give the orchestrator only the authority it actually needs.</p>
         </div>
         <div class="step">
           <div class="step-num">2</div>
-          <h3>Paste the config</h3>
-          <p>Copy the generated JSON snippet into Claude Desktop, Cursor, or Windsurf.</p>
+          <h3>Agents delegate narrower children</h3>
+          <p>As work fans out, each child agent gets a smaller slice of access instead of inheriting broad permissions.</p>
         </div>
         <div class="step">
           <div class="step-num">3</div>
-          <h3>See everything</h3>
-          <p>Your dashboard lights up with every tool call. Set policies, approve actions, export reports.</p>
+          <h3>Export and verify the evidence</h3>
+          <p>Download the evidence packet, verify the hash chain and signature, hand it to security or compliance.</p>
         </div>
       </div>
     </div>
   </section>
 
   <section class="bottom-cta">
-    <h2>Start seeing what your agents do</h2>
+    <h2>Start seeing every handoff</h2>
     <a href="./waitlist/" class="btn btn-primary">Get Started</a>
   </section>
 
@@ -195,6 +195,127 @@
       }).catch(() => {
         links.forEach(a => a.href = 'https://api.attestdev.com/dashboard');
       });
+    })();
+
+    // Feature animations
+    (function() {
+      function buildScopeAnim(container) {
+        container.innerHTML = `
+          <div style="padding:32px;width:100%;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:16px;font-family:'JetBrains Mono',monospace;font-size:13px;">
+              <div class="anim-step" style="opacity:0;background:#15191E;color:#F3F3F7;padding:10px 16px;border-radius:8px;text-align:center;transition:opacity 0.5s,transform 0.5s;transform:translateY(-10px);">
+                <div style="color:var(--accent);font-size:10px;font-weight:600;letter-spacing:1px;margin-bottom:4px;">ROOT</div>
+                files:read, db:query, email:send
+              </div>
+              <svg width="2" height="24" class="anim-step" style="opacity:0;transition:opacity 0.4s 0.4s;"><line x1="1" y1="0" x2="1" y2="24" stroke="var(--line-hover)" stroke-width="2"/></svg>
+              <div style="display:flex;gap:12px;">
+                <div class="anim-step" style="opacity:0;background:#15191E;color:#F3F3F7;padding:8px 14px;border-radius:8px;text-align:center;transition:opacity 0.5s 0.6s,transform 0.5s 0.6s;transform:translateY(-10px);">
+                  <div style="color:var(--green);font-size:10px;font-weight:600;letter-spacing:1px;margin-bottom:4px;">CHILD A</div>
+                  db:query
+                </div>
+                <div class="anim-step" style="opacity:0;background:#15191E;color:#F3F3F7;padding:8px 14px;border-radius:8px;text-align:center;transition:opacity 0.5s 0.8s,transform 0.5s 0.8s;transform:translateY(-10px);">
+                  <div style="color:var(--green);font-size:10px;font-weight:600;letter-spacing:1px;margin-bottom:4px;">CHILD B</div>
+                  email:send
+                </div>
+              </div>
+              <div class="anim-step" style="opacity:0;margin-top:8px;color:var(--text-secondary);font-size:12px;font-family:Inter,sans-serif;transition:opacity 0.5s 1.2s;">Each child receives only what it needs</div>
+            </div>
+          </div>`;
+      }
+
+      function buildTraceAnim(container) {
+        const events = [
+          { type: 'issued', agent: 'orchestrator-v1', color: 'var(--accent)' },
+          { type: 'delegated', agent: 'db-agent', color: '#2563eb' },
+          { type: 'tool_call', agent: 'db-agent', color: 'var(--text-tertiary)' },
+          { type: 'allowed', agent: 'db-agent', color: 'var(--green)' },
+          { type: 'delegated', agent: 'email-agent', color: '#2563eb' },
+          { type: 'tool_call', agent: 'email-agent', color: 'var(--text-tertiary)' },
+          { type: 'allowed', agent: 'email-agent', color: 'var(--green)' },
+        ];
+        container.innerHTML = `
+          <div style="padding:24px 32px;width:100%;">
+            <div id="trace-list" style="display:flex;flex-direction:column;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px;"></div>
+          </div>`;
+        container._events = events;
+        container._index = 0;
+      }
+
+      function runTraceAnim(container) {
+        const list = container.querySelector('#trace-list');
+        const events = container._events;
+        let i = container._index || 0;
+        function addEvent() {
+          if (i >= events.length) return;
+          const e = events[i];
+          const row = document.createElement('div');
+          row.className = 'anim-step';
+          row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:6px 10px;border-radius:6px;background:rgba(0,0,0,0.03);opacity:0;transform:translateX(-10px);transition:opacity 0.3s,transform 0.3s;';
+          row.innerHTML = `<span style="color:${e.color};min-width:80px;">${e.type}</span><span style="color:var(--text-secondary);">${e.agent}</span><span style="color:var(--text-disabled);margin-left:auto;">${new Date().toISOString().slice(11,19)}</span>`;
+          list.appendChild(row);
+          requestAnimationFrame(() => { row.style.opacity = '1'; row.style.transform = 'translateX(0)'; });
+          i++;
+          container._index = i;
+          if (i < events.length) setTimeout(addEvent, 400);
+        }
+        addEvent();
+      }
+
+      function buildProveAnim(container) {
+        container.innerHTML = `
+          <div style="padding:24px 32px;width:100%;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;">
+              <div class="anim-step" style="opacity:0;background:#15191E;color:#F3F3F7;padding:16px;border-radius:8px;transition:opacity 0.5s,transform 0.5s;transform:translateY(10px);">
+                <div style="color:var(--accent);font-size:10px;margin-bottom:8px;">attest.evidence_packet</div>
+                <div style="margin-bottom:4px;"><span style="color:#82AAFF;">events</span>: <span style="color:#7EC699;">[7 entries]</span></div>
+                <div style="margin-bottom:4px;"><span style="color:#82AAFF;">chain</span>: <span style="color:#7EC699;">append-only</span></div>
+                <div><span style="color:#82AAFF;">hash</span>: <span style="color:#7EC699;">sha256:a3f8...</span></div>
+              </div>
+              <div class="anim-step" style="opacity:0;display:flex;align-items:center;gap:8px;margin-top:12px;transition:opacity 0.5s 0.6s;">
+                <span style="background:var(--green);color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;">RS256 VERIFIED</span>
+                <span style="color:var(--text-secondary);font-family:Inter,sans-serif;font-size:12px;">Signature valid, chain intact</span>
+              </div>
+              <div class="anim-step" style="opacity:0;margin-top:12px;transition:opacity 0.5s 1s;">
+                <span style="background:var(--accent);color:#fff;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;font-family:Inter,sans-serif;">Export packet</span>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function triggerSteps(container) {
+        container.querySelectorAll('.anim-step').forEach(el => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0) translateX(0)';
+        });
+      }
+
+      const scopeEl = document.getElementById('anim-scope');
+      const traceEl = document.getElementById('anim-trace');
+      const proveEl = document.getElementById('anim-prove');
+      if (scopeEl) buildScopeAnim(scopeEl);
+      if (traceEl) buildTraceAnim(traceEl);
+      if (proveEl) buildProveAnim(proveEl);
+
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          if (el._animated) return;
+          el._animated = true;
+          if (prefersReduced) {
+            triggerSteps(el);
+          } else if (el.id === 'anim-trace') {
+            runTraceAnim(el);
+          } else {
+            triggerSteps(el);
+          }
+          observer.unobserve(el);
+        });
+      }, { threshold: 0.3 });
+
+      [scopeEl, traceEl, proveEl].forEach(el => { if (el) observer.observe(el); });
     })();
 
     // Health check
