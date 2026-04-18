@@ -229,21 +229,22 @@ async function withDashboard(t, packetMutator, fn) {
 
   const page = await context.newPage();
   await page.goto(`http://localhost:${port}/dashboard`);
-  await page.getByRole('button', { name: /audit log/i }).click();
-  await page.locator('#task-id-input').fill(packet.task.att_tid);
-  await page.getByRole('button', { name: /search events/i }).click();
-  await page.getByText('Verification details').waitFor();
+  await page.locator('.sidebar-item').getByText('Audit').click();
+  await page.locator('.audit-search-input').fill(packet.task.att_tid);
+  await page.getByRole('button', { name: /^search$/i }).click();
+  await page.locator('.audit-actions').waitFor();
 
   await fn(page, packet);
 }
 
 test('dashboard verifier passes for the signed fixture packet', async (t) => {
   await withDashboard(t, null, async (page) => {
-    await page.getByRole('button', { name: /verify packet/i }).click();
-    await page.locator('.verification-status.success').getByText('Verified on site').waitFor();
-    await page.locator('.verification-panel').getByText('Matches canonical packet').waitFor();
-    await page.locator('.verification-panel').getByText('RS256 signature valid').waitFor();
-    await page.locator('.verification-panel').getByText('Append-only chain intact').waitFor();
+    await page.getByRole('button', { name: /^verify$/i }).click();
+    await page.locator('.verify-banner.verify-banner-pass').waitFor();
+    await page.locator('.verify-banner.verify-banner-pass').click();
+    await page.locator('.verify-check-desc').getByText('SHA-256 packet hash matches').waitFor();
+    await page.locator('.verify-check-desc').getByText('RS256 verified against JWKS').waitFor();
+    await page.locator('.verify-check-desc').getByText('Append-only chain intact').waitFor();
   });
 });
 
@@ -251,17 +252,19 @@ test('dashboard verifier fails for a tampered fixture packet', async (t) => {
   await withDashboard(t, (packet) => {
     packet.summary.result = 'revoked';
   }, async (page) => {
-    await page.getByRole('button', { name: /verify packet/i }).click();
-    await page.locator('.verification-status.error').getByText('Verification failed').waitFor();
-    await page.locator('.verification-panel').getByText('Hash mismatch detected').waitFor();
-    await page.locator('.verification-panel').getByText('Signature invalid or missing').waitFor();
+    await page.getByRole('button', { name: /^verify$/i }).click();
+    await page.locator('.verify-banner.verify-banner-fail').waitFor();
+    await page.locator('.verify-banner.verify-banner-fail').click();
+    await page.locator('.verify-check-desc').getByText('Hash mismatch detected').waitFor();
+    await page.locator('.verify-check-desc').getByText('Signature invalid or missing').waitFor();
   });
 });
 
 test('dashboard open report uses the selected template and rendered packet details', async (t) => {
   await withDashboard(t, null, async (page, packet) => {
-    await page.locator('#report-template-select').selectOption('soc2');
-    await page.getByRole('button', { name: /open report/i }).click();
+    await page.getByRole('button', { name: /generate report/i }).click();
+    await page.locator('#report-template-modal').selectOption('soc2');
+    await page.getByRole('button', { name: /^view report$/i }).click();
 
     await page.getByText('Evidence report opened').waitFor();
 
@@ -279,7 +282,7 @@ test('dashboard open report uses the selected template and rendered packet detai
 
 test('dashboard export packet downloads canonical evidence JSON', async (t) => {
   await withDashboard(t, null, async (page, packet) => {
-    await page.getByRole('button', { name: /export packet/i }).click();
+    await page.getByRole('button', { name: /export json/i }).click();
 
     await page.getByText('Evidence packet exported').waitFor();
 
@@ -300,8 +303,9 @@ test('dashboard export packet downloads canonical evidence JSON', async (t) => {
 
 test('dashboard print report opens print-friendly HTML', async (t) => {
   await withDashboard(t, null, async (page, packet) => {
-    await page.locator('#report-template-select').selectOption('incident');
-    await page.getByRole('button', { name: /print report/i }).click();
+    await page.getByRole('button', { name: /generate report/i }).click();
+    await page.locator('#report-template-modal').selectOption('incident');
+    await page.getByRole('button', { name: /^print to pdf$/i }).click();
 
     await page.getByText('Print-friendly report opened').waitFor();
 
