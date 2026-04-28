@@ -3,41 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MCP: Attest</title>
-  <meta name="description" content="Protect MCP tools with Attest middleware, or let agents manage credentials directly via the Attest MCP server." />
+  <title>MCP Quickstart: Attest</title>
+  <meta name="description" content="Stop AI agents from taking dangerous actions. Add scope-checked authorization to any MCP tool in 4 lines of code." />
   <link rel="stylesheet" href="../styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
   <style>
-    .mcp-hero { padding: 80px 0 60px; }
+    .mcp-hero { padding: 80px 0 48px; }
     .mcp-hero-inner { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; }
-    .mcp-hero h1 { font-size: clamp(24px, 3vw, 48px); margin-bottom: 16px; }
-    .mcp-hero .body-lg { max-width: 600px; margin-bottom: 32px; }
+    .mcp-hero h1 { font-size: clamp(28px, 3.5vw, 48px); margin-bottom: 16px; max-width: 720px; }
+    .mcp-hero .lead { font-size: 18px; color: var(--text-secondary); max-width: 600px; line-height: 1.6; margin-bottom: 32px; }
 
-    .mcp-steps { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; }
-    .mcp-step { padding: 48px 0; border-top: 1px solid var(--line); }
-    .mcp-step:first-child { border-top: none; }
-    .mcp-step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
-    .mcp-step-num { font-size: 36px; font-weight: 700; color: var(--accent); letter-spacing: -2px; line-height: 1; }
-    .mcp-step-header h3 { font-size: 20px; }
-    .mcp-step p { color: var(--text-secondary); margin-bottom: 16px; max-width: 600px; }
+    .incident-banner { max-width: var(--max-width); margin: 0 auto; padding: 0 72px; }
+    .incident-card { display: flex; gap: 16px; align-items: flex-start; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius); padding: 20px 24px; margin-bottom: 48px; }
+    .incident-card .incident-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+    .incident-card p { font-size: 14px; color: #991b1b; line-height: 1.6; }
+    .incident-card strong { color: #7f1d1d; }
+    .incident-card code { background: #fee2e2; padding: 1px 5px; border-radius: 3px; font-size: 13px; }
 
-    .mcp-cards { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-    .mcp-cards .card h3 { margin-bottom: 8px; }
-    .mcp-cards .card p { color: var(--text-secondary); font-size: 14px; }
+    .mcp-content { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; }
 
-    .mcp-links { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .problem-solution { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 56px; }
+    .ps-card { padding: 24px; border-radius: var(--radius); }
+    .ps-card.problem { background: #fef2f2; border: 1px solid #fecaca; }
+    .ps-card.solution { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .ps-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .ps-card.problem .ps-label { color: var(--red); }
+    .ps-card.solution .ps-label { color: var(--green); }
+    .ps-card pre { margin: 0; font-size: 13px; }
+    .ps-card pre code { background: none; padding: 0; }
+    .ps-card p { font-size: 14px; color: var(--text-secondary); margin-top: 12px; line-height: 1.5; }
+
+    .mcp-step { padding: 40px 0; border-top: 1px solid var(--line); }
+    .mcp-step:first-of-type { border-top: none; }
+    .mcp-step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .mcp-step-num { font-size: 13px; font-weight: 600; color: var(--accent); background: #FFF0E6; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .mcp-step-header h3 { font-size: 18px; }
+    .mcp-step > p { color: var(--text-secondary); font-size: 15px; margin-bottom: 16px; max-width: 600px; line-height: 1.6; }
+    .mcp-step .note { font-size: 13px; color: var(--text-secondary); margin-top: 12px; line-height: 1.5; }
+    .mcp-step .note code { font-size: 12px; }
+
+    .what-happens { margin-top: 56px; padding-top: 48px; border-top: 1px solid var(--line); }
+    .what-happens h2 { font-size: 24px; margin-bottom: 24px; }
+    .what-happens-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .wh-card { padding: 20px; background: var(--surface); border-radius: var(--radius); }
+    .wh-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .wh-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    .mcp-links { max-width: var(--max-width); margin: 0 auto; padding: 0 72px 80px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
     .mcp-link-card { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; background: var(--surface); border-radius: var(--radius-lg); text-decoration: none; color: var(--text); transition: box-shadow 0.25s ease; }
     .mcp-link-card:hover { box-shadow: var(--shadow-hover); text-decoration: none; }
     .mcp-link-card span { font-size: 14px; font-weight: 500; }
     .mcp-link-card small { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; font-weight: 400; }
 
     @media (max-width: 860px) {
-      .mcp-hero-inner, .mcp-steps, .mcp-cards, .mcp-links { padding-left: 24px; padding-right: 24px; }
-      .mcp-cards { grid-template-columns: 1fr; }
-      .mcp-hero { padding: 60px 0 40px; }
+      .mcp-hero-inner, .incident-banner, .mcp-content, .mcp-links { padding-left: 24px; padding-right: 24px; }
+      .problem-solution, .what-happens-grid { grid-template-columns: 1fr; }
+      .mcp-hero { padding: 60px 0 32px; }
     }
   </style>
-
 </head>
 <body>
   <nav class="nav">
@@ -72,16 +95,47 @@
   <section class="mcp-hero">
     <div class="mcp-hero-inner">
       <p class="category">MCP Quickstart</p>
-      <h1>Protect one MCP tool. See the result immediately.</h1>
-      <p class="body-lg muted">This is the shortest real path into Attest: wrap an existing MCP server with <code>withAttest()</code>, issue only the scope that tool needs, watch one valid call go through, then block one that should never have been allowed.</p>
+      <h1>Your agent can delete a production database in 9 seconds. Add a gate.</h1>
+      <p class="lead">Attest checks every MCP tool call against a scoped credential before it executes. No credential, no action. Wrong scope, blocked. Every call logged with a signed receipt.</p>
     </div>
   </section>
 
-  <div class="mcp-steps">
+  <div class="incident-banner">
+    <div class="incident-card">
+      <div class="incident-icon">&#9888;</div>
+      <div>
+        <p><strong>This already happened.</strong> A coding agent with unrestricted tool access dropped a production database and its backups in a single session. No approval step, no scope check, no audit trail. The entire recovery was manual.</p>
+        <p style="margin-top: 8px;">Attest would have blocked the <code>DROP DATABASE</code> call at the tool boundary. The agent had no credential with <code>db:admin</code> scope, so the call never executes.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mcp-content">
+    <div class="problem-solution">
+      <div class="ps-card problem">
+        <div class="ps-label">Without Attest</div>
+        <pre><code>server.tool("run_sql", schema, async ({ query }) => {
+  // Agent calls this with anything.
+  // DROP TABLE? Sure. DELETE FROM users? Sure.
+  return db.execute(query);
+});</code></pre>
+        <p>The agent has full access to every tool. Nothing checks whether it should be allowed to run that specific action.</p>
+      </div>
+      <div class="ps-card solution">
+        <div class="ps-label">With Attest</div>
+        <pre><code>protectedServer.tool("run_sql", schema, async ({ query }) => {
+  // Only executes if caller holds db:read or db:write.
+  // db:admin required for DDL. No credential = blocked.
+  return db.execute(query);
+});</code></pre>
+        <p>Every call checked against the caller's credential scope. Wrong scope or no credential: rejected before your handler runs.</p>
+      </div>
+    </div>
+
     <div class="mcp-step">
       <div class="mcp-step-header">
         <div class="mcp-step-num">1</div>
-        <h3>Install the SDK</h3>
+        <h3>Install</h3>
       </div>
       <pre><code>npm install @attest-dev/sdk @modelcontextprotocol/sdk</code></pre>
     </div>
@@ -91,39 +145,51 @@
         <div class="mcp-step-num">2</div>
         <h3>Wrap your MCP server</h3>
       </div>
-      <p>Add withAttest() to your existing MCP server. This intercepts every tool call and checks the caller's credential scope.</p>
+      <p>Four lines. Your existing tools keep working. Attest intercepts each call and checks the caller's credential before your handler runs.</p>
       <pre><code>import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { withAttest } from "@attest-dev/sdk/mcp";
 
 const server = new McpServer({ name: "my-tools", version: "1.0.0" });
-const protectedServer = withAttest(server, {
+const attest = withAttest(server, {
   issuerUri: "https://api.attestdev.com",
 });
 
-protectedServer.tool("send_email", schema, handler);</code></pre>
+// This tool only executes if the caller holds "email:send" scope
+attest.tool("send_email", { to: { type: "string" }, body: { type: "string" } },
+  async ({ to, body }) => {
+    await sendEmail(to, body);
+    return { content: [{ type: "text", text: `Sent to ${to}` }] };
+  }
+);
+
+const transport = new StdioServerTransport();
+await server.connect(transport);</code></pre>
     </div>
 
     <div class="mcp-step">
       <div class="mcp-step-header">
         <div class="mcp-step-num">3</div>
-        <h3>Run the protected call path</h3>
+        <h3>Issue a credential</h3>
       </div>
-      <p>Issue a credential, make a tool call, and see it succeed or get blocked based on scope.</p>
-      <pre><code># Create an org and keep the API key shown once
-curl -X POST https://api.attestdev.com/v1/orgs \
+      <p>Create a workspace, then issue a credential with only the scopes the agent needs. Nothing more.</p>
+      <pre><code># Create a workspace (one-time setup)
+curl -s -X POST https://api.attestdev.com/v1/orgs \
   -H "Content-Type: application/json" \
   -d '{"name":"acme-corp"}'
+# Returns: { "id": "org_...", "api_key": "att_live_..." }
 
-# Issue only the discovered scope for send_email
-curl -X POST https://api.attestdev.com/v1/credentials \
+# Issue a credential scoped to email:send only
+curl -s -X POST https://api.attestdev.com/v1/credentials \
   -H "Authorization: Bearer att_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "agent_id": "orchestrator-v1",
-    "user_id": "usr_alice",
+    "agent_id": "support-bot",
+    "user_id": "alice@acme.com",
     "scope": ["email:send"],
-    "instruction": "Send the weekly digest"
+    "ttl": 3600
   }'</code></pre>
+      <p class="note">The credential is a signed JWT. It expires in 1 hour. The agent can call <code>send_email</code> but cannot call <code>run_sql</code>, <code>delete_user</code>, or anything else outside its scope.</p>
     </div>
 
     <div class="mcp-step">
@@ -131,40 +197,50 @@ curl -X POST https://api.attestdev.com/v1/credentials \
         <div class="mcp-step-num">4</div>
         <h3>See what happened</h3>
       </div>
-      <p>Open the dashboard to inspect the task tree, or export the evidence packet and verify it independently.</p>
-    </div>
-  </div>
+      <p>Every allowed and blocked call is recorded. Open the dashboard to see the audit trail, or export a signed evidence packet and verify it independently.</p>
+      <pre><code># Export the evidence packet for this task
+curl -s https://api.attestdev.com/v1/evidence/task_8f3a...c91d \
+  -H "Authorization: Bearer att_live_..." \
+  -o evidence.json
 
-  <div class="mcp-cards">
-    <div class="card">
-      <h3>Scoped credentials</h3>
-      <p>Each agent gets a JWT with only the permissions it needs. Authority narrows at each delegation level.</p>
+# Verify it (or use attestdev.com/verify in browser)
+npx @attest-dev/sdk verify evidence.json</code></pre>
     </div>
-    <div class="card">
-      <h3>Audit trail</h3>
-      <p>Every issuance, delegation, tool call, and revocation is recorded in a hash-chained append-only log.</p>
-    </div>
-    <div class="card">
-      <h3>Evidence packet</h3>
-      <p>Export a signed JSON packet containing the full event chain. Verify it independently in your browser.</p>
+
+    <div class="what-happens">
+      <h2>What Attest does on every tool call</h2>
+      <div class="what-happens-grid">
+        <div class="wh-card">
+          <h4>Checks scope</h4>
+          <p>Extracts the credential from the call context. If the required scope is missing, the call is rejected before your handler runs.</p>
+        </div>
+        <div class="wh-card">
+          <h4>Logs the action</h4>
+          <p>Records who called what, with which credential, at what time. Every entry is hash-chained so the log cannot be silently altered.</p>
+        </div>
+        <div class="wh-card">
+          <h4>Signs a receipt</h4>
+          <p>Produces a signed evidence packet you can export, verify independently, and hand to an auditor months later.</p>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="mcp-links">
+    <a class="mcp-link-card" href="../docs/">
+      <div><span>Full documentation</span><small>API reference, SDK guides</small></div>
+      <strong>&#8599;</strong>
+    </a>
     <a class="mcp-link-card" href="../demo/">
-      <div><span>Interactive demo</span><small>See the full delegation flow</small></div>
+      <div><span>Interactive demo</span><small>See the full flow end-to-end</small></div>
       <strong>&#8599;</strong>
     </a>
     <a class="mcp-link-card" href="#" data-dashboard-link>
-      <div><span>Inspect the task tree</span><small>Open the dashboard</small></div>
-      <strong>&#8599;</strong>
-    </a>
-    <a class="mcp-link-card" href="../verify/">
-      <div><span>Verify the exported packet</span><small>Browser-based verification</small></div>
+      <div><span>Dashboard</span><small>View tasks and audit trails</small></div>
       <strong>&#8599;</strong>
     </a>
     <a class="mcp-link-card" href="https://github.com/chudah1/attest-dev" target="_blank">
-      <div><span>GitHub</span><small>Source code and issues</small></div>
+      <div><span>GitHub</span><small>Source, issues, examples</small></div>
       <strong>&#8599;</strong>
     </a>
   </div>
