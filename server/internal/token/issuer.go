@@ -230,3 +230,18 @@ func (is *Issuer) Verify(tokenString string, pubKey *rsa.PublicKey) (*attest.Ver
 		Warnings: warnings,
 	}, nil
 }
+
+// SignClaims signs an already-constructed claims object with the provided key.
+// It preserves all claim values exactly as supplied.
+func (is *Issuer) SignClaims(key *rsa.PrivateKey, kid string, claims *attest.Claims) (string, error) {
+	if claims == nil {
+		return "", errors.New("claims are required")
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	tok.Header["kid"] = kid
+	signed, err := tok.SignedString(key)
+	if err != nil {
+		return "", fmt.Errorf("signing: %w", err)
+	}
+	return signed, nil
+}

@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/attest-dev/attest/internal/action"
 	"github.com/attest-dev/attest/internal/approval"
 	"github.com/attest-dev/attest/internal/audit"
 	"github.com/attest-dev/attest/internal/evidence"
@@ -187,6 +188,7 @@ func main() {
 		evidenceSvc: evidence.NewService(auditLog, revStore),
 		oidcManager: oidcauth.NewManager(),
 		appStore:    appStore,
+		actionSvc:   action.NewService(action.NewPostgresStore(pool), iss, orgStore, revStore, auditLog, appStore),
 	}
 
 	// Rate limiters: 5 req/min per IP for signup, 120 req/min per org for authenticated endpoints.
@@ -254,6 +256,13 @@ func main() {
 		r.Get("/tasks/{tid}/audit", h.getAuditLog)
 		r.Get("/tasks/{tid}/evidence", h.getTaskEvidence)
 		r.Get("/tasks/{tid}/report", h.getTaskReport)
+		r.Get("/actions", h.listActions)
+		r.Post("/actions/request", h.requestAction)
+		r.Get("/actions/{id}", h.getAction)
+		r.Post("/actions/{id}/approve", h.approveAction)
+		r.Post("/actions/{id}/deny", h.denyAction)
+		r.Post("/actions/{id}/execute", h.executeAction)
+		r.Get("/actions/{id}/receipt", h.getActionReceipt)
 
 		// API key management.
 		r.Get("/org/keys", h.listAPIKeys)

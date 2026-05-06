@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attest-dev/attest/internal/action"
 	"github.com/attest-dev/attest/internal/approval"
 	"github.com/attest-dev/attest/internal/audit"
 	"github.com/attest-dev/attest/internal/evidence"
@@ -36,6 +37,7 @@ type handlers struct {
 	evidenceSvc *evidence.Service
 	oidcManager *oidcauth.Manager
 	appStore    approval.Store
+	actionSvc   *action.Service
 }
 
 func keyIDFromToken(token string) string {
@@ -182,16 +184,36 @@ func isAllowedOrigin(origin string, allowed map[string]struct{}) bool {
 // GET /v1/org
 func (h *handlers) getOrg(w http.ResponseWriter, r *http.Request) {
 	o := orgFromCtx(r.Context())
-	writeJSON(w, http.StatusOK, o)
+	refundPolicy, err := h.actionSvc.PolicyConfig(r.Context(), o.ID, "refund")
+	if err != nil {
+		writeInternalError(w, "get org policy config", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id":             o.ID,
+		"name":           o.Name,
+		"status":         o.Status,
+		"require_idp":    o.RequireIDP,
+		"idp_issuer_url": o.IDPIssuerURL,
+		"idp_client_id":  o.IDPClientID,
+		"created_at":     o.CreatedAt,
+		"action_policies": map[string]action.ActionPolicyConfig{
+			"refund": refundPolicy,
+			"credit": refundPolicy,
+		},
+	})
 }
 
 // PATCH /v1/org
 func (h *handlers) updateOrg(w http.ResponseWriter, r *http.Request) {
 	o := orgFromCtx(r.Context())
 	var body struct {
-		RequireIDP   *bool   `json:"require_idp"`
-		IDPIssuerURL *string `json:"idp_issuer_url"`
-		IDPClientID  *string `json:"idp_client_id"`
+		RequireIDP                *bool                                `json:"require_idp"`
+		IDPIssuerURL              *string                              `json:"idp_issuer_url"`
+		IDPClientID               *string                              `json:"idp_client_id"`
+		AutoApproveThresholdCents *int64                               `json:"auto_approve_threshold_cents"`
+		ApprovalThresholdCents    *int64                               `json:"approval_threshold_cents"`
+		ActionPolicies            map[string]action.ActionPolicyConfig `json:"action_policies"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
@@ -230,11 +252,52 @@ func (h *handlers) updateOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	policyUpdates := body.ActionPolicies
+	if policyUpdates == nil && (body.AutoApproveThresholdCents != nil || body.ApprovalThresholdCents != nil) {
+		current, err := h.actionSvc.PolicyConfig(r.Context(), o.ID, "refund")
+		if err != nil {
+			writeInternalError(w, "get refund policy config", err)
+			return
+		}
+		if body.AutoApproveThresholdCents != nil {
+			current.AutoApproveThresholdCents = *body.AutoApproveThresholdCents
+		}
+		if body.ApprovalThresholdCents != nil {
+			current.ApprovalThresholdCents = *body.ApprovalThresholdCents
+		}
+		policyUpdates = map[string]action.ActionPolicyConfig{
+			"refund": current,
+			"credit": current,
+		}
+	}
+	for actionType, cfg := range policyUpdates {
+		if err := h.actionSvc.UpsertPolicyConfig(r.Context(), o.ID, actionType, cfg); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
 	o.RequireIDP = requireIDP
 	o.IDPIssuerURL = issuerURL
 	o.IDPClientID = clientID
-
-	writeJSON(w, http.StatusOK, o)
+	refundPolicy, err := h.actionSvc.PolicyConfig(r.Context(), o.ID, "refund")
+	if err != nil {
+		writeInternalError(w, "get org policy config", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id":             o.ID,
+		"name":           o.Name,
+		"status":         o.Status,
+		"require_idp":    o.RequireIDP,
+		"idp_issuer_url": o.IDPIssuerURL,
+		"idp_client_id":  o.IDPClientID,
+		"created_at":     o.CreatedAt,
+		"action_policies": map[string]action.ActionPolicyConfig{
+			"refund": refundPolicy,
+			"credit": refundPolicy,
+		},
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -1066,4 +1129,194 @@ func (h *handlers) reportStatus(w http.ResponseWriter, r *http.Request) {
 	if h.appendAudit(w, r, attest.EventLifecycle, claims, meta) {
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+func (h *handlers) listActions(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	status := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("status")))
+	if status != "" {
+		switch status {
+		case string(attest.ActionStatusPendingPolicy),
+			string(attest.ActionStatusPendingApproval),
+			string(attest.ActionStatusApproved),
+			string(attest.ActionStatusDenied),
+			string(attest.ActionStatusExecuted),
+			string(attest.ActionStatusFailed):
+		default:
+			writeError(w, http.StatusBadRequest, "status must be one of: pending_policy, pending_approval, approved, denied, executed, failed")
+			return
+		}
+	}
+
+	limit := 50
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			writeError(w, http.StatusBadRequest, "limit must be a positive integer")
+			return
+		}
+		limit = parsed
+	}
+
+	offset := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("offset")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 0 {
+			writeError(w, http.StatusBadRequest, "offset must be a non-negative integer")
+			return
+		}
+		offset = parsed
+	}
+
+	params := action.ListParams{
+		Status: status,
+		Limit:  limit,
+		Offset: offset,
+	}
+	actions, err := h.actionSvc.List(r.Context(), o.ID, params)
+	if err != nil {
+		writeInternalError(w, "list actions", err)
+		return
+	}
+	if actions == nil {
+		actions = []attest.ActionRequest{}
+	}
+	writeJSON(w, http.StatusOK, actions)
+}
+
+func (h *handlers) requestAction(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	var body action.CreateActionParams
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+	if body.ActionType == "" || body.TargetSystem == "" || body.TargetObject == "" || body.AgentID == "" || body.SponsorUserID == "" {
+		writeError(w, http.StatusBadRequest, "missing required action fields")
+		return
+	}
+	result, err := h.actionSvc.Create(r.Context(), o, body)
+	if err != nil {
+		writeInternalError(w, "create action", err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, result.Action)
+}
+
+func (h *handlers) getAction(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+	actionReq, err := h.actionSvc.Get(r.Context(), o.ID, id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, action.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, actionReq)
+}
+
+func (h *handlers) approveAction(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+	var body struct {
+		IDToken string `json:"id_token"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	approvedBy := "dev_approver_1"
+	approvedIssuer := "local_dashboard_session"
+	if o.IDPIssuerURL != nil && o.IDPClientID != nil {
+		if body.IDToken == "" {
+			writeError(w, http.StatusBadRequest, "id_token is required when IdP is configured")
+			return
+		}
+		claims, err := h.oidcManager.VerifyToken(r.Context(), *o.IDPIssuerURL, *o.IDPClientID, body.IDToken)
+		if err != nil {
+			if errors.Is(err, oidcauth.ErrProviderUnavailable) {
+				writeError(w, http.StatusBadGateway, "identity provider unreachable")
+			} else {
+				writeError(w, http.StatusUnauthorized, "invalid id_token")
+			}
+			return
+		}
+		approvedBy = claims.Subject
+		approvedIssuer = claims.Issuer
+	}
+	actionReq, err := h.actionSvc.Approve(r.Context(), o, id, approvedBy, approvedIssuer)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, action.ErrNotFound):
+			status = http.StatusNotFound
+		case errors.Is(err, action.ErrInvalidTransition):
+			status = http.StatusConflict
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, actionReq)
+}
+
+func (h *handlers) denyAction(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+	actionReq, err := h.actionSvc.Deny(r.Context(), o, id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, action.ErrNotFound):
+			status = http.StatusNotFound
+		case errors.Is(err, action.ErrInvalidTransition):
+			status = http.StatusConflict
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, actionReq)
+}
+
+func (h *handlers) executeAction(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+	var body action.ExecuteParams
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+	if body.Outcome == "" {
+		writeError(w, http.StatusBadRequest, "outcome is required")
+		return
+	}
+	receipt, err := h.actionSvc.Execute(r.Context(), o, id, body)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, action.ErrNotFound):
+			status = http.StatusNotFound
+		case errors.Is(err, action.ErrInvalidTransition):
+			status = http.StatusConflict
+		case errors.Is(err, action.ErrInvalidGrant):
+			status = http.StatusUnauthorized
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, receipt)
+}
+
+func (h *handlers) getActionReceipt(w http.ResponseWriter, r *http.Request) {
+	o := orgFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+	receipt, err := h.actionSvc.Receipt(r.Context(), o.ID, id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, action.ErrNotFound) {
+			status = http.StatusNotFound
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, receipt)
 }

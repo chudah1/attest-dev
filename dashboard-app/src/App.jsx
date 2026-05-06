@@ -23,6 +23,7 @@ const SITE_HOME_URL = `${SITE_BASE_URL}/`;
 const SITE_DEMO_URL = `${SITE_BASE_URL}/demo/`;
 const PAGES = [
   { key: 'overview', label: 'Overview' },
+  { key: 'actions', label: 'Actions' },
   { key: 'audit', label: 'Audit' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -61,6 +62,17 @@ function shortValue(value, prefix = 14, suffix = 10) {
   if (!value) return '—';
   if (value.length <= prefix + suffix + 3) return value;
   return `${value.slice(0, prefix)}...${value.slice(-suffix)}`;
+}
+
+function formatMoneyDisplay(payload) {
+  if (!payload) return '—';
+  const amountCents = Number(payload.amount_cents);
+  const currency = String(payload.currency || 'USD');
+  if (!Number.isFinite(amountCents)) return payload.reason || '—';
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency,
+  }).format(amountCents / 100);
 }
 
 function resultClass(result) {
@@ -285,6 +297,12 @@ function App() {
   const [taskList, setTaskList] = useState([]);
   const [taskListLoading, setTaskListLoading] = useState(false);
   const [taskListError, setTaskListError] = useState('');
+  const [actions, setActions] = useState([]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [actionsError, setActionsError] = useState('');
+  const [selectedActionId, setSelectedActionId] = useState('');
+  const [selectedAction, setSelectedAction] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const [taskListFilters, setTaskListFilters] = useState({
     userId: '',
     agentId: '',
@@ -358,6 +376,44 @@ function App() {
       setTaskListError(error.message || 'Failed to load recent tasks.');
     } finally {
       setTaskListLoading(false);
+    }
+  }
+
+  async function fetchActions(targetActionId = selectedActionId) {
+    if (!apiKey) return;
+
+    setActionsLoading(true);
+    setActionsError('');
+
+    try {
+      const res = await fetch(`${API}/v1/actions`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      const data = await parseJSONOrError(res);
+      const nextActions = Array.isArray(data) ? data : [];
+      setActions(nextActions);
+
+      const desiredId = targetActionId || selectedActionId;
+      if (desiredId) {
+        const detailRes = await fetch(`${API}/v1/actions/${encodeURIComponent(desiredId)}`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        const detail = await parseJSONOrError(detailRes);
+        setSelectedAction(detail);
+        setSelectedActionId(detail.id || desiredId);
+      } else if (nextActions.length > 0) {
+        setSelectedActionId(nextActions[0].id);
+        setSelectedAction(nextActions[0]);
+      } else {
+        setSelectedActionId('');
+        setSelectedAction(null);
+      }
+    } catch (error) {
+      setActions([]);
+      setSelectedAction(null);
+      setActionsError(error.message || 'Failed to load actions.');
+    } finally {
+      setActionsLoading(false);
     }
   }
 
@@ -448,11 +504,16 @@ function App() {
     setTaskId('');
     setTaskList([]);
     setTaskListError('');
+    setActions([]);
+    setActionsError('');
+    setSelectedActionId('');
+    setSelectedAction(null);
   }
 
   useEffect(() => {
     if (!apiKey) return;
     fetchTaskList();
+    fetchActions();
   }, [apiKey]);
 
   async function fetchAudit(targetTaskId = taskId.trim()) {
@@ -631,6 +692,60 @@ function App() {
     fetchAudit(targetTaskId);
   }
 
+  async function handleOpenAction(actionSummary) {
+    const targetActionId = actionSummary?.id || '';
+    if (!targetActionId) return;
+    setSelectedActionId(targetActionId);
+    setPage('actions');
+    await fetchActions(targetActionId);
+  }
+
+  async function handleApproveAction() {
+    if (!selectedActionId) return;
+    setActionBusy(true);
+    try {
+      const res = await fetch(`${API}/v1/actions/${encodeURIComponent(selectedActionId)}/approve`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      });
+      const data = await parseJSONOrError(res);
+      setSelectedAction(data);
+      await fetchActions(data.id || selectedActionId);
+      showToast('Action approved', 'success');
+    } catch (error) {
+      showToast(error.message || 'Approval failed', 'error');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function handleDenyAction() {
+    if (!selectedActionId) return;
+    setActionBusy(true);
+    try {
+      const res = await fetch(`${API}/v1/actions/${encodeURIComponent(selectedActionId)}/deny`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      });
+      const data = await parseJSONOrError(res);
+      setSelectedAction(data);
+      await fetchActions(data.id || selectedActionId);
+      showToast('Action denied', 'success');
+    } catch (error) {
+      showToast(error.message || 'Deny failed', 'error');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   function copyVerificationValue(kind) {
     if (!evidencePacket) {
       showToast('Load an evidence packet first', 'error');
@@ -762,6 +877,21 @@ function App() {
             />
           ) : null}
 
+          {page === 'actions' ? (
+            <ActionsPage
+              actions={actions}
+              actionsLoading={actionsLoading}
+              actionsError={actionsError}
+              selectedAction={selectedAction}
+              actionBusy={actionBusy}
+              onRefresh={() => fetchActions()}
+              onOpenAction={handleOpenAction}
+              onApprove={handleApproveAction}
+              onDeny={handleDenyAction}
+              onOpenAudit={(actionItem) => handleOpenTask({ att_tid: actionItem?.att_tid })}
+            />
+          ) : null}
+
           {page === 'audit' ? (
             <AuditPage
               taskId={taskId}
@@ -878,6 +1008,134 @@ function OverviewPage({
               <span className="task-time">{task.last_event_at ? formatRelativeTime(task.last_event_at) : '—'}</span>
             </button>
           ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ActionsPage({
+  actions,
+  actionsLoading,
+  actionsError,
+  selectedAction,
+  actionBusy,
+  onRefresh,
+  onOpenAction,
+  onApprove,
+  onDeny,
+  onOpenAudit,
+}) {
+  return (
+    <section className="page-section">
+      <div className="task-section-header">
+        <h1 className="overview-title">Actions</h1>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={onRefresh}>Refresh</button>
+      </div>
+
+      {actionsLoading ? <div className="empty">Loading actions...</div> : null}
+      {!actionsLoading && actionsError ? <div className="empty">{actionsError}</div> : null}
+
+      {!actionsLoading && !actionsError ? (
+        <div className="actions-layout">
+          <div className="actions-list">
+            {actions.length === 0 ? <div className="empty">No action requests yet.</div> : null}
+            {actions.map((item) => (
+              <button key={item.id} className={`action-row ${selectedAction?.id === item.id ? 'selected' : ''}`} type="button" onClick={() => onOpenAction(item)}>
+                <span className={`status-badge action-status status-${item.status || 'pending'}`}>{String(item.status || '').replaceAll('_', ' ')}</span>
+                <span className="action-row-title">{item.action_type || 'action'} • {formatMoneyDisplay(item.action_payload || item.display_payload)}</span>
+                <span className="action-row-meta">{item.agent_id || '--'} for {item.sponsor_user_id || '--'}</span>
+                <span className="action-row-time">{formatRelativeTime(item.created_at)}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="action-detail-shell">
+            {!selectedAction ? (
+              <div className="empty">Select an action to inspect its policy decision, approval state, and receipt.</div>
+            ) : (
+              <div className="action-detail">
+                <div className="audit-title-row">
+                  <h2 className="audit-task-id mono">{shortValue(selectedAction.id, 10, 6)}</h2>
+                  <span className={`status-badge action-status status-${selectedAction.status || 'pending'}`}>{String(selectedAction.status || '').replaceAll('_', ' ')}</span>
+                </div>
+                <div className="audit-meta">
+                  Requested by <strong>{selectedAction.agent_id || '--'}</strong> for <strong>{selectedAction.sponsor_user_id || '--'}</strong>
+                </div>
+
+                <div className="evidence-meta-grid" style={{ marginTop: 16 }}>
+                  <DetailItem label="Action type" value={selectedAction.action_type} />
+                  <DetailItem label="Family" value={selectedAction.action_family} />
+                  <DetailItem label="Target system" value={selectedAction.target_system} />
+                  <DetailItem label="Target object" value={selectedAction.target_object} mono />
+                  <DetailItem label="Risk level" value={selectedAction.risk_level || '—'} />
+                  <DetailItem label="Requested" value={formatDate(selectedAction.created_at, 'datetime')} />
+                </div>
+
+                <div className="settings-card" style={{ marginTop: 16 }}>
+                  <h3 className="settings-card-title">Action payload</h3>
+                  <div className="action-payload-summary">{formatMoneyDisplay(selectedAction.action_payload || selectedAction.display_payload)}</div>
+                  <pre className="json-block">{JSON.stringify(selectedAction.display_payload || selectedAction.action_payload || {}, null, 2)}</pre>
+                </div>
+
+                <div className="settings-card">
+                  <h3 className="settings-card-title">Policy decision</h3>
+                  <table className="settings-table">
+                    <tbody>
+                      <tr><td>Status</td><td>{selectedAction.status}</td></tr>
+                      <tr><td>Reason</td><td>{selectedAction.policy_reason || '—'}</td></tr>
+                      <tr><td>Version</td><td className="mono">{selectedAction.policy_version || '—'}</td></tr>
+                      <tr><td>Payload hash</td><td className="mono">{shortValue(selectedAction.payload_hash, 16, 10)}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {selectedAction.status === 'pending_approval' ? (
+                  <div className="audit-actions">
+                    <button className="btn btn-primary" type="button" onClick={onApprove} disabled={actionBusy}>
+                      {actionBusy ? 'Working…' : 'Approve'}
+                    </button>
+                    <button className="btn btn-danger" type="button" onClick={onDeny} disabled={actionBusy}>
+                      {actionBusy ? 'Working…' : 'Deny'}
+                    </button>
+                  </div>
+                ) : null}
+
+                {selectedAction.grant ? (
+                  <div className="settings-card">
+                    <h3 className="settings-card-title">Execution grant</h3>
+                    <table className="settings-table">
+                      <tbody>
+                        <tr><td>Grant JTI</td><td className="mono">{selectedAction.grant.jti}</td></tr>
+                        <tr><td>Scope</td><td className="mono">{Array.isArray(selectedAction.grant.scope) ? selectedAction.grant.scope.join(', ') : '—'}</td></tr>
+                        <tr><td>Expires</td><td>{formatDate(selectedAction.grant.expires_at, 'datetime')}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+
+                {selectedAction.receipt ? (
+                  <div className="settings-card">
+                    <h3 className="settings-card-title">Execution receipt</h3>
+                    <table className="settings-table">
+                      <tbody>
+                        <tr><td>Outcome</td><td>{selectedAction.receipt.outcome}</td></tr>
+                        <tr><td>Provider ref</td><td className="mono">{selectedAction.receipt.provider_ref || '—'}</td></tr>
+                        <tr><td>Executed</td><td>{formatDate(selectedAction.receipt.executed_at, 'datetime')}</td></tr>
+                        <tr><td>Receipt hash</td><td className="mono">{shortValue(selectedAction.receipt.signed_packet_hash, 16, 10)}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+
+                {selectedAction.att_tid ? (
+                  <button className="btn btn-ghost btn-sm" type="button" onClick={() => onOpenAudit(selectedAction)}>
+                    View full audit trail
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
     </section>

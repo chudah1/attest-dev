@@ -12,12 +12,16 @@ import jwt
 import jwt.algorithms
 
 from attest.types import (
+    ActionRequest,
+    ActionRequestParams,
     ApprovalChallenge,
     ApprovalStatus,
     AuditChain,
     AuditEvent,
     DelegateParams,
     DelegatedToken,
+    ExecuteActionParams,
+    ExecutionReceipt,
     IssueParams,
     TaskListParams,
     TaskSummary,
@@ -472,6 +476,71 @@ class AttestClient:
         _raise_for_status(resp)
         return [TaskSummary.from_dict(item) for item in resp.json()]
 
+    def list_actions(self) -> list[ActionRequest]:
+        """List action requests for the authenticated organisation."""
+        resp = self._http.get("/v1/actions")
+        _raise_for_status(resp)
+        return [ActionRequest.from_dict(item) for item in resp.json()]
+
+    def request_action(self, params: ActionRequestParams) -> ActionRequest:
+        """Request policy evaluation and optional approval for a risky action."""
+        body = {
+            "action_type": params.action_type,
+            "target_system": params.target_system,
+            "target_object": params.target_object,
+            "action_payload": params.action_payload,
+            "agent_id": params.agent_id,
+            "sponsor_user_id": params.sponsor_user_id,
+        }
+        if params.display_payload is not None:
+            body["display_payload"] = params.display_payload
+        if params.att_tid is not None:
+            body["att_tid"] = params.att_tid
+        resp = self._http.post("/v1/actions/request", json=body)
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    def get_action(self, action_id: str) -> ActionRequest:
+        """Fetch the current state of an action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        resp = self._http.get(f"/v1/actions/{action_ref}")
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    def approve_action(self, action_id: str, id_token: str | None = None) -> ActionRequest:
+        """Approve a pending action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        body = {"id_token": id_token} if id_token is not None else {}
+        resp = self._http.post(f"/v1/actions/{action_ref}/approve", json=body)
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    def deny_action(self, action_id: str) -> ActionRequest:
+        """Deny a pending action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        resp = self._http.post(f"/v1/actions/{action_ref}/deny", json={})
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    def execute_action(self, action_id: str, params: ExecuteActionParams) -> ExecutionReceipt:
+        """Report execution of an approved action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        body = {"outcome": params.outcome}
+        if params.provider_ref is not None:
+            body["provider_ref"] = params.provider_ref
+        if params.response_payload is not None:
+            body["response_payload"] = params.response_payload
+        resp = self._http.post(f"/v1/actions/{action_ref}/execute", json=body)
+        _raise_for_status(resp)
+        return ExecutionReceipt.from_dict(resp.json())
+
+    def get_receipt(self, action_id: str) -> ExecutionReceipt:
+        """Fetch the immutable signed receipt for an executed action."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        resp = self._http.get(f"/v1/actions/{action_ref}/receipt")
+        _raise_for_status(resp)
+        return ExecutionReceipt.from_dict(resp.json())
+
     def verify_evidence_packet(
         self,
         packet: EvidencePacket | dict,
@@ -731,6 +800,71 @@ class AsyncAttestClient:
         resp = await self._http.get("/v1/tasks", params=query)
         _raise_for_status(resp)
         return [TaskSummary.from_dict(item) for item in resp.json()]
+
+    async def list_actions(self) -> list[ActionRequest]:
+        """List action requests for the authenticated organisation."""
+        resp = await self._http.get("/v1/actions")
+        _raise_for_status(resp)
+        return [ActionRequest.from_dict(item) for item in resp.json()]
+
+    async def request_action(self, params: ActionRequestParams) -> ActionRequest:
+        """Request policy evaluation and optional approval for a risky action."""
+        body = {
+            "action_type": params.action_type,
+            "target_system": params.target_system,
+            "target_object": params.target_object,
+            "action_payload": params.action_payload,
+            "agent_id": params.agent_id,
+            "sponsor_user_id": params.sponsor_user_id,
+        }
+        if params.display_payload is not None:
+            body["display_payload"] = params.display_payload
+        if params.att_tid is not None:
+            body["att_tid"] = params.att_tid
+        resp = await self._http.post("/v1/actions/request", json=body)
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    async def get_action(self, action_id: str) -> ActionRequest:
+        """Fetch the current state of an action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        resp = await self._http.get(f"/v1/actions/{action_ref}")
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    async def approve_action(self, action_id: str, id_token: str | None = None) -> ActionRequest:
+        """Approve a pending action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        body = {"id_token": id_token} if id_token is not None else {}
+        resp = await self._http.post(f"/v1/actions/{action_ref}/approve", json=body)
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    async def deny_action(self, action_id: str) -> ActionRequest:
+        """Deny a pending action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        resp = await self._http.post(f"/v1/actions/{action_ref}/deny", json={})
+        _raise_for_status(resp)
+        return ActionRequest.from_dict(resp.json())
+
+    async def execute_action(self, action_id: str, params: ExecuteActionParams) -> ExecutionReceipt:
+        """Report execution of an approved action request."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        body = {"outcome": params.outcome}
+        if params.provider_ref is not None:
+            body["provider_ref"] = params.provider_ref
+        if params.response_payload is not None:
+            body["response_payload"] = params.response_payload
+        resp = await self._http.post(f"/v1/actions/{action_ref}/execute", json=body)
+        _raise_for_status(resp)
+        return ExecutionReceipt.from_dict(resp.json())
+
+    async def get_receipt(self, action_id: str) -> ExecutionReceipt:
+        """Fetch the immutable signed receipt for an executed action."""
+        action_ref = urllib.parse.quote(action_id, safe="")
+        resp = await self._http.get(f"/v1/actions/{action_ref}/receipt")
+        _raise_for_status(resp)
+        return ExecutionReceipt.from_dict(resp.json())
 
     async def verify_evidence_packet(
         self,

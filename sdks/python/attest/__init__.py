@@ -32,12 +32,18 @@ from attest.client import (
 from attest.scope import is_subset, normalise_scope, parse_scope
 from attest.verifier import AttestVerifier
 from attest.types import (
+    ActionApprovalState,
+    ActionGrant,
+    ActionRequest,
+    ActionRequestParams,
     ApprovalChallenge,
     ApprovalStatus,
     AuditChain,
     AuditEvent,
     DelegateParams,
     DelegatedToken,
+    ExecuteActionParams,
+    ExecutionReceipt,
     IssueParams,
     TaskListParams,
     TaskSummary,
@@ -82,6 +88,10 @@ __all__ = [
     "AttestScopeError",
     "AttestVerifyError",
     # Types
+    "ActionApprovalState",
+    "ActionGrant",
+    "ActionRequest",
+    "ActionRequestParams",
     "ApprovalChallenge",
     "ApprovalStatus",
     "AttestClaims",
@@ -89,6 +99,8 @@ __all__ = [
     "EvidencePacket",
     "EvidencePacketVerifyResult",
     "DelegatedToken",
+    "ExecuteActionParams",
+    "ExecutionReceipt",
     "VerifyResult",
     "AuditChain",
     "AuditEvent",

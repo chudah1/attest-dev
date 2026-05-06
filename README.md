@@ -2,7 +2,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Attest is the control plane for delegated agent actions. It gives orchestrators and sub-agents signed, scope-limited credentials tied to the original human instruction, so every handoff stays narrow, every tool call can be checked, the whole task tree can be revoked in one operation, and the resulting evidence can be verified later.
+Attest controls and proves risky AI actions before they hit production systems. It gives agents signed, scope-limited credentials, routes high-risk mutations through policy and optional approval, issues short-lived execution grants, and leaves signed receipts that can be verified later.
 
 This repository also includes a standalone MCP server:
 
@@ -14,36 +14,48 @@ This repository also includes a standalone MCP server:
 ## Quickstart (TypeScript)
 
 ```ts
-import { AttestClient, isScopeSubset } from '@attest-dev/sdk';
+import { AttestClient } from '@attest-dev/sdk';
 
 const client = new AttestClient({ baseUrl: 'http://localhost:8080', apiKey: 'dev' });
 
-// 1. Issue a root credential for your orchestrator
-const { token: rootToken, claims: root } = await client.issue({
-  agent_id:    'orchestrator-v1',
-  user_id:     'usr_alice',
-  scope:       ['research:read', 'gmail:send'],
-  instruction: 'Research our top 3 competitors and email a summary to the board',
+// 1. Issue a root credential for your agent workflow
+const root = await client.issue({
+  agent_id: 'support-bot',
+  user_id: 'alice@acme.com',
+  scope: ['refund:execute', 'credit:execute'],
+  instruction: 'Review support incidents and safely process eligible refunds.',
 });
 
-// 2. Delegate a narrowed credential to a sub-agent
-const { token: childToken, claims: child } = await client.delegate({
-  parent_token: rootToken,
-  child_agent:  'email-agent-v1',
-  child_scope:  ['gmail:send'],        // subset of parent — enforced server-side
+// 2. Request a risky action before touching the target system
+const action = await client.requestAction({
+  action_type: 'refund',
+  target_system: 'stripe',
+  target_object: 'order_ORD-4821',
+  action_payload: {
+    amount_cents: 4799,
+    currency: 'USD',
+    reason: 'damaged_item',
+  },
+  agent_id: 'support-bot',
+  sponsor_user_id: 'alice@acme.com',
+  att_tid: root.claims.att_tid,
 });
 
-// 3. Verify offline (no network call after fetching JWKS once)
-const jwks   = await client.fetchJWKS('org_abc123');
-const result = await client.verify(childToken, jwks);
-console.log(result.valid, result.warnings);
+if (action.status !== 'approved' || !action.grant?.token) {
+  throw new Error(`refund needs approval: ${action.status}`);
+}
 
-// 4. Revoke the entire task tree in one call
-await client.revoke(root.jti);
+// 3. Execute with the short-lived grant, then record the receipt
+const receipt = await client.executeAction(action.id, {
+  outcome: 'success',
+  provider_ref: 're_abc123',
+  response_payload: { stripe_status: 'succeeded' },
+});
+console.log(receipt.signed_packet_hash);
 
-// 5. Retrieve the tamper-evident audit chain
-const chain = await client.audit(root.att_tid);
-chain.events.forEach(e => console.log(e.event_type, e.jti, e.created_at));
+// 4. Fetch the immutable receipt later
+const confirmed = await client.getReceipt(action.id);
+console.log(confirmed.outcome, confirmed.provider_ref);
 ```
 
 ---
@@ -59,8 +71,8 @@ Scopes follow the pattern `resource:action`. Either field may be `*` as a wildca
 | `*:read` | Read access to any resource |
 | `*:*` | Full access (root grants only) |
 
-Delegation enforces that the child scope is a **strict subset** of the parent scope.
-The utility `isScopeSubset(parentScope, childScope)` replicates this check client-side.
+Delegation still enforces that child scope is a **strict subset** of the parent scope.
+The Action API builds on top of that delegation substrate to gate risky writes.
 
 ---
 
@@ -109,6 +121,13 @@ DATABASE_URL=postgres://attest:attest@localhost:5432/attest go run ./cmd/attest
 | `POST` | `/v1/orgs` | Create an organization and get an API key |
 | `POST` | `/v1/credentials` | Issue a root credential |
 | `POST` | `/v1/credentials/delegate` | Delegate to a child agent |
+| `GET` | `/v1/actions` | List action requests |
+| `POST` | `/v1/actions/request` | Create an action request and run policy |
+| `GET` | `/v1/actions/{id}` | Fetch an action request |
+| `POST` | `/v1/actions/{id}/approve` | Approve a pending action |
+| `POST` | `/v1/actions/{id}/deny` | Deny a pending action |
+| `POST` | `/v1/actions/{id}/execute` | Record execution and mint a receipt |
+| `GET` | `/v1/actions/{id}/receipt` | Fetch the signed execution receipt |
 | `DELETE` | `/v1/credentials/{jti}` | Revoke credential and all descendants |
 | `GET` | `/v1/revoked/{jti}` | Check revocation status (public, no auth) |
 | `GET` | `/v1/tasks/{tid}/audit` | Retrieve the audit chain for a task |

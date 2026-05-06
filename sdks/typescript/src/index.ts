@@ -250,6 +250,102 @@ export interface TaskListParams {
   limit?: number;
 }
 
+export type ActionStatus =
+  | 'pending_policy'
+  | 'pending_approval'
+  | 'approved'
+  | 'denied'
+  | 'executed'
+  | 'failed';
+
+export type ActionRiskLevel = 'low' | 'medium' | 'high';
+
+export type ExecutionOutcome = 'success' | 'failure' | 'partial';
+
+export interface ActionApprovalState {
+  id: string;
+  status: string;
+  approved_by?: string;
+  created_at: string;
+  resolved_at?: string;
+}
+
+export interface ActionGrant {
+  jti: string;
+  token?: string;
+  scope: string[];
+  expires_at: string;
+}
+
+export interface ExecutionReceipt {
+  receipt_id: string;
+  action_request_id: string;
+  att_tid?: string;
+  action_family?: string;
+  action_type?: string;
+  target_system?: string;
+  target_object?: string;
+  sponsor_user_id?: string;
+  agent_id?: string;
+  grant_jti: string;
+  outcome: ExecutionOutcome;
+  provider_ref?: string;
+  response_payload?: Record<string, unknown>;
+  payload_hash: string;
+  policy_version?: string;
+  policy_reason?: string;
+  approved_by?: string;
+  executed_at: string;
+  signed_packet_hash: string;
+  signature_algorithm?: string;
+  signature_kid?: string;
+  packet_signature?: string;
+  approval?: ActionApprovalState;
+  display_payload?: Record<string, unknown>;
+}
+
+export interface ActionRequest {
+  id: string;
+  org_id?: string;
+  att_tid: string;
+  action_family: string;
+  action_type: string;
+  target_system: string;
+  target_object: string;
+  action_payload: Record<string, unknown>;
+  display_payload?: Record<string, unknown>;
+  payload_hash: string;
+  agent_id: string;
+  sponsor_user_id: string;
+  status: ActionStatus;
+  risk_level?: ActionRiskLevel;
+  policy_version?: string;
+  policy_reason?: string;
+  approval_id?: string;
+  grant_jti?: string;
+  created_at: string;
+  approval?: ActionApprovalState;
+  grant?: ActionGrant;
+  receipt?: ExecutionReceipt;
+}
+
+export interface ActionRequestParams {
+  action_type: string;
+  target_system: string;
+  target_object: string;
+  action_payload: Record<string, unknown>;
+  display_payload?: Record<string, unknown>;
+  agent_id: string;
+  sponsor_user_id: string;
+  att_tid?: string;
+}
+
+export interface ExecuteActionParams {
+  outcome: ExecutionOutcome;
+  provider_ref?: string;
+  response_payload?: Record<string, unknown>;
+}
+
 const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
 // ── AttestClient ─────────────────────────────────────────────────────────────
@@ -493,6 +589,84 @@ export class AttestClient {
     );
     if (!res.ok) await throwFromResponse(res);
     return res.json() as Promise<TaskSummary[]>;
+  }
+
+  /** List action requests for the authenticated organisation. */
+  async listActions(): Promise<ActionRequest[]> {
+    const res = await fetch(`${this.baseUrl}/v1/actions`, {
+      headers: this.headers,
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ActionRequest[]>;
+  }
+
+  /** Request approval and policy evaluation for a risky action. */
+  async requestAction(params: ActionRequestParams): Promise<ActionRequest> {
+    const res = await fetch(`${this.baseUrl}/v1/actions/request`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(params),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ActionRequest>;
+  }
+
+  /** Fetch the current state of an action request. */
+  async getAction(id: string): Promise<ActionRequest> {
+    const res = await fetch(`${this.baseUrl}/v1/actions/${encodeURIComponent(id)}`, {
+      headers: this.headers,
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ActionRequest>;
+  }
+
+  /** Approve a pending action request. */
+  async approveAction(id: string, idToken?: string): Promise<ActionRequest> {
+    const res = await fetch(`${this.baseUrl}/v1/actions/${encodeURIComponent(id)}/approve`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(idToken ? { id_token: idToken } : {}),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ActionRequest>;
+  }
+
+  /** Deny a pending action request. */
+  async denyAction(id: string): Promise<ActionRequest> {
+    const res = await fetch(`${this.baseUrl}/v1/actions/${encodeURIComponent(id)}/deny`, {
+      method: 'POST',
+      headers: this.headers,
+      body: '{}',
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ActionRequest>;
+  }
+
+  /** Report execution for an approved action request. */
+  async executeAction(id: string, params: ExecuteActionParams): Promise<ExecutionReceipt> {
+    const res = await fetch(`${this.baseUrl}/v1/actions/${encodeURIComponent(id)}/execute`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify(params),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ExecutionReceipt>;
+  }
+
+  /** Fetch the immutable signed receipt for an executed action. */
+  async getReceipt(id: string): Promise<ExecutionReceipt> {
+    const res = await fetch(`${this.baseUrl}/v1/actions/${encodeURIComponent(id)}/receipt`, {
+      headers: this.headers,
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) await throwFromResponse(res);
+    return res.json() as Promise<ExecutionReceipt>;
   }
 }
 

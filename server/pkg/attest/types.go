@@ -221,3 +221,98 @@ type EvidenceSummary struct {
 	Approvals       int    `json:"approvals"`
 	Revocations     int    `json:"revocations"`
 }
+
+type ActionStatus string
+
+const (
+	ActionStatusPendingPolicy   ActionStatus = "pending_policy"
+	ActionStatusPendingApproval ActionStatus = "pending_approval"
+	ActionStatusApproved        ActionStatus = "approved"
+	ActionStatusDenied          ActionStatus = "denied"
+	ActionStatusExecuted        ActionStatus = "executed"
+	ActionStatusFailed          ActionStatus = "failed"
+)
+
+type RiskLevel string
+
+const (
+	RiskLow    RiskLevel = "low"
+	RiskMedium RiskLevel = "medium"
+	RiskHigh   RiskLevel = "high"
+)
+
+type ExecutionOutcome string
+
+const (
+	ExecutionOutcomeSuccess ExecutionOutcome = "success"
+	ExecutionOutcomeFailure ExecutionOutcome = "failure"
+	ExecutionOutcomePartial ExecutionOutcome = "partial"
+)
+
+type ActionRequest struct {
+	ID             string               `json:"id"`
+	OrgID          string               `json:"org_id,omitempty"`
+	TaskID         string               `json:"att_tid"`
+	ActionFamily   string               `json:"action_family"`
+	ActionType     string               `json:"action_type"`
+	TargetSystem   string               `json:"target_system"`
+	TargetObject   string               `json:"target_object"`
+	ActionPayload  map[string]any       `json:"action_payload"`
+	DisplayPayload map[string]any       `json:"display_payload,omitempty"`
+	PayloadHash    string               `json:"payload_hash"`
+	AgentID        string               `json:"agent_id"`
+	SponsorUserID  string               `json:"sponsor_user_id"`
+	Status         ActionStatus         `json:"status"`
+	RiskLevel      RiskLevel            `json:"risk_level,omitempty"`
+	PolicyVersion  string               `json:"policy_version,omitempty"`
+	PolicyReason   string               `json:"policy_reason,omitempty"`
+	ApprovalID     *string              `json:"approval_id,omitempty"`
+	GrantJTI       *string              `json:"grant_jti,omitempty"`
+	CreatedAt      time.Time            `json:"created_at"`
+	Approval       *ActionApprovalState `json:"approval,omitempty"`
+	Grant          *ExecutionGrant      `json:"grant,omitempty"`
+	Receipt        *ExecutionReceipt    `json:"receipt,omitempty"`
+}
+
+type ActionApprovalState struct {
+	ID         string     `json:"id"`
+	Status     string     `json:"status"`
+	ApprovedBy *string    `json:"approved_by,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
+}
+
+type ExecutionGrant struct {
+	JTI       string    `json:"jti"`
+	Token     string    `json:"token,omitempty"`
+	Scope     []string  `json:"scope"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type ExecutionReceipt struct {
+	ID                 string               `json:"receipt_id"`
+	OrgID              string               `json:"org_id,omitempty"`
+	ActionRequestID    string               `json:"action_request_id"`
+	TaskID             string               `json:"att_tid"`
+	ActionFamily       string               `json:"action_family"`
+	ActionType         string               `json:"action_type"`
+	TargetSystem       string               `json:"target_system"`
+	TargetObject       string               `json:"target_object"`
+	SponsorUserID      string               `json:"sponsor_user_id"`
+	AgentID            string               `json:"agent_id"`
+	GrantJTI           string               `json:"grant_jti"`
+	Outcome            ExecutionOutcome     `json:"outcome"`
+	ProviderRef        *string              `json:"provider_ref,omitempty"`
+	ResponsePayload    map[string]any       `json:"response_payload,omitempty"`
+	PayloadHash        string               `json:"payload_hash"`
+	PolicyVersion      string               `json:"policy_version"`
+	PolicyReason       string               `json:"policy_reason"`
+	ApprovedBy         *string              `json:"approved_by,omitempty"`
+	ExecutedAt         time.Time            `json:"executed_at"`
+	SignedPacketHash   string               `json:"signed_packet_hash"`
+	SignatureAlgorithm string               `json:"signature_algorithm,omitempty"`
+	SignatureKID       string               `json:"signature_kid,omitempty"`
+	PacketSignature    string               `json:"packet_signature,omitempty"`
+	Approval           *ActionApprovalState `json:"approval,omitempty"`
+	DisplayPayload     map[string]any       `json:"display_payload,omitempty"`
+}
